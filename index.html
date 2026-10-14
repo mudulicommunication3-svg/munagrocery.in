@@ -2364,6 +2364,13 @@
         try {
           var res = await fetch(sheetHookUrl('action=GET_SEARCH&request_id=' + encodeURIComponent(rid) + '&_=' + Date.now()));
           var data = await res.json();
+          // Old Apps Script (not redeployed yet) has no GET_SEARCH and
+          // answers with the catalog ARRAY -> bail out immediately instead
+          // of burning the whole 40s budget.
+          if (Array.isArray(data)) {
+            lastBackendError = 'Apps Script ପୁରୁଣା ଅଛି — GET_SEARCH/PUT_SEARCH ନାହିଁ, ଥରେ redeploy କରନ୍ତୁ';
+            return null;
+          }
           if (data && data.status === 'done' && Array.isArray(data.items) && data.items.length) {
             return data.items.filter(function (it) { return it && it.url && it.sellable !== false; });
           }
