@@ -1,0 +1,2539 @@
+<!DOCTYPE html>
+<html lang="or">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ - MUNNA MOBILE & GROCERY</title>
+
+<!-- Telegram WebApp SDK -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<!-- Tailwind CSS & Phosphor Icons -->
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+
+<!-- Leaflet.js for 3 KM Delivery Zone Map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Oriya:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Noto Sans Oriya', 'Plus Jakarta Sans', system-ui, sans-serif; background: #f1f3f6; color: #111; touch-action: pan-y; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Host badge hide (any deploy badge) */
+  [class*="deploy-badge"], div[style*="z-index: 10000"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 5-Slide Carousel Styling */
+  .carousel-slides { display: flex; transition: transform 0.4s ease-in-out; }
+  .carousel-slide { min-width: 100%; height: 140px; position: relative; }
+  .carousel-slide img { width: 100%; height: 100%; object-fit: cover; }
+  .dot.active { background: #fff; width: 16px; border-radius: 4px; }
+
+  /* Stepper styling for Live Order Tracking */
+  .stepper { position: relative; padding-left: 24px; }
+  .stepper-line { position: absolute; left: 7px; top: 10px; bottom: 10px; width: 2px; background: #e2e8f0; }
+  .step-item { position: relative; margin-bottom: 14px; }
+  .step-dot { position: absolute; left: -24px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #cbd5e1; border: 2px solid #fff; }
+  .step-item.done .step-dot { background: #16a34a; }
+  .step-item.active .step-dot { background: #1864ab; box-shadow: 0 0 0 3px rgba(24,100,171,0.25); }
+</style>
+</head>
+<body class="pb-32 antialiased">
+
+  <!-- ================= TOP HEADER ================= -->
+  <header class="bg-[#1864ab] text-white px-4 pt-3 pb-3 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-md mx-auto flex items-center justify-between gap-2">
+      <!-- Click Brand -> Go Home -->
+      <div onclick="showScreen('home')" class="flex items-center gap-2 cursor-pointer select-none">
+        <div class="w-10 h-10 rounded-xl bg-[#ffd43b] text-slate-950 font-black text-2xl flex items-center justify-center shadow-xs">
+          M
+        </div>
+        <div>
+          <h1 id="lblStoreName" class="font-extrabold text-sm leading-tight">ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ</h1>
+          <p id="lblStoreSub" class="text-[10px] text-blue-100 flex items-center gap-1 font-medium">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>ମୋବାଇଲ୍ • ଆକ୍ସେସୋରିଜ୍ • ସଉଦା</span>
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button onclick="toggleLang()" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold flex items-center gap-1">
+          <i class="ph-bold ph-translate"></i>
+          <span id="langBtnText">English</span>
+        </button>
+        <button onclick="openAdminModal()" class="px-2.5 py-1 rounded-lg bg-[#ffd43b] text-slate-950 text-xs font-black flex items-center gap-1 shadow-xs hover:bg-yellow-400">
+          <i class="ph-bold ph-lock-key"></i>
+          <span>Admin</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Store Address & 3KM Delivery Zone Strip -->
+    <div class="max-w-md mx-auto mt-2 bg-black/20 rounded-lg px-2.5 py-1 flex items-center justify-between text-[10px] font-semibold text-blue-100">
+      <span class="flex items-center gap-1"><i class="ph-bold ph-map-pin text-yellow-300"></i> Cinema Hall Road, Niali, 754004</span>
+      <span class="text-yellow-300 font-extrabold flex items-center gap-0.5"><i class="ph-fill ph-lightning"></i> 3 KM Zone</span>
+    </div>
+
+    <!-- Live Search Input -->
+    <div class="max-w-md mx-auto mt-2">
+      <div class="relative">
+        <i class="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="ମୋବାଇଲ୍, ଚାର୍ଜର କିମ୍ବା ଗ୍ରୋସରୀ ସନ୍ଧାନ କରନ୍ତୁ..."
+          oninput="handleSearch(this.value)"
+          class="w-full pl-9 pr-9 py-2 bg-white text-slate-800 text-xs rounded-xl shadow-xs border border-transparent focus:border-yellow-400 outline-none placeholder:text-slate-400 font-medium"
+        >
+        <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <i class="ph-bold ph-x-circle text-base"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= 5-SLIDE DYNAMIC CAROUSEL ================= -->
+  <section class="max-w-md mx-auto px-3.5 mt-3">
+    <div class="relative rounded-2xl overflow-hidden shadow-sm bg-slate-200 h-[140px]" id="carouselWrapper">
+      <div class="carousel-slides" id="carouselSlides"></div>
+      <div class="absolute bottom-2 right-3 flex gap-1.5 z-10" id="carouselDots"></div>
+    </div>
+  </section>
+
+  <!-- ================= TRENDING OFFERS (admin-set, Sheet-shared) ================= -->
+  <section id="trendingSection" class="hidden max-w-md mx-auto px-3.5 mt-3">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-xs font-extrabold text-slate-800 flex items-center gap-1">
+        <i class="ph-fill ph-fire text-rose-500"></i>
+        <span>🔥 Trending Offers (ଟ୍ରେଣ୍ଡିଂ ଅଫର୍)</span>
+      </h3>
+      <span id="trendingCount" class="text-[11px] font-semibold text-slate-500"></span>
+    </div>
+    <div id="trendingRow" class="flex gap-2.5 overflow-x-auto no-scrollbar pb-1"></div>
+  </section>
+
+  <!-- ================= CATEGORY PILLS ================= -->
+  <section class="max-w-md mx-auto px-3.5 mt-3">
+    <div id="catsPillContainer" class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1"></div>
+  </section>
+
+  <!-- ================= PRODUCT GRID ================= -->
+  <main class="max-w-md mx-auto px-3.5 mt-3">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-xs font-extrabold text-slate-800 flex items-center gap-1">
+        <i class="ph-fill ph-fire text-rose-500"></i>
+        <span id="lblSectionTitle">ଲୋକପ୍ରିୟ ସାମଗ୍ରୀ (BEST OFFERS & DEALS)</span>
+      </h3>
+      <span id="productCountBadge" class="text-[11px] font-semibold text-slate-500">0 ଟି ସାମଗ୍ରୀ</span>
+    </div>
+    <div id="grid" class="grid grid-cols-2 gap-2.5"></div>
+    <div id="emptyView" class="hidden py-12 text-center">
+      <i class="ph-bold ph-magnifying-glass text-4xl text-slate-300 mx-auto mb-2"></i>
+      <h4 class="font-bold text-slate-700 text-sm">କୌଣସି ସାମଗ୍ରୀ ମିଳିଲା ନାହିଁ</h4>
+      <p class="text-xs text-slate-400 mt-1">ଅନ୍ୟ କିଛି ଶବ୍ଦ ଖୋଜନ୍ତୁ।</p>
+    </div>
+  </main>
+
+  <!-- ================= FLOATING CART BAR ================= -->
+  <div id="floatingCartBar" class="fixed bottom-[58px] left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-xl">
+    <div class="max-w-md mx-auto px-4 py-2 flex items-center justify-between">
+      <div onclick="openCartDrawer()" class="cursor-pointer flex items-center gap-2.5">
+        <div class="relative w-9 h-9 rounded-xl bg-[#1864ab] text-white flex items-center justify-center">
+          <i class="ph-bold ph-shopping-bag text-lg"></i>
+          <span id="floatingCartBadge" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#f59f00] text-slate-950 text-[10px] font-black flex items-center justify-center border-2 border-white">0</span>
+        </div>
+        <div>
+          <span class="text-[10px] text-slate-400 font-bold block leading-none">ମୋଟ ମୂଲ୍ୟ</span>
+          <span id="floatingCartTotal" class="text-sm font-black text-slate-900 mt-0.5">Rs.0</span>
+        </div>
+      </div>
+      <button onclick="openCartDrawer()" class="px-4 py-2 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs shadow-md shadow-blue-600/30 active:scale-95 transition-all flex items-center gap-1.5">
+        <span>କାର୍ଟ ଦେଖନ୍ତୁ / Checkout</span>
+        <i class="ph-bold ph-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= FLIPKART STYLE BOTTOM NAV ================= -->
+  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-2xl">
+    <div class="max-w-md mx-auto grid grid-cols-5 text-[9px] font-bold text-slate-500">
+      <button onclick="showScreen('home')" data-nav="home" class="nav-btn flex flex-col items-center py-2 gap-0.5 text-[#1864ab]">
+        <i class="ph-bold ph-house text-lg"></i><span>Home</span>
+      </button>
+      <button onclick="showScreen('orders')" data-nav="orders" class="nav-btn flex flex-col items-center py-2 gap-0.5">
+        <i class="ph-bold ph-receipt text-lg"></i><span>Orders</span>
+      </button>
+      <button onclick="openCartDrawer()" data-nav="cart" class="nav-btn flex flex-col items-center py-2 gap-0.5 relative">
+        <i class="ph-bold ph-shopping-cart text-lg"></i><span>Cart</span>
+        <span id="navCartBadge" class="hidden absolute top-0.5 right-4 min-w-4 h-4 px-1 rounded-full bg-rose-600 text-white text-[8px] flex items-center justify-center">0</span>
+      </button>
+      <button onclick="showScreen('address')" data-nav="address" class="nav-btn flex flex-col items-center py-2 gap-0.5">
+        <i class="ph-bold ph-map-pin text-lg"></i><span>Address</span>
+      </button>
+      <button onclick="showScreen('profile')" data-nav="profile" class="nav-btn flex flex-col items-center py-2 gap-0.5">
+        <i class="ph-bold ph-user-circle text-lg"></i><span>Profile</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= CART & CHECKOUT DRAWER (WITH 3KM LEAFLET MAP) ================= -->
+  <div id="cartDrawerBackdrop" onclick="closeCartDrawer()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 hidden opacity-0 transition-opacity duration-300"></div>
+  <div id="cartDrawer" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl shadow-2xl z-50 transform translate-y-full transition-transform duration-300 ease-out flex flex-col max-h-[90vh]">
+    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
+        <i class="ph-bold ph-shopping-cart text-[#1864ab]"></i>
+        <span>ଆପଣଙ୍କ କାର୍ଟ (Your Cart)</span>
+      </h3>
+      <button onclick="closeCartDrawer()" class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+        <i class="ph-bold ph-x text-sm"></i>
+      </button>
+    </div>
+
+    <div id="cartItemsContainer" class="p-4 overflow-y-auto space-y-2.5 flex-1 no-scrollbar"></div>
+
+    <div id="cartFooterView" class="p-4 bg-slate-50 border-t border-slate-100">
+      <div class="space-y-1 text-xs font-semibold text-slate-600 pb-2 border-b border-slate-200">
+        <div class="flex justify-between">
+          <span>ସର୍ବମୋଟ ସାମଗ୍ରୀ (Subtotal):</span>
+          <span id="summarySubtotal">Rs.0</span>
+        </div>
+        <div class="flex justify-between text-emerald-700" id="summaryDeliveryRow">
+          <span>🚚 ଡେଲିଭରୀ ଚାର୍ଜ:</span>
+          <span id="summaryDelivery">Rs.0</span>
+        </div>
+        <div class="flex justify-between text-rose-600 hidden" id="summaryDiscountRow">
+          <span>🎟️ କୁପନ୍ ଛାଡ଼:</span>
+          <span id="summaryDiscount">-Rs.0</span>
+        </div>
+        <div class="flex justify-between pt-1 border-t border-slate-200">
+          <span>ସର୍ବମୋଟ (Total):</span>
+          <span id="summaryTotal" class="text-sm font-extrabold text-[#1864ab]">Rs.0</span>
+        </div>
+      </div>
+
+      <!-- Coupon + delivery address quick row (billing page essentials) -->
+      <div class="flex gap-1.5 mt-2.5">
+        <input id="couponInput" type="text" placeholder="🎟️ Coupon Code (ଯେପରି MUNNA10)" class="flex-1 text-[11px] px-2.5 py-1.5 border border-slate-200 rounded-lg uppercase outline-none focus:border-amber-400">
+        <button onclick="applyCoupon()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-lg">Apply</button>
+      </div>
+      <div class="flex items-center justify-between mt-2 text-[11px] bg-slate-100 rounded-lg px-2.5 py-1.5">
+        <span class="flex items-center gap-1 font-bold text-slate-600 min-w-0">
+          <i class="ph-bold ph-map-pin shrink-0"></i>
+          <span id="cartAddrText" class="line-clamp-1">📍 ଡେଲିଭରୀ ଠିକଣା ଯୋଡ଼ନ୍ତୁ</span>
+        </span>
+        <button onclick="closeCartDrawer(); showScreen('address');" class="text-[#1864ab] font-bold shrink-0 ml-2">➕ Add / Change</button>
+      </div>
+
+      <!-- Step 1: Cart Summary View -->
+      <div id="stepCart">
+        <button onclick="goCheckoutAddress()" class="mt-3 w-full py-2.5 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs shadow-md shadow-blue-600/30 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+          <span>Checkout କରନ୍ତୁ (Proceed)</span>
+          <i class="ph-bold ph-arrow-right"></i>
+        </button>
+      </div>
+
+      <!-- Step 2: Address & 3 KM Map Selection -->
+      <div id="stepAddress" class="hidden">
+        <div class="flex items-center justify-between mt-2 mb-1.5">
+          <span class="text-xs font-black text-slate-700">📍 ଡେଲିଭରୀ ଲୋକେସନ୍ (୩ କି.ମି. ଭିତରେ)</span>
+          <button onclick="locateUserGPS()" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1">
+            <i class="ph-bold ph-crosshair"></i> GPS Auto-Locate
+          </button>
+        </div>
+
+        <!-- Interactive Map Container -->
+        <div id="checkoutDeliveryMap" class="w-full h-36 rounded-xl border border-slate-200 my-1.5 z-10"></div>
+        <div id="mapStatusPill" class="text-[10px] font-bold p-1.5 rounded-lg mb-2 text-center bg-emerald-50 text-emerald-800 border border-emerald-200">
+          ମ୍ୟାପ୍ ଯାଞ୍ଚ ହେଉଛି...
+        </div>
+
+        <div id="savedAddressPick" class="space-y-1.5 mb-2"></div>
+        <div class="space-y-2">
+          <input type="text" id="orderCustName" placeholder="ଆପଣଙ୍କ ନାମ (Name)" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white outline-none">
+          <input type="tel" id="orderCustPhone" placeholder="ଫୋନ୍ ନମ୍ବର (Phone)" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white outline-none">
+          <textarea id="orderCustAddress" rows="2" placeholder="ଘର ଠିକଣା / Landmark" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white outline-none"></textarea>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button onclick="backToCart()" class="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Back</button>
+          <button id="btnProceedToPayment" onclick="goCheckoutPayment()" class="flex-1 py-2.5 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs">Payment କରନ୍ତୁ</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Payment Selection -->
+      <div id="stepPayment" class="hidden">
+        <span class="text-xs font-black text-slate-700 block mt-2 mb-1.5">💳 ପେମେଣ୍ଟ ମାଧ୍ୟମ (Payment)</span>
+        <div class="space-y-1.5">
+          <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer">
+            <input type="radio" name="payMethod" value="COD" checked class="accent-emerald-600">
+            <i class="ph-bold ph-truck text-emerald-600"></i>
+            <div><span class="text-xs font-bold block">Cash on Delivery</span><span class="text-[10px] text-slate-500">ପହଞ୍ଚିଲେ ଟଙ୍କା ଦିଅନ୍ତୁ</span></div>
+          </label>
+          <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer">
+            <input type="radio" name="payMethod" value="UPI" class="accent-emerald-600">
+            <i class="ph-bold ph-currency-inr text-[#1864ab]"></i>
+            <div><span class="text-xs font-bold block">UPI (pay on delivery)</span><span class="text-[10px] text-slate-500">UPI ଦ୍ୱାରା ପୈଠ</span></div>
+          </label>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button onclick="backToAddress()" class="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Back</button>
+          <button onclick="placeMiniOrder()" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-paper-plane-tilt"></i><span>Order ନିଶ୍ଚିତ କରନ୍ତୁ</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 4: Success View -->
+      <div id="stepSuccess" class="hidden text-center py-2">
+        <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
+          <i class="ph-bold ph-check-circle text-2xl"></i>
+        </div>
+        <h4 class="font-black text-slate-800 text-sm">ଅର୍ଡର ସଫଳ ହେଲା!</h4>
+        <p class="text-xs text-slate-500 mt-0.5">Order ID: <span id="successOrderId" class="font-bold text-[#1864ab]"></span></p>
+        <p class="text-xs text-slate-600 mt-1 font-bold">ଦେବାକୁ ଥିବା ଟଙ୍କା: <span id="successOrderPay" class="font-black text-emerald-700">Rs.0</span></p>
+        <div class="flex gap-2 mt-3">
+          <button onclick="closeCartDrawer(); showScreen('orders')" class="flex-1 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Track Order</button>
+          <button onclick="closeCartDrawer(); showScreen('home')" class="flex-1 py-2.5 rounded-xl bg-[#1864ab] text-white font-bold text-xs">Continue Shopping</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ORDERS SCREEN (WITH 5-STAGE STEPPER) ================= -->
+  <div id="ordersScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
+    <div class="sticky top-0 bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2">
+      <button onclick="closeScreen('orders')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
+      <h3 class="font-extrabold text-sm">My Orders & Live Tracking</h3>
+    </div>
+    <div class="p-3 max-w-md mx-auto pb-28 space-y-3">
+      <div class="bg-white p-3 rounded-2xl border border-slate-200 flex gap-2">
+        <input type="tel" id="trackOrderPhoneInput" placeholder="10-digit mobile number" class="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 outline-none">
+        <button onclick="renderOrders()" class="px-3 py-1.5 bg-[#1864ab] text-white text-xs font-bold rounded-lg">ଖୋଜନ୍ତୁ</button>
+      </div>
+      <div id="ordersList" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- ================= ADDRESS SCREEN ================= -->
+  <div id="addressScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
+    <div class="sticky top-0 bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2">
+      <button onclick="closeScreen('address')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
+      <h3 class="font-extrabold text-sm">My Addresses (ମୋ ଠିକଣା)</h3>
+      <button onclick="openAddressForm()" class="ml-auto px-3 py-1.5 rounded-lg bg-[#ffd43b] text-slate-900 text-xs font-black">+ Add</button>
+    </div>
+    <div class="p-3 max-w-md mx-auto pb-28">
+      <div id="addressForm" class="hidden bg-white p-3 rounded-2xl border border-slate-200 mb-3 space-y-2">
+        <input type="hidden" id="addrEditId">
+        <input type="text" id="addrName" placeholder="Name (ନାମ)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200">
+        <input type="tel" id="addrPhone" placeholder="Phone (ଫୋନ୍)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200">
+        <textarea id="addrText" rows="2" placeholder="Full address (ସମ୍ପୂର୍ଣ୍ଣ ଠିକଣା)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200"></textarea>
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-600"><input type="checkbox" id="addrDefault" class="accent-[#1864ab]"> Default (ମୁଖ୍ୟ)</label>
+        <div class="flex gap-2">
+          <button onclick="closeAddressForm()" class="px-4 py-2 rounded-lg bg-slate-200 text-xs font-bold">Cancel</button>
+          <button onclick="saveAddressForm()" class="flex-1 py-2 rounded-lg bg-[#1864ab] text-white text-xs font-black">Save</button>
+        </div>
+      </div>
+      <div id="addressList" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- ================= PROFILE SCREEN ================= -->
+  <div id="profileScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
+    <div class="sticky top-0 bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2">
+      <button onclick="closeScreen('profile')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
+      <h3 class="font-extrabold text-sm">Profile (ପ୍ରୋଫାଇଲ୍)</h3>
+    </div>
+    <div class="p-3 max-w-md mx-auto pb-28 space-y-3">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-3">
+        <div id="profAvatar" class="w-14 h-14 rounded-full bg-[#ffd43b] text-slate-900 font-black text-2xl flex items-center justify-center">M</div>
+        <div>
+          <h4 id="profName" class="font-black text-slate-800">Customer</h4>
+          <p id="profPhone" class="text-xs text-slate-500"></p>
+          <p id="profId" class="text-[10px] text-slate-400"></p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+        <button onclick="showScreen('orders')" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-receipt text-[#1864ab] text-lg"></i> My Orders (ମୋ ଅର୍ଡର)</button>
+        <button onclick="showScreen('address')" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-map-pin text-[#1864ab] text-lg"></i> Saved Addresses (ଠିକଣା)</button>
+        <button onclick="openAdminModal()" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-shield-check text-[#1864ab] text-lg"></i> Admin Panel (ଆଡମିନ୍)</button>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5 text-[11px] text-slate-500 space-y-1">
+        <div class="flex justify-between"><span>Total Orders</span><span id="profOrderCount" class="font-black text-slate-800">0</span></div>
+        <div class="flex justify-between"><span>Saved Addresses</span><span id="profAddrCount" class="font-black text-slate-800">0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ADMIN PIN MODAL ================= -->
+  <div id="adminPinModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-xs rounded-2xl p-5 shadow-2xl text-center">
+      <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-2">
+        <i class="ph-bold ph-lock-key text-xl"></i>
+      </div>
+      <h3 class="font-extrabold text-slate-900 text-sm">ଦୋକାନ ଆଡମିନ୍ ପିନ୍</h3>
+      <p class="text-[11px] text-slate-500 mt-0.5">PIN ପ୍ରବେଶ କରନ୍ତୁ (Default: 1234)</p>
+      <input type="password" id="adminPinInput" maxlength="6" placeholder="PIN" class="my-3 text-center tracking-widest text-base font-bold w-28 mx-auto py-1 border-b-2 border-amber-500 outline-none">
+      <div class="flex items-center gap-2">
+        <button onclick="closeAdminPinModal()" class="w-1/2 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">ବାତିଲ୍</button>
+        <button onclick="verifyAdminPin()" class="w-1/2 py-2 rounded-xl bg-[#1864ab] text-white text-xs font-extrabold">ଲଗଇନ୍</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FULL ADMIN DASHBOARD ================= -->
+  <div id="adminDashboard" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 hidden overflow-y-auto">
+    <div class="min-h-full max-w-md mx-auto bg-slate-50 border-x border-slate-200 flex flex-col pb-10">
+      <div class="bg-[#1864ab] text-white px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow-md">
+        <div class="flex items-center gap-2">
+          <i class="ph-bold ph-gear text-amber-400"></i>
+          <span class="font-bold text-xs">MUNNA Store Admin Panel</span>
+        </div>
+        <button onclick="closeAdminDashboard()" class="w-6 h-6 rounded bg-blue-900 text-white flex items-center justify-center">
+          <i class="ph-bold ph-x text-xs"></i>
+        </button>
+      </div>
+
+      <!-- Admin Top Nav Tabs -->
+      <div class="flex bg-white border-b border-slate-200 text-xs font-bold text-slate-600 sticky top-12 z-20">
+        <button onclick="switchAdminTab('orders')" id="admTabBtn-orders" class="flex-1 py-2.5 text-center border-b-2 border-[#1864ab] text-[#1864ab]">📦 Orders</button>
+        <button onclick="switchAdminTab('stock')" id="admTabBtn-stock" class="flex-1 py-2.5 text-center border-b-2 border-transparent">🏷️ Catalog</button>
+        <button onclick="switchAdminTab('banners')" id="admTabBtn-banners" class="flex-1 py-2.5 text-center border-b-2 border-transparent">📢 Banners</button>
+        <button onclick="switchAdminTab('sync')" id="admTabBtn-sync" class="flex-1 py-2.5 text-center border-b-2 border-transparent">⚙️ Sheets</button>
+        <button onclick="switchAdminTab('settings')" id="admTabBtn-settings" class="flex-1 py-2.5 text-center border-b-2 border-transparent">🛒 Shop</button>
+      </div>
+
+      <!-- MASTER SAVE BAR — pushes EVERYTHING (trending + banners + settings) to the shared Google Sheet -->
+      <div class="bg-amber-50 border-b border-amber-200 px-3.5 py-2 flex items-center justify-between sticky top-[84px] z-20">
+        <span class="text-[10px] font-black text-amber-800 leading-tight">📤 ପରିବର୍ତ୍ତନ ଶେଷରେ ସେଭ୍ କରନ୍ତୁ</span>
+        <button onclick="saveAllToSheet()" id="saveAllBtn" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black rounded-lg flex items-center gap-1 shadow-xs">
+          <i class="ph-bold ph-floppy-disk"></i> 💾 Save All to Sheet
+        </button>
+      </div>
+
+      <div class="p-3.5 space-y-3 flex-1">
+        <!-- Tab 1: Orders (5-Stage Fulfillment & Live Item Editing) -->
+        <div id="admTab-orders" class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-black text-slate-700">📦 Customer Orders (5-Stage Dispatch)</h4>
+            <button onclick="renderAdminOrders()" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1">
+              <i class="ph-bold ph-arrows-clockwise"></i> Refresh
+            </button>
+          </div>
+          <div id="adminOrdersContainer" class="space-y-3"></div>
+        </div>
+
+        <!-- Tab 2: Catalog Manager (Smart Search & Edit) -->
+        <div id="admTab-stock" class="hidden space-y-3">
+          <!-- 📊 Stock Health Engine: auto low-stock / out-of-stock report -->
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-black text-slate-700">📊 Stock Health (Auto Engine)</h4>
+              <button onclick="renderStockHealth(); renderAdminList();" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1"><i class="ph-bold ph-arrows-clockwise"></i> Refresh</button>
+            </div>
+            <div id="stockHealthChips" class="flex gap-2 text-[10px] font-bold flex-wrap"></div>
+            <div id="stockHealthList" class="mt-2 space-y-1 max-h-44 overflow-y-auto no-scrollbar"></div>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs" id="adminFormCard">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-black uppercase text-slate-700 flex items-center gap-1" id="formHeaderTitle">
+                <i class="ph-bold ph-plus-circle text-emerald-600"></i> 
+                <span>+ Add / Smart Search Product</span>
+              </h4>
+              <button onclick="resetAdminForm()" id="cancelEditBtn" class="hidden text-[10px] bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded-md font-bold">
+                Cancel Edit
+              </button>
+            </div>
+
+            <div class="bg-blue-50/70 border border-blue-200 p-2.5 rounded-xl mb-3 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-extrabold text-blue-900 flex items-center gap-1">
+                  <i class="ph-bold ph-magnifying-glass text-[#1864ab]"></i> Search Source
+                </span>
+                <div class="flex items-center bg-white p-0.5 rounded-lg border border-blue-300 text-[10px] font-bold">
+                  <button type="button" id="toggleJioBtn" onclick="setSearchSource('jiomart')" class="px-2 py-0.5 rounded-md bg-[#1864ab] text-white">JioMart</button>
+                  <button type="button" id="toggleWebBtn" onclick="setSearchSource('web')" class="px-2 py-0.5 rounded-md text-slate-600">Other API</button>
+                </div>
+              </div>
+              <div id="pincodeWrapper" class="flex items-center gap-1.5 pt-1 border-t border-blue-200/60">
+                <span class="text-[10px] font-bold text-blue-800 shrink-0">Pincode:</span>
+                <input type="number" id="searchPincode" value="752106" class="w-24 text-xs px-2 py-1 bg-white border border-blue-300 rounded-md outline-none font-bold text-[#1864ab]">
+                <span class="text-[9px] text-slate-500">(Niali 752106)</span>
+              </div>
+            </div>
+
+            <form onsubmit="handleAdminFormSubmit(event)" class="space-y-2.5">
+              <input type="hidden" id="editEan" value="">
+              <input type="hidden" id="editRowIndex" value="">
+
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">Product Name</label>
+                <div class="flex gap-1 mt-0.5">
+                  <input type="text" id="newProdName" required placeholder="e.g. Fortune Oil, Atta" class="w-full text-xs px-2.5 py-2 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                  <button type="button" onclick="triggerLiveSearch()" id="smartSearchBtn" class="px-3 py-1.5 bg-[#1864ab] hover:bg-blue-800 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                    <i class="ph-bold ph-magnifying-glass"></i> Search
+                  </button>
+                </div>
+              </div>
+
+              <div id="imageDropdownContainer" class="hidden bg-slate-50 border-2 border-dashed border-blue-300 rounded-2xl p-3 my-2 transition-all">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <span class="text-xs font-extrabold text-[#1864ab] flex items-center gap-1" id="resultsHeaderTitle">JioMart Results:</span>
+                  <button type="button" onclick="closeImageDropdown()" class="text-slate-400 hover:text-rose-500"><i class="ph-bold ph-x-circle text-base"></i></button>
+                </div>
+                <div id="imageGridResults" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 max-h-60 overflow-y-auto pr-1"></div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[11px] font-bold text-slate-700">MRP</label>
+                  <input type="number" id="newProdMRP" required placeholder="0" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                </div>
+                <div>
+                  <label class="text-[11px] font-bold text-slate-700">Selling Price</label>
+                  <input type="number" id="newProdSP" required placeholder="0" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[11px] font-bold text-slate-700">Stock Qty</label>
+                  <input type="number" id="newProdStock" required placeholder="10" value="10" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                </div>
+                <div>
+                  <label class="text-[11px] font-bold text-slate-700">Category</label>
+                  <input type="text" id="newProdCat" required placeholder="Grocery, Oil..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                </div>
+              </div>
+
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">Image URL</label>
+                <input type="url" id="newProdImg" oninput="updateImagePreview(this.value)" placeholder="https://... କିମ୍ବା JioMart ସର୍ଚ୍ଚରୁ ବାଛନ୍ତୁ" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                <button type="button" onclick="switchAdminTab('banners')" class="mt-1 text-[10px] text-[#1864ab] font-bold hover:underline">🖼️ ନିଜ ଫଟୋର ଲିଙ୍କ୍ ତିଆରି କରନ୍ତୁ (Image Link Generator)</button>
+                <div id="imgPreviewBox" class="hidden mt-2 p-1.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
+                  <img id="imgPreviewTag" src="" class="w-10 h-10 object-contain bg-white rounded border border-slate-100" alt="Preview">
+                  <span class="text-[10px] text-emerald-600 font-bold">Image Ready!</span>
+                </div>
+              </div>
+
+              <button type="submit" id="adminFormSubmitBtn" class="w-full py-2.5 bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5">
+                <i class="ph-bold ph-floppy-disk"></i>
+                <span id="submitBtnLabel">Save & Publish to Sheet</span>
+              </button>
+            </form>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-black uppercase text-slate-500">Live Inventory</h4>
+              <span id="adminTotalItems" class="text-xs font-bold text-[#1864ab]">0 Items</span>
+            </div>
+            <!-- Database Search & Edit: find an existing product to edit -->
+            <div class="flex items-center gap-1.5 mb-2">
+              <div class="relative flex-1">
+                <i class="ph-bold ph-magnifying-glass absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="dbSearchInput" oninput="renderAdminList()"
+                       placeholder="🔍 ଡାଟାବେସ୍‌ରୁ ଖୋଜନ୍ତୁ (ନାଁ / EAN / ବର୍ଗ)..."
+                       class="w-full text-xs pl-7 pr-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              </div>
+              <button type="button" onclick="clearDbSearch()" id="dbSearchClearBtn"
+                      class="hidden px-2 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg shrink-0">
+                Clear
+              </button>
+            </div>
+            <div id="adminInventoryList" class="space-y-2 max-h-72 overflow-y-auto no-scrollbar"></div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Promotional Banners (Max 5) + Image Link Generator -->
+        <div id="admTab-banners" class="hidden space-y-3">
+          <!-- Image Link Generator: upload an image -> get a public URL -->
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+              <i class="ph-bold ph-image text-[#1864ab]"></i> 🖼️ Image Link Generator (ମ୍ୟାନୁଆଲ୍ ପ୍ରୋଡକ୍ଟ / ଅଫର୍ ବ୍ୟାନର୍)
+            </h4>
+            <p class="text-[10px] text-slate-500 leading-snug">
+              ଏକ ଫଟୋ ଅପଲୋଡ୍ କରନ୍ତୁ — ସର୍ଭରରେ ସେଭ୍ ହୋଇ ଏକ <b>ସିଧା ଇମେଜ୍ ଲିଙ୍କ୍ (URL)</b> ମିଳିବ, ଯାହା ଉଭୟ ପ୍ରୋଡକ୍ଟ ଓ ବ୍ୟାନର୍ ରେ ବ୍ୟବହାର କରିପାରିବେ।
+            </p>
+            <div class="flex items-center gap-1.5">
+              <input type="file" id="imgLinkFile" accept="image/*"
+                     class="flex-1 text-[10px] text-slate-600 file:mr-2 file:py-1.5 file:px-2 file:rounded-lg file:border-0 file:bg-blue-50 file:text-[#1864ab] file:font-bold file:text-[10px]">
+              <button type="button" onclick="generateImageLink()" id="imgLinkGenBtn"
+                      class="px-3 py-1.5 bg-[#1864ab] hover:bg-blue-800 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                <i class="ph-bold ph-link-simple"></i> Generate Link
+              </button>
+            </div>
+            <div id="imgLinkResult" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-2.5 space-y-1.5">
+              <div class="flex items-center gap-2">
+                <img id="imgLinkPreview" src="" alt="preview" class="w-12 h-12 object-contain bg-white rounded border border-slate-200">
+                <div class="flex-1 min-w-0">
+                  <p class="text-[10px] font-bold text-emerald-600">✅ ଲିଙ୍କ୍ ତିଆରି ହେଲା!</p>
+                  <p class="text-[9px] text-slate-500">ଲିଙ୍କ୍ କପି କରି ବ୍ୟବହାର କରନ୍ତୁ।</p>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                <input type="text" id="imgLinkOutput" readonly class="flex-1 text-[10px] px-2 py-1 bg-white border border-slate-200 rounded-lg outline-none text-slate-700">
+                <button type="button" onclick="copyImgLink()" class="px-2.5 py-1 bg-slate-900 text-white text-[10px] font-bold rounded-lg shrink-0">Copy</button>
+                <button type="button" onclick="useImgLinkForBanner()" class="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-lg shrink-0">→ Banner</button>
+              </div>
+            </div>
+            <p class="text-[9px] text-slate-400 leading-snug">
+              ✅ ଥରେ ବି ସେଟଅପ୍ ବିନା କାମ କରେ (କୀ built-in ଅଛି)। ନିଜ କୀ ବ୍ୟବହାର କରିବାକୁ ଚାହିଁଲେ → <a href="https://api.imgbb.com/" target="_blank" class="text-[#1864ab] font-bold">api.imgbb.com</a> ରୁ ଫ୍ରି key ନେଇ Admin → Sheets ଟ୍ୟାବ୍ ରେ ସେଭ୍ କରନ୍ତୁ।
+            </p>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <h4 class="text-xs font-black text-slate-700">📢 ୫-ସ୍ଲାଇଡ୍ ପ୍ରମୋସନ୍ ବ୍ୟାନର୍ ମ୍ୟାନେଜର୍</h4>
+            <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+              <span class="text-[10px] font-bold text-emerald-800">Shared — ଆପଣ ଯୋଡ଼ିଲେ ସମସ୍ତ ଗ୍ରାହକଙ୍କ ଫୋନ୍ ରେ ଦେଖାଯିବ</span>
+            </div>
+            <input type="text" id="newBannerImg" placeholder="Image URL (https://...) — ଉପରର Generator ରୁ ପାଇପାରିବେ" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+            <input type="text" id="newBannerTitle" placeholder="Banner Title / Offer Text" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+            <button onclick="addBanner()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg">+ Add Banner</button>
+          </div>
+          <div id="adminBannerList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+        </div>
+
+        <!-- Tab 4: Google Sheets Live Sync -->
+        <div id="admTab-sync" class="hidden space-y-3">
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <label class="text-[11px] font-bold text-slate-700">Google Sheet Apps Script Webhook</label>
+            <div class="flex gap-1.5">
+              <input type="text" id="webhookInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+              <button onclick="saveWebhook()" class="px-2.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">Save</button>
+              <button onclick="manualSync()" id="syncNowBtn" class="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg shrink-0">Sync</button>
+            </div>
+            <label class="text-[11px] font-bold text-slate-700 block pt-1">JioMart Search Proxy (optional — jiomart_search_proxy.py)</label>
+            <div class="flex gap-1.5">
+              <input type="text" id="jiomartProxyInput" placeholder="http://localhost:8085" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+              <button onclick="saveJioMartProxy()" class="px-2.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">Save</button>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-snug">🔍 JioMart search କ୍ରମ: Apps Script Webhook → Local Proxy → AllOrigins। Webhook ରେ SEARCH_JIOMART ପୂର୍ବରୁ ଅଛି ତେଣୁ webhook ସେଟ୍ ଥିଲେ proxy ଦରକାର ନାହିଁ।</p>
+            <label class="text-[11px] font-bold text-slate-700 block pt-1">🖼️ ImgBB API Key (built-in କୀ ଅଛି — ବଦଳାଇବାକୁ ଚାହିଁଲେ ନୂଆ key ଦିଅନ୍ତୁ)</label>
+            <div class="flex gap-1.5">
+              <input type="text" id="imgbbKeyInput" placeholder="ImgBB API key ପେଷ୍ଟ କରନ୍ତୁ..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+              <button onclick="saveImgbbKey()" class="px-2.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">Save</button>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-snug">📤 built-in କୀ ପୂର୍ବରୁ ସେଟ୍ ଅଛି — Banners ଟ୍ୟାବ୍ ର Image Link Generator ତୁରନ୍ତ କାମ କରିବ।</p>
+          </div>
+        </div>
+
+        <!-- Tab 5: Shop Settings — delivery charge + coupon (shared: admin sets ONCE, every customer sees it) -->
+        <div id="admTab-settings" class="hidden space-y-3">
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+              <i class="ph-bold ph-truck text-[#1864ab]"></i> 🚚 ଡେଲିଭରୀ ଚାର୍ଜ ସେଟିଂସ୍
+            </h4>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">Delivery Charge (₹)</label>
+                <input type="number" id="setDeliveryFee" placeholder="ଯେପରି 30" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">Free Delivery Above (₹)</label>
+                <input type="number" id="setFreeAbove" placeholder="ଯେପରି 500" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-snug">ବିଲ୍ ଏହାଠୁ କମ୍ ହେଲେ ଡେଲିଭରୀ ଚାର୍ଜ ଲାଗିବ; ଏହାଠୁ ଅଧିକ ହେଲେ ମାଗଣା।</p>
+
+            <h4 class="text-xs font-black text-slate-700 pt-1 flex items-center gap-1">
+              <i class="ph-bold ph-ticket text-amber-500"></i> 🎟️ କୁପନ୍ ସେଟିଂସ୍ (Coupon)
+            </h4>
+            <input type="text" id="setCouponCode" placeholder="Coupon Code (ଯେପରି MUNNA10)" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg uppercase outline-none focus:border-[#1864ab]">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">% ଛାଡ଼ (%)</label>
+                <input type="number" id="setCouponPercent" placeholder="ଯେପରି 10" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">Min Bill (₹)</label>
+                <input type="number" id="setCouponMinBill" placeholder="ଯେପରି 300" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              </div>
+            </div>
+            <button onclick="saveShopSettings()" class="w-full py-2 bg-[#1864ab] hover:bg-blue-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1">
+              <i class="ph-bold ph-floppy-disk"></i> 💾 ସେଭ୍ କରନ୍ତୁ (ସମସ୍ତ ଗ୍ରାହକ ପାଇଁ)
+            </button>
+            <p class="text-[10px] text-slate-400 leading-snug">✅ ଥରେ ସେଭ୍ କଲେ ସମସ୍ତଙ୍କ ଫୋନ୍ ରେ ଲାଗୁ (Config tab)। Cart ରେ ଗ୍ରାହକ କୁପନ୍ apply କରିପାରିବେ।</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LOGIC SCRIPT ================= -->
+  <script>
+    // Store Location Coordinates: Niali Cinema Hall Road
+    const STORE_LAT = 20.132475;
+    const STORE_LNG = 86.059808;
+    const MAX_RADIUS_KM = 3.0;
+
+    // ====================================================================
+    // Google Apps Script Webhook - LIVE catalog for every new visitor.
+    // Without it, a fresh device/browser only shows the built-in sample
+    // products below. Resolution order (later wins only when earlier absent):
+    //   1. ?sheet=<url>            deep-link override (bot Mini App uses this)
+    //   2. localStorage webhook    saved via Admin -> Sheets
+    //   3. DEFAULT_SHEET_WEBHOOK   this constant (new devices auto-sync)
+    // Get the real URL from the bot server's .env: SHEET_WEBHOOK_URL=...
+    // (Apps Script editor -> Deploy -> Web app -> URL ending in /exec)
+    // ====================================================================
+    const DEFAULT_SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbw9bsU9AR5CPk-PzsLqjzzJ_17J8B6p34TvNAR0dPnTUMVPW7ja3ZfYEv1oTjUHKqKt/exec";
+
+    // ImgBB API key - powers the Banners-tab Image Link Generator on every
+    // device with no setup. Resolution order: localStorage override (Admin ->
+    // Sheets tab) wins, otherwise this built-in default is used.
+    const DEFAULT_IMGBB_KEY = "7608fb749170c4dd32e74a62823d776b";
+
+    let customerLat = STORE_LAT;
+    let customerLng = STORE_LNG;
+    let isWithinRadius = true;
+    let checkoutMap = null;
+    let deliveryMarker = null;
+
+    // Telegram SDK
+    var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    if (tg) { tg.ready(); tg.expand(); }
+
+    // Dynamic 5-Slide Banners
+    let defaultBanners = [
+      { id: 1, title: "ଅଟା, ତେଲ ଓ ଡାଲି ହୋଲସେଲ୍ ଦରରେ!", img: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=700" },
+      { id: 2, title: "ମୋବାଇଲ୍ ବ୍ୟାକ୍ କଭର୍ ଓ UV ଗ୍ଲାସ୍ ଫ୍ଲାଟ୍ ୫୦% ରିହାତି", img: "https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=700" },
+      { id: 3, title: "ଫ୍ରିଡମ୍ ସନଫ୍ଲାୱାର୍ ତେଲ ସ୍ପେଶାଲ୍ ଡିଲ୍", img: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=700" }
+    ];
+    // Start with the ADMIN-SET cache when this device ever saved banners
+    // (flag SHOP_BANNERS_ADMIN) so a refresh never blanks the carousel.
+    // Devices that only ever saw the old defaults start EMPTY and wait for
+    // the shared Sheet (see syncBannersFromSheet).
+    let banners = [];
+    try {
+      if (localStorage.getItem('SHOP_BANNERS_ADMIN') === '1') {
+        banners = JSON.parse(localStorage.getItem('SHOP_BANNERS') || '[]') || [];
+        if (!Array.isArray(banners)) banners = [];
+      }
+    } catch (e) { banners = []; }
+    let currentBannerIdx = 0;
+    let bannerInterval = null;
+
+    // Shop-wide settings — admin sets ONCE (Sheet Config tab) -> EVERY phone
+    // gets them: delivery charge, free-delivery threshold, coupon, trending.
+    let shopConfig = { deliveryFee: 30, freeAbove: 500, couponCode: '', couponPercent: 0, couponMinBill: 0, trending: [] };
+    let appliedCoupon = ''; // coupon code applied inside the cart
+    try {
+      var cachedCfg = JSON.parse(localStorage.getItem('SHOP_SETTINGS') || 'null');
+      if (cachedCfg && typeof cachedCfg === 'object') {
+        ['deliveryFee', 'freeAbove', 'couponPercent', 'couponMinBill'].forEach(function (k) {
+          var v = parseFloat(cachedCfg[k]);
+          if (!isNaN(v)) shopConfig[k] = v;
+        });
+        if (typeof cachedCfg.couponCode === 'string') shopConfig.couponCode = cachedCfg.couponCode;
+        if (Array.isArray(cachedCfg.trending)) shopConfig.trending = cachedCfg.trending;
+      }
+    } catch (e) {}
+
+    // Catalog state
+    window.STORE_CATALOG = [
+      {"rowIndex": 2, "ean": "7533476", "product_name": "Freedom Refined Sunflower Oil 1 L", "mrp": "230", "selling_price": "169", "stock_qty": "10", "image_url": "https://cdn1.jiomartjcp.com/v2/catalog-cloud/jiomar/original/images/othe/egurhk/.j/pg/0000000004907689361.jpg.1947779d4b.jpg", "category": "Sunflower Oil"},
+      {"rowIndex": 3, "ean": "7533477", "product_name": "Horlicks Classic Malt 1 kg", "mrp": "555", "selling_price": "390", "stock_qty": "10", "image_url": "https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400", "category": "Nutritional Drinks"},
+      {"rowIndex": 4, "ean": "7533478", "product_name": "UV Curved Tempered Glass", "mrp": "299", "selling_price": "149", "stock_qty": "20", "image_url": "https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=400", "category": "Mobile"}
+    ];
+    const localSaved = localStorage.getItem('munna_store_catalog');
+    if (localSaved) {
+      try { window.STORE_CATALOG = JSON.parse(localSaved); } catch(e){}
+    }
+
+    var cart = {};
+    var activeCat = "All";
+    var query = "";
+    var isEnglish = false;
+    var currentSearchSource = "jiomart";
+
+    // Mathematical Haversine Distance Formula
+    function calcDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return (R * c).toFixed(2);
+    }
+
+    // --- CAROUSEL SYSTEM ---
+    // Loading shimmer until the shared (admin) banners arrive; the carousel
+    // NEVER shows stale defaults — only admin-set banners scroll.
+    function initCarousel() {
+      const slides = document.getElementById('carouselSlides');
+      const dots = document.getElementById('carouselDots');
+      slides.innerHTML = '';
+      dots.innerHTML = '';
+      clearInterval(bannerInterval);
+
+      if (!banners.length) {
+        slides.innerHTML = '<div class="carousel-slide flex items-center justify-center bg-gradient-to-r from-blue-100 to-amber-100"><span class="text-[11px] font-bold text-slate-500"><i class="ph-bold ph-spinner animate-spin"></i> ଅଫର୍ ଲୋଡ୍ ହେଉଛି...</span></div>';
+        return;
+      }
+
+      banners.slice(0, 5).forEach((b, idx) => {
+        const slide = document.createElement('div');
+        slide.className = 'carousel-slide';
+        slide.innerHTML = `<img src="${b.img}" alt=""><div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent text-white p-2 text-xs font-bold">${b.title}</div>`;
+        slides.appendChild(slide);
+
+        const dot = document.createElement('div');
+        dot.className = `dot w-2 h-2 rounded-full bg-white/60 cursor-pointer ${idx === 0 ? 'active' : ''}`;
+        dot.onclick = () => setSlide(idx);
+        dots.appendChild(dot);
+      });
+
+      bannerInterval = setInterval(() => {
+        currentBannerIdx = (currentBannerIdx + 1) % Math.min(banners.length, 5);
+        setSlide(currentBannerIdx);
+      }, 3500);
+    }
+
+    function setSlide(idx) {
+      currentBannerIdx = idx;
+      document.getElementById('carouselSlides').style.transform = `translateX(-${idx * 100}%)`;
+      document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+    }
+
+    // --- CATALOG & CART RENDERING ---
+    function money(v) { var n = parseFloat(v) || 0; return (Math.round(n * 100) / 100).toString(); }
+    function catOf(p) { return (((p.category || "General") + "").trim()) || "General"; }
+
+    function getCategories() {
+      var seen = {}, out = ["All"];
+      for (var i = 0; i < window.STORE_CATALOG.length; i++) {
+        var c = catOf(window.STORE_CATALOG[i]);
+        if (!seen[c]) { seen[c] = 1; out.push(c); }
+      }
+      return out;
+    }
+
+    function renderCategoryPills() {
+      var box = document.getElementById("catsPillContainer");
+      box.innerHTML = "";
+      getCategories().forEach(function (c) {
+        var b = document.createElement("button");
+        b.className = (c === activeCat) 
+          ? "shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-[#1864ab] text-white shadow-xs"
+          : "shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-700 border border-slate-200 hover:bg-slate-50";
+        b.textContent = c === "All" ? "ସବୁ ଜିନିଷ (All)" : c;
+        b.onclick = function () { activeCat = c; render(); };
+        box.appendChild(b);
+      });
+    }
+
+    function cacheCart_() {
+      try { localStorage.setItem(uidKey('munna_cart'), JSON.stringify({ items: cart, coupon: appliedCoupon || '' })); } catch (e) {}
+    }
+    function loadCart_() {
+      try {
+        var c = JSON.parse(localStorage.getItem(uidKey('munna_cart')) || 'null');
+        if (c) {
+          if (c.items && typeof c.items === 'object') cart = c.items;
+          else if (typeof c === 'object' && !Array.isArray(c)) cart = c; // legacy plain {ean:qty}
+          if (typeof c.coupon === 'string') appliedCoupon = c.coupon;
+        }
+      } catch (e) {}
+    }
+    function clearCartCache_() {
+      try { localStorage.removeItem(uidKey('munna_cart')); } catch (e) {}
+    }
+    function setQty(ean, qty) {
+      qty = Math.max(0, Math.min(99, qty | 0));
+      // Stock engine: never allow more than the available stock in the cart.
+      var p = window.STORE_CATALOG.find(x => String(x.ean) === String(ean));
+      if (p) {
+        var stock = parseInt(p.stock_qty, 10);
+        if (isNaN(stock)) stock = 10;
+        if (qty > stock) {
+          qty = Math.max(0, stock);
+          if (stock <= 0) alert('❌ ' + (p.product_name || 'ସାମଗ୍ରୀ') + ' ଏବେ ସରିଯାଇଛି (Out of stock)!');
+          else alert('⚠️ ' + (p.product_name || 'ସାମଗ୍ରୀ') + ' — କେବଳ ' + stock + ' ଟି ଷ୍ଟକ୍ ଅଛି, ଅଧିକ ଯୋଡ଼ିପାରିବେ ନାହିଁ।');
+        }
+      }
+      if (qty <= 0) delete cart[ean]; else cart[ean] = qty;
+      cacheCart_();
+      render();
+      renderCartDrawer();
+    }
+
+    function render() {
+      renderCategoryPills();
+      var grid = document.getElementById("grid");
+      var empty = document.getElementById("emptyView");
+      grid.innerHTML = "";
+
+      var q = query.trim().toLowerCase();
+      var filtered = window.STORE_CATALOG.filter(p => {
+        if (activeCat !== "All" && catOf(p) !== activeCat) return false;
+        if (q && (p.product_name || "").toLowerCase().indexOf(q) < 0) return false;
+        return true;
+      });
+
+      document.getElementById("productCountBadge").innerText = `${filtered.length} ଟି ସାମଗ୍ରୀ`;
+
+      if (filtered.length === 0) {
+        empty.classList.remove("hidden");
+      } else {
+        empty.classList.add("hidden");
+        filtered.forEach(p => {
+          var qty = cart[p.ean] || 0;
+          var mrpVal = parseFloat(p.mrp) || 0;
+          var spVal = parseFloat(p.selling_price) || 0;
+          var discount = mrpVal > spVal ? Math.round(((mrpVal - spVal) / mrpVal) * 100) : 0;
+
+          var stockN = parseInt(p.stock_qty, 10); if (isNaN(stockN)) stockN = 10;
+          var stockHtml = stockN <= 0
+            ? '<span class="text-[10px] font-extrabold text-rose-600">❌ ସରିଗଲା (Out of stock)</span>'
+            : (stockN <= 5
+              ? `<span class="text-[10px] font-extrabold text-amber-600">⚠️ କେବଳ ${stockN} ବଳିଛି</span>`
+              : `<span class="text-[10px] text-slate-400 font-semibold">Stock: ${stockN}</span>`);
+
+          var card = document.createElement("div");
+          card.className = "bg-white rounded-2xl p-2.5 border border-slate-200 shadow-xs flex flex-col justify-between relative";
+          card.innerHTML = `
+            ${discount > 0 ? `<span class="absolute top-2 left-2 z-10 bg-orange-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">${discount}% OFF</span>` : ''}
+            <div class="w-full h-32 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden">
+              <img src="${p.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'}" alt="${p.product_name}" class="w-full h-full object-contain p-1" onerror="this.src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'">
+            </div>
+            <div class="mt-2 flex-1 flex flex-col justify-between">
+              <h4 class="text-xs font-bold text-slate-800 line-clamp-2 leading-tight">${p.product_name}</h4>
+              <div class="flex items-center gap-1 mt-1.5">
+                <span class="bg-emerald-600 text-white text-[9px] font-bold px-1 rounded flex items-center gap-0.5">4.8 <i class="ph-fill ph-star text-[8px]"></i></span>
+                ${stockHtml}
+              </div>
+              <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-sm font-black text-slate-900">Rs.${money(p.selling_price)}</span>
+                ${mrpVal > spVal ? `<span class="text-[11px] text-slate-400 line-through">Rs.${money(p.mrp)}</span>` : ''}
+              </div>
+            </div>
+            <div class="mt-2" id="action-box-${p.ean}"></div>
+          `;
+
+          var actionBox = card.querySelector(`#action-box-${p.ean}`);
+          if (qty > 0) {
+            actionBox.innerHTML = `
+              <div class="flex items-center justify-between bg-slate-900 text-white rounded-xl px-1.5 py-1">
+                <button onclick="setQty('${p.ean}', ${qty - 1})" class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs"><i class="ph-bold ph-minus"></i></button>
+                <span class="text-xs font-bold">${qty}</span>
+                <button onclick="setQty('${p.ean}', ${qty + 1})" class="w-6 h-6 rounded bg-[#1864ab] flex items-center justify-center text-xs"><i class="ph-bold ph-plus"></i></button>
+              </div>
+            `;
+          } else if (stockN <= 0) {
+            actionBox.innerHTML = `
+              <button disabled class="w-full py-1.5 rounded-xl bg-rose-50 text-rose-400 border border-rose-200 text-xs font-bold cursor-not-allowed flex items-center justify-center gap-1">
+                <i class="ph-bold ph-x-circle"></i> Out of Stock (ସରିଗଲା)
+              </button>
+            `;
+          } else {
+            actionBox.innerHTML = `
+              <button onclick="setQty('${p.ean}', 1)" class="w-full py-1.5 rounded-xl bg-blue-50 text-[#1864ab] hover:bg-[#1864ab] hover:text-white border border-blue-200 text-xs font-bold transition-all flex items-center justify-center gap-1">
+                <i class="ph-bold ph-plus"></i> କାର୍ଟରେ ଯୋଡ଼ନ୍ତୁ
+              </button>
+            `;
+          }
+          grid.appendChild(card);
+        });
+      }
+      renderTrending();
+      renderBar();
+    }
+
+    function renderBar() {
+      var keys = Object.keys(cart), n = 0, total = 0;
+      keys.forEach(k => {
+        var p = window.STORE_CATALOG.find(x => String(x.ean) === String(k));
+        if (p) {
+          n += cart[k];
+          total += (parseFloat(p.selling_price) || 0) * cart[k];
+        }
+      });
+      document.getElementById("floatingCartBadge").innerText = n;
+      document.getElementById("floatingCartTotal").innerText = "Rs." + money(total);
+      updateCartBadge();
+    }
+
+    function updateCartBadge() {
+      var n = 0; Object.keys(cart).forEach(k => n += cart[k]);
+      var b = document.getElementById('navCartBadge');
+      if (b) { b.innerText = n; b.classList.toggle('hidden', n === 0); }
+    }
+
+    // --- LEAFLET MAP & 3KM DELIVERY RADIUS CHECK ---
+    function initCheckoutMap() {
+      if (!checkoutMap) {
+        checkoutMap = L.map('checkoutDeliveryMap').setView([STORE_LAT, STORE_LNG], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(checkoutMap);
+
+        // Shop Marker
+        L.marker([STORE_LAT, STORE_LNG]).addTo(checkoutMap).bindPopup("<b>MUNNA GROCERY (Shop)</b>").openPopup();
+
+        // 3 KM Zone
+        L.circle([STORE_LAT, STORE_LNG], { color: '#16a34a', fillColor: '#86efac', fillOpacity: 0.2, radius: 3000 }).addTo(checkoutMap);
+
+        // Draggable Customer Marker
+        deliveryMarker = L.marker([STORE_LAT, STORE_LNG], { draggable: true }).addTo(checkoutMap);
+        deliveryMarker.on('dragend', function(e) {
+          var pos = e.target.getLatLng();
+          updateMapDistance(pos.lat, pos.lng);
+        });
+      }
+      setTimeout(() => { checkoutMap.invalidateSize(); }, 300);
+      updateMapDistance(STORE_LAT, STORE_LNG);
+    }
+
+    function updateMapDistance(lat, lng) {
+      customerLat = lat;
+      customerLng = lng;
+      deliveryMarker.setLatLng([lat, lng]);
+      var dist = calcDistance(STORE_LAT, STORE_LNG, lat, lng);
+      var pill = document.getElementById('mapStatusPill');
+      var btn = document.getElementById('btnProceedToPayment');
+
+      if (dist <= MAX_RADIUS_KM) {
+        isWithinRadius = true;
+        pill.className = "text-[10px] font-bold p-1.5 rounded-lg mb-2 text-center bg-emerald-50 text-emerald-800 border border-emerald-200";
+        pill.innerText = `✅ ଦୂରତା: ${dist} KM (୩ କି.ମି. ଭିତରେ - ୧୦-୧୫ ମିନିଟ୍‌ରେ ଡେଲିଭରୀ)`;
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      } else {
+        isWithinRadius = false;
+        pill.className = "text-[10px] font-bold p-1.5 rounded-lg mb-2 text-center bg-rose-50 text-rose-800 border border-rose-200";
+        pill.innerText = `❌ ଦୂରତା: ${dist} KM (୩ କି.ମି. ବାହାରେ ଡେଲିଭରୀ ସେବା ଉପଲବ୍ଧ ନାହିଁ)`;
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+    }
+
+    function locateUserGPS() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          checkoutMap.setView([pos.coords.latitude, pos.coords.longitude], 15);
+          updateMapDistance(pos.coords.latitude, pos.coords.longitude);
+        }, () => { alert("GPS ଅନୁମତି ମିଳିଲା ନାହିଁ। ମ୍ୟାପ୍‌ରେ ପିନ୍ ଟାଣି ରଖନ୍ତୁ।"); });
+      }
+    }
+
+    // --- CHECKOUT WORKFLOW ---
+    function openCartDrawer() {
+      document.getElementById('cartDrawerBackdrop').classList.remove('hidden');
+      setTimeout(() => {
+        document.getElementById('cartDrawerBackdrop').classList.add('opacity-100');
+        document.getElementById('cartDrawer').classList.remove('translate-y-full');
+      }, 10);
+      setStep('Cart');
+      renderCartDrawer();
+    }
+
+    function closeCartDrawer() {
+      document.getElementById('cartDrawer').classList.add('translate-y-full');
+      document.getElementById('cartDrawerBackdrop').classList.remove('opacity-100');
+      setTimeout(() => document.getElementById('cartDrawerBackdrop').classList.add('hidden'), 300);
+    }
+
+    function renderCartDrawer() {
+      var container = document.getElementById('cartItemsContainer');
+      var items = Object.keys(cart);
+      // Delivery address quick row (saved default address).
+      var addrEl = document.getElementById('cartAddrText');
+      if (addrEl) {
+        var addrs = getAddresses();
+        var def = addrs.filter(a => a.isDefault)[0] || addrs[0];
+        addrEl.innerText = def ? ('📍 ' + def.name + ' — ' + def.address) : '📍 ଡେଲିଭରୀ ଠିକଣା ଯୋଡ଼ନ୍ତୁ';
+      }
+      if (items.length === 0) {
+        container.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">କାର୍ଟ ଖାଲି ଅଛି (Cart is empty)</p>';
+        updateBillingSummary();
+        return;
+      }
+      container.innerHTML = items.map(ean => {
+        var p = window.STORE_CATALOG.find(x => String(x.ean) === String(ean));
+        if (!p) return '';
+        var qty = cart[ean];
+        var sub = (parseFloat(p.selling_price) || 0) * qty;
+        var stockN = parseInt(p.stock_qty, 10); if (isNaN(stockN)) stockN = 10;
+        return `
+          <div class="bg-slate-50 p-2 rounded-xl text-xs">
+            <div class="flex items-center justify-between">
+              <span class="font-bold line-clamp-1 flex-1">${p.product_name}</span>
+              <span class="font-black text-[#1864ab] pl-2">Rs.${money(sub)}</span>
+            </div>
+            <div class="flex items-center justify-between mt-1.5">
+              <div class="flex items-center gap-1.5">
+                <button onclick="setQty('${ean}', ${qty - 1})" class="w-6 h-6 rounded bg-slate-200 flex items-center justify-center text-xs font-bold"><i class="ph-bold ph-minus"></i></button>
+                <span class="font-bold w-6 text-center">${qty}</span>
+                <button onclick="setQty('${ean}', ${qty + 1})" class="w-6 h-6 rounded bg-[#1864ab] text-white flex items-center justify-center text-xs"><i class="ph-bold ph-plus"></i></button>
+                <span class="text-[9px] text-slate-400 ml-1">${stockN <= 5 ? ('⚠️ ' + stockN + ' ବଳିଛି') : ('Stock: ' + stockN)}</span>
+              </div>
+              <button onclick="setQty('${ean}', 0)" class="text-rose-600 font-bold px-1"><i class="ph-bold ph-trash"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      updateBillingSummary();
+    }
+
+    // --- BILLING ENGINE: subtotal + admin delivery charge + coupon discount ---
+    function cartBilling() {
+      var subtotal = 0;
+      Object.keys(cart).forEach(function (ean) {
+        var p = window.STORE_CATALOG.find(x => String(x.ean) === String(ean));
+        if (p) subtotal += (parseFloat(p.selling_price) || 0) * cart[ean];
+      });
+      var freeAbove = shopConfig.freeAbove || 0;
+      var delivery = (subtotal > 0 && (freeAbove <= 0 || subtotal < freeAbove)) ? (shopConfig.deliveryFee || 0) : 0;
+      var discount = 0;
+      var code = String(appliedCoupon || '').trim().toUpperCase();
+      if (code && subtotal >= (shopConfig.couponMinBill || 0)) {
+        discount = Math.round(subtotal * (shopConfig.couponPercent || 0)) / 100;
+      }
+      return { subtotal: subtotal, delivery: delivery, discount: discount, total: Math.max(0, subtotal + delivery - discount) };
+    }
+
+    function updateBillingSummary() {
+      var b = cartBilling();
+      var set = function (id, v) { var el = document.getElementById(id); if (el) el.innerText = v; };
+      set('summarySubtotal', 'Rs.' + money(b.subtotal));
+      var dRow = document.getElementById('summaryDeliveryRow');
+      if (dRow) dRow.classList.toggle('hidden', b.subtotal <= 0);
+      set('summaryDelivery', b.delivery > 0 ? ('Rs.' + money(b.delivery)) : 'ମାଗଣା ✅');
+      var disRow = document.getElementById('summaryDiscountRow');
+      if (disRow) disRow.classList.toggle('hidden', b.discount <= 0);
+      set('summaryDiscount', '-Rs.' + money(b.discount));
+      set('summaryTotal', 'Rs.' + money(b.total));
+    }
+
+    function applyCoupon() {
+      var input = document.getElementById('couponInput');
+      var code = String(input ? input.value : '').trim().toUpperCase();
+      if (!code) { alert('🎟️ Coupon code ଲେଖନ୍ତୁ!'); return; }
+      if (!shopConfig.couponCode) { alert('ଏବେ କୌଣସି coupon ଚାଲୁ ନାହିଁ।'); return; }
+      if (code !== String(shopConfig.couponCode).toUpperCase()) { alert('❌ ଭୁଲ୍ coupon code!'); return; }
+      var subtotal = cartBilling().subtotal;
+      if (subtotal < (shopConfig.couponMinBill || 0)) {
+        alert('⚠️ ଏହି coupon ପାଇଁ ସର୍ବନିମ୍ନ ବିଲ୍ Rs.' + money(shopConfig.couponMinBill) + ' ଦରକାର!');
+        return;
+      }
+      appliedCoupon = code;
+      cacheCart_();
+      renderCartDrawer();
+      alert('✅ Coupon ଲାଗିଗଲା! Rs.' + money(cartBilling().discount) + ' ଛାଡ଼ ମିଳିଲା।');
+    }
+
+    function setStep(name) {
+      ['stepCart','stepAddress','stepPayment','stepSuccess'].forEach(s => {
+        var el = document.getElementById(s);
+        if (el) el.classList.toggle('hidden', s !== ('step' + name));
+      });
+    }
+
+    function goCheckoutAddress() {
+      if (!Object.keys(cart).length) { alert("Cart ଖାଲି ଅଛି!"); return; }
+      prefillOrderForm();
+      renderSavedAddressPick();
+      setStep('Address');
+      initCheckoutMap();
+    }
+    function backToCart() { setStep('Cart'); }
+    function goCheckoutPayment() {
+      if (!isWithinRadius) { alert("୩ କିଲୋମିଟର ବାହାରେ ସେବା ଉପଲବ୍ଧ ନାହିଁ!"); return; }
+      if (!document.getElementById('orderCustAddress').value.trim() || !document.getElementById('orderCustPhone').value.trim()) {
+        alert("କୃପା କରି ଠିକଣା ଓ ଫୋନ୍ ଦିଅନ୍ତୁ!"); return;
+      }
+      setStep('Payment');
+    }
+    function backToAddress() { setStep('Address'); }
+
+    function placeMiniOrder() {
+      var name = document.getElementById('orderCustName').value.trim() || 'Customer';
+      var phone = document.getElementById('orderCustPhone').value.trim();
+      var address = document.getElementById('orderCustAddress').value.trim();
+      var payEl = document.querySelector('input[name="payMethod"]:checked');
+      var payment = payEl ? payEl.value : 'COD';
+
+      // Unified line items: EAN+qty (for stock) + name/price (for the bill text)
+      var lines = [], total = 0, outOfStock = '';
+      Object.keys(cart).forEach(function (ean) {
+        var p = window.STORE_CATALOG.find(x => String(x.ean) === String(ean));
+        if (!p) return;
+        var qty = cart[ean];
+        var price = parseFloat(p.selling_price) || 0;
+        total += price * qty;
+        lines.push({ ean: String(p.ean), name: p.product_name, qty: qty, price: price });
+        var available = parseInt(p.stock_qty, 10);
+        if (!isNaN(available) && available < qty && !outOfStock) outOfStock = p.product_name;
+      });
+      if (!lines.length) { alert("Cart ଖାଲି ଅଛି!"); return; }
+      if (outOfStock) { alert("ସ୍ଟକ୍ ନାହିଁ (Out of stock): " + outOfStock); return; }
+
+      var tgUser = getTgUser();
+      var orderObj = {
+        order_id: makeOrderId(),
+        timestamp: sheetTimestamp(new Date()),
+        customer_name: name,
+        phone: phone,
+        address: address,
+        items: itemsToText(lines),
+        total: total,
+        channel: 'webapp',
+        telegram_user_id: (tgUser && tgUser.id) ? String(tgUser.id) : '',
+        status: 'pending',
+        status_msg_id: '',
+        location: (customerLat && customerLng) ? (customerLat + ',' + customerLng) : '',
+        payment: payment,
+        lines: lines
+      };
+
+      // Save locally first so the Orders screen works instantly (and offline).
+      var orders = getMyOrders();
+      orders.unshift(orderObj);
+      setMyOrders(orders);
+
+      // ONE path only - never both, or the order would be recorded twice:
+      //  * Inside Telegram the BOT places it (stock deduction + the SAME
+      //    Sheet row + admin alert + live customer status message).
+      //  * In a normal browser the Apps Script webhook writes the SAME Sheet
+      //    row and the bot's web_sync loop alerts Telegram + tracks status.
+      var sentToBot = sendToBot({
+        action: 'ORDER',
+        orderId: orderObj.order_id,
+        customer: name,
+        name: name,
+        phone: phone,
+        address: address,
+        payment: payment,
+        location: orderObj.location,
+        items: lines.map(function (l) { return { ean: l.ean, qty: l.qty }; }),
+        total: total,
+        order: orderObj
+      });
+      if (!sentToBot) {
+        postToSheet({ action: 'create_order', order: orderObj });
+      }
+
+      // FULL payable bill (items + delivery − coupon) on the success screen.
+      var payInfo = (function () {
+        var b = cartBilling();
+        var note = b.delivery > 0 ? (' + ଡେଲିଭରୀ Rs.' + money(b.delivery)) : ' (ଡେଲିଭରୀ ମାଗଣା)';
+        if (b.discount > 0) note += ' − କୁପନ୍ Rs.' + money(b.discount);
+        return 'Rs.' + money(b.total) + note;
+      })();
+
+      cart = {};
+      appliedCoupon = '';
+      clearCartCache_();
+      render();
+      renderBar();
+      updateCartBadge();
+      renderCartDrawer();
+      document.getElementById('successOrderId').innerText = orderObj.order_id;
+      document.getElementById('successOrderPay').innerText = payInfo;
+      setStep('Success');
+    }
+
+    // --- SCREEN NAVIGATION ---
+    function showScreen(name) {
+      ['orders','address','profile'].forEach(s => {
+        var el = document.getElementById(s + 'Screen');
+        if (el) el.classList.toggle('hidden', s !== name);
+      });
+      document.querySelectorAll('.nav-btn').forEach(b => {
+        var on = b.dataset.nav === name;
+        b.classList.toggle('text-[#1864ab]', on);
+        b.classList.toggle('text-slate-500', !on);
+      });
+      if (name === 'orders') {
+        renderOrders();
+        // Pull Telegram (bot) orders too - the Sheet is the shared database.
+        syncOrdersFromSheet();
+      }
+      if (name === 'address') { renderAddressList(); syncAddressesFromSheet(); }
+      if (name === 'profile') renderProfile();
+      if (name === 'home') window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function closeScreen(name) { showScreen('home'); }
+
+    // --- 5-STAGE LIVE ORDER TRACKING ---
+    function renderOrders() {
+      var box = document.getElementById('ordersList');
+      var filterPhone = document.getElementById('trackOrderPhoneInput').value.trim();
+      var orders = getMyOrders();
+
+      if (filterPhone) {
+        orders = orders.filter(o => o.phone.includes(filterPhone));
+      }
+
+      if (!orders.length) {
+        box.innerHTML = '<div class="text-center py-16"><i class="ph-bold ph-receipt text-5xl text-slate-300"></i><p class="text-xs text-slate-400 mt-2">କୌଣସି ଅର୍ଡର ମିଳିଲା ନାହିଁ।</p></div>';
+        return;
+      }
+
+      const stages = [
+        { num: 1, label: "Order Placed", desc: "ଅର୍ଡର ଗ୍ରହଣ ହେଲା" },
+        { num: 2, label: "Accepted", desc: "ଦୋକାନୀ ଅର୍ଡର ଗ୍ରହଣ କଲେ" },
+        { num: 3, label: "Packing", desc: "ପ୍ୟାକିଂ ଓ ଷ୍ଟକ୍ ଯାଞ୍ଚ ସରିଲା" },
+        { num: 4, label: "Out for Delivery", desc: "ଡେଲିଭରୀ ବାହାରିଛି" },
+        { num: 5, label: "Delivered", desc: "ସଫଳତାର ସହ ପହଞ୍ଚିଲା" }
+      ];
+
+      box.innerHTML = orders.map(o => {
+        var stNum = o.stage || 1;
+        var stepperHtml = `<div class="stepper my-2.5"><div class="stepper-line"></div>` + 
+          stages.map(st => `
+            <div class="step-item ${stNum > st.num ? 'done' : ''} ${stNum === st.num ? 'active' : ''}">
+              <div class="step-dot"></div>
+              <div class="text-xs font-bold text-slate-800">${st.label}</div>
+              <div class="text-[10px] text-slate-400">${st.desc}</div>
+            </div>
+          `).join('') + `</div>`;
+
+        return `
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200">
+            <div class="flex items-center justify-between">
+              <span class="font-black text-slate-800 text-xs">#${o.id}</span>
+              <span class="text-[9px] bg-blue-100 text-blue-800 font-extrabold px-2 py-0.5 rounded-full">Stage ${stNum}/5</span>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-0.5">${new Date(o.date).toLocaleString()} · ${o.payment}</p>
+            <div class="my-2 p-2 bg-slate-50 rounded-xl space-y-1">
+              ${(o.items||[]).map(i => `<div class="flex justify-between text-[11px]"><span class="text-slate-600">${i.name} x${i.qty}</span><span class="font-bold">Rs.${money((parseFloat(i.price)||0)*i.qty)}</span></div>`).join('')}
+            </div>
+            <div class="flex justify-between pt-1 border-t border-slate-100 text-xs font-black">
+              <span>Total Bill</span>
+              <span class="text-[#1864ab]">Rs.${money(o.total)}</span>
+            </div>
+            ${stepperHtml}
+            ${['pending', 'accepted', 'packing'].indexOf(o.status) >= 0
+              ? `<button onclick="cancelMyOrder('${o.id}')" class="mt-2 w-full py-1.5 rounded-xl bg-rose-50 text-rose-600 text-[11px] font-bold border border-rose-200">❌ ଅର୍ଡର ବାତିଲ୍ କରନ୍ତୁ (ଡେଲିଭରୀ ବାହାରିବା ଆଗରୁ)</button>`
+              : (o.status === 'cancelled' ? '<p class="mt-2 text-center text-[11px] font-bold text-rose-600 bg-rose-50 rounded-xl py-1.5 border border-rose-200">❌ ଏହି ଅର୍ଡର ବାତିଲ୍ ହୋଇଛି</p>' : '')}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- ADMIN SYSTEM (5-STAGE FULFILLMENT & EDIT ORDER ITEMS) ---
+    function openAdminModal() {
+      document.getElementById('adminPinModal').classList.remove('hidden');
+      document.getElementById('adminPinInput').value = '';
+      document.getElementById('adminPinInput').focus();
+    }
+    function closeAdminPinModal() { document.getElementById('adminPinModal').classList.add('hidden'); }
+    function verifyAdminPin() {
+      if (document.getElementById('adminPinInput').value === '1234') {
+        closeAdminPinModal();
+        document.getElementById('adminDashboard').classList.remove('hidden');
+        renderAdminOrders();
+        renderAdminList();
+        renderAdminBanners();
+        syncOrdersFromSheet();
+        var hook = localStorage.getItem('munna_sheet_webhook');
+        if (hook) document.getElementById('webhookInput').value = hook;
+        document.getElementById('jiomartProxyInput').value = localStorage.getItem('munna_jiomart_proxy') || '';
+        document.getElementById('imgbbKeyInput').value = localStorage.getItem('munna_imgbb_key') || '';
+        fillShopSettingsInputs();
+        renderStockHealth();
+      } else {
+        alert("ଭୁଲ୍ PIN (Default: 1234)!");
+      }
+    }
+    function closeAdminDashboard() { document.getElementById('adminDashboard').classList.add('hidden'); }
+
+    function switchAdminTab(t) {
+      ['orders','stock','banners','settings','sync'].forEach(tab => {
+        document.getElementById(`admTab-${tab}`).classList.toggle('hidden', tab !== t);
+        var b = document.getElementById(`admTabBtn-${tab}`);
+        b.classList.toggle('border-[#1864ab]', tab === t);
+        b.classList.toggle('text-[#1864ab]', tab === t);
+        b.classList.toggle('border-transparent', tab !== t);
+      });
+      if (t === 'orders') renderAdminOrders();
+      if (t === 'stock') { renderAdminList(); renderStockHealth(); }
+      if (t === 'banners') renderAdminBanners();
+      if (t === 'settings') fillShopSettingsInputs();
+    }
+
+    function renderAdminOrders() {
+      var box = document.getElementById('adminOrdersContainer');
+      var orders = getMyOrders();
+      if (!orders.length) {
+        box.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">କୌଣସି ଅର୍ଡର ନାହିଁ।</p>';
+        return;
+      }
+
+      box.innerHTML = orders.map((o, oIdx) => {
+        var mapsLink = `https://www.google.com/maps/dir/?api=1&origin=${STORE_LAT},${STORE_LNG}&destination=${o.lat||STORE_LAT},${o.lng||STORE_LNG}`;
+
+        var itemsEditorHtml = (o.items||[]).map((it, itIdx) => `
+          <div class="flex items-center justify-between text-xs bg-slate-50 p-1.5 rounded-lg">
+            <span class="font-bold line-clamp-1 flex-1">${it.name}</span>
+            <div class="flex items-center gap-1.5 ml-2">
+              <span class="text-slate-500">Qty: <b>${it.qty}</b></span>
+              <button onclick="changeAdminOrderQty(${oIdx}, ${itIdx}, -1)" class="w-5 h-5 rounded bg-slate-200 font-bold">-</button>
+              <button onclick="changeAdminOrderQty(${oIdx}, ${itIdx}, 1)" class="w-5 h-5 rounded bg-slate-200 font-bold">+</button>
+              <button onclick="removeAdminOrderItem(${oIdx}, ${itIdx})" class="text-rose-600 font-bold ml-1"><i class="ph-bold ph-trash"></i></button>
+            </div>
+          </div>
+        `).join('');
+
+        return `
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="font-black text-xs text-slate-900">#${o.id} - ${o.name}</span>
+              <span class="text-[10px] bg-blue-100 text-[#1864ab] font-black px-2 py-0.5 rounded-md">${statusLabel(o.status)}</span>
+            </div>
+            <div class="text-[11px] text-slate-600">${o.phone} · ${o.address}</div>
+            <div class="space-y-1">${itemsEditorHtml}</div>
+            <div class="flex justify-between items-center text-xs font-black pt-1 border-t border-slate-100">
+              <a href="${mapsLink}" target="_blank" class="text-[#1864ab] flex items-center gap-1"><i class="ph-bold ph-navigation-arrow"></i> Google Maps Route</a>
+              <span>Bill: Rs.${money(o.total)}</span>
+            </div>
+            ${adminOrderActionsHtml(o, oIdx)}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Status -> human label + colour for the admin / customer views.
+    var STATUS_LABELS = {
+      pending: '🕐 Pending', accepted: '✅ Accepted', packing: '📦 Packing',
+      out_for_delivery: '🚚 Out for delivery', delivered: '🎉 Delivered', cancelled: '❌ Cancelled'
+    };
+    function statusLabel(s) { return STATUS_LABELS[s] || ('• ' + (s || 'pending')); }
+
+    // Status-aware action buttons: Pending -> big Accept/Reject; active ->
+    // progress buttons; finished -> nothing.
+    function adminOrderActionsHtml(o, oIdx) {
+      if (o.status === 'pending') {
+        return `
+          <div class="flex gap-2 pt-1">
+            <button onclick="adminAcceptOrder(${oIdx})" class="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-extrabold shadow-sm">✅ Accept</button>
+            <button onclick="adminRejectOrder(${oIdx})" class="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-extrabold shadow-sm">❌ Reject</button>
+          </div>`;
+      }
+      if (o.status === 'cancelled' || o.status === 'delivered') {
+        return `<div class="text-[10px] text-center text-slate-400 font-bold pt-1">ଏହି ଅର୍ଡର ${statusLabel(o.status)} — ସରିଛି।</div>`;
+      }
+      // accepted / packing / out_for_delivery -> keep the 5-stage progress
+      // + a Cancel / Reject button (works on ANY live order).
+      return `
+        <div class="grid grid-cols-4 gap-1 pt-1">
+          <button onclick="setOrderFulfillmentStage(${oIdx}, 2)" class="py-1 rounded bg-sky-600 text-white text-[10px] font-bold">2. Accept</button>
+          <button onclick="setOrderFulfillmentStage(${oIdx}, 3)" class="py-1 rounded bg-amber-500 text-white text-[10px] font-bold">3. Packing</button>
+          <button onclick="setOrderFulfillmentStage(${oIdx}, 4)" class="py-1 rounded bg-orange-600 text-white text-[10px] font-bold">4. Dispatch</button>
+          <button onclick="setOrderFulfillmentStage(${oIdx}, 5)" class="py-1 rounded bg-emerald-600 text-white text-[10px] font-bold">5. Delivered</button>
+        </div>
+        <button onclick="adminRejectOrder(${oIdx})" class="mt-1.5 w-full py-1.5 rounded-xl bg-rose-50 text-rose-600 text-[10px] font-bold border border-rose-200">❌ Cancel / Reject Order</button>`;
+    }
+
+    function adminAcceptOrder(oIdx) {
+      setOrderFulfillmentStage(oIdx, 2);
+    }
+
+    function adminRejectOrder(oIdx) {
+      if (!confirm('ଆପଣ ଏହି ଅର୍ଡର ବାତିଲ୍ କରିବାକୁ ଚାହୁଁଛନ୍ତି କି?')) return;
+      var orders = getMyOrders();
+      orders[oIdx].status = 'cancelled';
+      orders[oIdx].stage = 5;
+      setMyOrders(orders);
+      pushOrderStatus(orders[oIdx]); // -> Sheet -> bot edits customer's live message
+      renderAdminOrders();
+      alert('❌ Order #' + orders[oIdx].id + ' ବାତିଲ୍ ହେଲା।');
+    }
+
+    function changeAdminOrderQty(oIdx, itIdx, delta) {
+      var orders = getMyOrders();
+      orders[oIdx].items[itIdx].qty += delta;
+      if (orders[oIdx].items[itIdx].qty <= 0) {
+        orders[oIdx].items.splice(itIdx, 1);
+      }
+      orders[oIdx].total = orders[oIdx].items.reduce((acc, curr) => acc + (parseFloat(curr.price||0) * curr.qty), 0);
+      orders[oIdx].items_text = itemsToText(orders[oIdx].items);
+      setMyOrders(orders);
+      pushOrderBill(orders[oIdx]);
+      renderAdminOrders();
+    }
+
+    function removeAdminOrderItem(oIdx, itIdx) {
+      var orders = getMyOrders();
+      orders[oIdx].items.splice(itIdx, 1);
+      orders[oIdx].total = orders[oIdx].items.reduce((acc, curr) => acc + (parseFloat(curr.price||0) * curr.qty), 0);
+      orders[oIdx].items_text = itemsToText(orders[oIdx].items);
+      setMyOrders(orders);
+      pushOrderBill(orders[oIdx]);
+      renderAdminOrders();
+    }
+
+    function setOrderFulfillmentStage(oIdx, stageNum) {
+      var orders = getMyOrders();
+      orders[oIdx].stage = stageNum;
+      orders[oIdx].status = STAGE_STATUS[stageNum - 1] || 'pending';
+      setMyOrders(orders);
+      // Push to the shared Sheet: the bot then edits the customer's live
+      // Telegram status message and its own Admin Panel shows the same stage.
+      pushOrderStatus(orders[oIdx]);
+      renderAdminOrders();
+      alert(`Order #${orders[oIdx].id} -> Stage ${stageNum} (${orders[oIdx].status})`);
+    }
+
+    // --- BANNER MANAGER ---
+    function renderAdminBanners() {
+      var box = document.getElementById('adminBannerList');
+      if (!banners.length) {
+        box.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">📢 ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ବ୍ୟାନର୍ ନାହିଁ — ଉପରେ ନୂଆ ବ୍ୟାନର୍ ଯୋଡ଼ନ୍ତୁ।<br><span class="text-[10px]">ଯୋଡ଼ିଲେ ସମସ୍ତ ଗ୍ରାହକଙ୍କ ଫୋନ୍ ରେ ଦେଖାଯିବ।</span></p>';
+        return;
+      }
+      box.innerHTML = banners.map((b, idx) => `
+        <div class="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-xs">
+          <div class="flex items-center gap-2">
+            <img src="${b.img}" class="w-10 h-7 object-cover rounded">
+            <span class="font-bold line-clamp-1">${b.title}</span>
+          </div>
+          <button onclick="deleteBanner(${idx})" class="text-rose-600 font-bold px-2 py-1"><i class="ph-bold ph-trash"></i></button>
+        </div>
+      `).join('');
+    }
+
+    function addBanner() {
+      if (banners.length >= 5) { alert("ସର୍ବାଧିକ ୫ଟି ବ୍ୟାନର୍ ଅନୁମୋଦିତ।"); return; }
+      var img = document.getElementById('newBannerImg').value.trim();
+      var title = document.getElementById('newBannerTitle').value.trim();
+      if (!img || !title) { alert("Image URL ଓ Title ଦିଅନ୍ତୁ!"); return; }
+      banners.push({ id: Date.now(), title, img });
+      try {
+        localStorage.setItem('SHOP_BANNERS', JSON.stringify(banners));
+        localStorage.setItem('SHOP_BANNERS_ADMIN', '1'); // this device set banners
+      } catch (e) {}
+      if (!pushBannersToSheet()) { // Sheet save failed -> warn (refresh-safe anyway)
+        alert("⚠️ ବ୍ୟାନର୍ ଏହି ଫୋନ୍ ରେ ସେଭ୍ ହେଲା, କିନ୍ତୁ Sheet ରେ ପହଞ୍ଚିଲା ନାହିଁ!\nApps Script ନୂଆ version Deploy କରନ୍ତୁ (SAVE_CONFIG ଦରକାର)।");
+        initCarousel();
+        renderAdminBanners();
+        document.getElementById('newBannerImg').value = '';
+        document.getElementById('newBannerTitle').value = '';
+        return;
+      }
+      initCarousel();
+      renderAdminBanners();
+      document.getElementById('newBannerImg').value = '';
+      document.getElementById('newBannerTitle').value = '';
+      alert("✅ ବ୍ୟାନର୍ ଯୋଡ଼ାଗଲା — ଏବେ ସମସ୍ତ ଗ୍ରାହକ ଦେଖିବେ!");
+    }
+
+    function deleteBanner(idx) {
+      banners.splice(idx, 1);
+      try {
+        localStorage.setItem('SHOP_BANNERS', JSON.stringify(banners));
+        localStorage.setItem('SHOP_BANNERS_ADMIN', '1');
+      } catch (e) {}
+      pushBannersToSheet(); // keep the shared Sheet in sync for ALL customers
+      initCarousel();
+      renderAdminBanners();
+    }
+
+    // --- ALL ADMIN CHANGES -> SHARED SHEET (every customer sees them) ---
+    // Catalog add/edit/delete already post ADD_PRODUCT/EDIT_PRODUCT. This is
+    // the generic helper for anything else the admin sets once for everyone.
+    function pushAdminChange(key, value) {
+      pushConfigToSheet(key, value);
+    }
+
+    // --- SHOP SETTINGS / TRENDING OFFERS / STOCK ENGINE / CANCEL (shared) ---
+    function cacheShopConfig_() {
+      try { localStorage.setItem('SHOP_SETTINGS', JSON.stringify(shopConfig)); } catch (e) {}
+    }
+
+    // Config tab keys -> shopConfig (delivery charge, coupon, trending list).
+    function applyShopConfig_(cfg) {
+      if (!cfg) return;
+      var fee = parseFloat(cfg.delivery_fee); if (!isNaN(fee)) shopConfig.deliveryFee = Math.max(0, fee);
+      var above = parseFloat(cfg.free_delivery_above); if (!isNaN(above)) shopConfig.freeAbove = Math.max(0, above);
+      if (cfg.coupon_code !== undefined) shopConfig.couponCode = String(cfg.coupon_code || '').trim().toUpperCase();
+      var pc = parseFloat(cfg.coupon_percent); if (!isNaN(pc)) shopConfig.couponPercent = Math.min(100, Math.max(0, pc));
+      var mb = parseFloat(cfg.coupon_min_bill); if (!isNaN(mb)) shopConfig.couponMinBill = Math.max(0, mb);
+      if (cfg.trending !== undefined) {
+        shopConfig.trending = String(cfg.trending || '').split(',').map(function (x) { return String(x).trim(); }).filter(Boolean);
+      }
+      renderTrending();
+      updateBillingSummary();
+      var ad = document.getElementById('adminDashboard');
+      if (ad && !ad.classList.contains('hidden')) fillShopSettingsInputs();
+    }
+
+    function fillShopSettingsInputs() {
+      var f = function (id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+      f('setDeliveryFee', shopConfig.deliveryFee);
+      f('setFreeAbove', shopConfig.freeAbove);
+      f('setCouponCode', shopConfig.couponCode);
+      f('setCouponPercent', shopConfig.couponPercent || '');
+      f('setCouponMinBill', shopConfig.couponMinBill || '');
+    }
+
+    function saveShopSettings() {
+      shopConfig.deliveryFee = Math.max(0, parseFloat((document.getElementById('setDeliveryFee') || {}).value) || 0);
+      shopConfig.freeAbove = Math.max(0, parseFloat((document.getElementById('setFreeAbove') || {}).value) || 0);
+      shopConfig.couponCode = (((document.getElementById('setCouponCode') || {}).value) || '').trim().toUpperCase();
+      shopConfig.couponPercent = Math.min(100, Math.max(0, parseFloat((document.getElementById('setCouponPercent') || {}).value) || 0));
+      shopConfig.couponMinBill = Math.max(0, parseFloat((document.getElementById('setCouponMinBill') || {}).value) || 0);
+      cacheShopConfig_();
+      var ok = true;
+      ok = pushConfigToSheet('delivery_fee', shopConfig.deliveryFee) && ok;
+      ok = pushConfigToSheet('free_delivery_above', shopConfig.freeAbove) && ok;
+      ok = pushConfigToSheet('coupon_code', shopConfig.couponCode) && ok;
+      ok = pushConfigToSheet('coupon_percent', shopConfig.couponPercent) && ok;
+      ok = pushConfigToSheet('coupon_min_bill', shopConfig.couponMinBill) && ok;
+      // ALSO push the trending list so the same button saves EVERYTHING.
+      ok = pushConfigToSheet('trending', (shopConfig.trending || []).join(',')) && ok;
+      updateBillingSummary();
+      renderTrending();
+      alert(ok ? '✅ ସବୁ ସେଟିଂସ୍ ସେଭ୍ ହେଲା — ସମସ୍ତ ଗ୍ରାହକଙ୍କ ଫୋନ୍ ରେ ଲାଗୁ!'
+               : '⚠️ ଏହି ଫୋନ୍ ରେ ସେଭ୍ ହେଲା, କିନ୍ତୁ Sheet ରେ ପହଞ୍ଚିଲା ନାହିଁ (Apps Script ନୂଆ version Deploy କରନ୍ତୁ)।');
+    }
+
+    // 💾 MASTER SAVE — pushes EVERY admin change (settings + trending + banners)
+    // to the shared Google Sheet so ALL customer phones update.
+    async function saveAllToSheet() {
+      // 1) Re-read the Shop Settings inputs so unsaved edits are included.
+      try {
+        shopConfig.deliveryFee = Math.max(0, parseFloat((document.getElementById('setDeliveryFee') || {}).value) || shopConfig.deliveryFee);
+        shopConfig.freeAbove = Math.max(0, parseFloat((document.getElementById('setFreeAbove') || {}).value) || shopConfig.freeAbove);
+        var cc = ((document.getElementById('setCouponCode') || {}).value || '').trim().toUpperCase();
+        if (cc) shopConfig.couponCode = cc;
+        var cp = parseFloat((document.getElementById('setCouponPercent') || {}).value);
+        if (!isNaN(cp)) shopConfig.couponPercent = Math.min(100, Math.max(0, cp));
+        var cmb = parseFloat((document.getElementById('setCouponMinBill') || {}).value);
+        if (!isNaN(cmb)) shopConfig.couponMinBill = Math.max(0, cmb);
+      } catch (e) {}
+      cacheShopConfig_();
+      updateBillingSummary();
+
+      var btn = document.getElementById('saveAllBtn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Saving…'; }
+
+      var ok = true;
+      ok = pushConfigToSheet('delivery_fee', shopConfig.deliveryFee) && ok;
+      ok = pushConfigToSheet('free_delivery_above', shopConfig.freeAbove) && ok;
+      ok = pushConfigToSheet('coupon_code', shopConfig.couponCode) && ok;
+      ok = pushConfigToSheet('coupon_percent', shopConfig.couponPercent) && ok;
+      ok = pushConfigToSheet('coupon_min_bill', shopConfig.couponMinBill) && ok;
+      ok = pushConfigToSheet('trending', (shopConfig.trending || []).join(',')) && ok;
+      // Banners too (if any) so the carousel also syncs.
+      try { ok = pushBannersToSheet() && ok; } catch (e) {}
+
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> 💾 Save All to Sheet'; }
+      if (!ok) {
+        alert('⚠️ ସେଭ୍ ହେଲା କିନ୍ତୁ Sheet ରେ ପହଞ୍ଚିଲା ନାହିଁ — Apps Script ନୂଆ version Deploy କରନ୍ତୁ।');
+        return;
+      }
+      // ✅ Verify: re-fetch the Sheet config and confirm OUR values landed.
+      // (no-cors POST can't return a response, so this read-back is the proof.)
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Verifying…'; }
+      try {
+        await new Promise(function (r) { setTimeout(r, 2500); }); // let Apps Script write
+        var vurl = sheetHookUrl('action=GET_CONFIG&_=' + Date.now());
+        if (vurl) {
+          var vres = await fetch(vurl);
+          var vdata = await vres.json();
+          var vcfg = (vdata && vdata.config) || {};
+          var wantTrend = (shopConfig.trending || []).join(',');
+          var gotTrend = String(vcfg.trending || '').trim();
+          var wantFee = String(shopConfig.deliveryFee);
+          var gotFee = (vcfg.delivery_fee !== undefined && vcfg.delivery_fee !== null) ? String(vcfg.delivery_fee) : '';
+          if (gotTrend === wantTrend && (wantFee === '' || gotFee === wantFee)) {
+            applyShopConfig_(vcfg); cacheShopConfig_();
+            alert('✅ ଯାଞ୍ଚ ହୋଇଗଲା — Sheet ରେ ସେଭ୍ ଅଛି!\n🔥 Trending · 🚚 ଡେଲିଭରୀ · 🎟️ କୁପନ୍ · 📢 Banners — ସମସ୍ତ ଗ୍ରାହକ ଫୋନ୍ ରେ ୨ ମିନିଟ୍ ମଧ୍ୟରେ ଦେଖାଯିବ!');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> 💾 Save All to Sheet'; }
+            return;
+          }
+        }
+      } catch (e) {}
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> 💾 Save All to Sheet'; }
+      alert('📤 ପଠାଗଲା, କିନ୍ତୁ Sheet ଯାଞ୍ଚ ହେଲା ନାହିଁ — Config tab ରେ trending row ଅଛି କି ଦେଖନ୍ତୁ।');
+    }
+
+    // 🔥 Trending Offers strip on the home page (admin toggles per product).
+    function renderTrending() {
+      var sec = document.getElementById('trendingSection');
+      var row = document.getElementById('trendingRow');
+      if (!sec || !row) return;
+      var list = (shopConfig.trending || []).map(function (ean) {
+        return window.STORE_CATALOG.find(function (p) { return String(p.ean) === String(ean); });
+      }).filter(Boolean).filter(function (p) {
+        return (parseInt(p.stock_qty, 10) || 0) > 0;
+      }).slice(0, 10);
+      if (!list.length) { sec.classList.add('hidden'); return; }
+      sec.classList.remove('hidden');
+      document.getElementById('trendingCount').innerText = list.length + ' ଟି ଅଫର୍';
+      row.innerHTML = list.map(function (p) {
+        var mrpV = parseFloat(p.mrp) || 0, spV = parseFloat(p.selling_price) || 0;
+        var off = mrpV > spV ? Math.round(((mrpV - spV) / mrpV) * 100) : 0;
+        return `
+        <div class="shrink-0 w-32 bg-white rounded-2xl border border-slate-200 p-2 relative">
+          ${off > 0 ? `<span class="absolute top-1.5 left-1.5 bg-rose-600 text-white text-[9px] font-black px-1 py-0.5 rounded">${off}% OFF</span>` : ''}
+          <img src="${p.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300'}" class="w-full h-20 object-contain" alt="">
+          <p class="text-[10px] font-bold text-slate-800 line-clamp-2 mt-1 leading-tight">${p.product_name}</p>
+          <div class="flex items-center justify-between mt-1">
+            <span class="text-xs font-black text-[#1864ab]">Rs.${money(p.selling_price)}</span>
+            <button onclick="setQty('${p.ean}', ${(cart[p.ean] || 0) + 1})" class="w-6 h-6 rounded-lg bg-[#1864ab] text-white flex items-center justify-center"><i class="ph-bold ph-plus text-xs"></i></button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function toggleTrending(ean) {
+      ean = String(ean);
+      var i = shopConfig.trending.indexOf(ean);
+      if (i >= 0) shopConfig.trending.splice(i, 1); else shopConfig.trending.push(ean);
+      cacheShopConfig_();
+      // Auto-push immediately so the admin's star tap reaches the shared
+      // Sheet right away (every customer phone picks it up on next poll).
+      pushConfigToSheet('trending', (shopConfig.trending || []).join(','));
+      renderTrending();
+      renderAdminList();
+    }
+
+    // 📊 Stock counting engine: auto low-stock (<=5) / out-of-stock report.
+    function renderStockHealth() {
+      var low = [], out = [], okN = 0;
+      window.STORE_CATALOG.forEach(function (p) {
+        var q = parseInt(p.stock_qty, 10);
+        if (isNaN(q)) q = 10;
+        if (q <= 0) out.push(p);
+        else if (q <= 5) low.push(p);
+        else okN++;
+      });
+      var chips = document.getElementById('stockHealthChips');
+      if (chips) {
+        chips.innerHTML =
+          `<span class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700">✅ In stock: ${okN}</span>` +
+          `<span class="px-2 py-1 rounded-lg bg-amber-50 text-amber-700">⚠️ Low (≤5): ${low.length}</span>` +
+          `<span class="px-2 py-1 rounded-lg bg-rose-50 text-rose-700">❌ Out of stock: ${out.length}</span>`;
+      }
+      var listEl = document.getElementById('stockHealthList');
+      if (!listEl) return;
+      var rows = out.map(function (p) { return { p: p, kind: 'out' }; })
+        .concat(low.map(function (p) { return { p: p, kind: 'low' }; }));
+      listEl.innerHTML = rows.length ? rows.map(function (r) {
+        var q = parseInt(r.p.stock_qty, 10) || 0;
+        return `
+        <div class="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg ${r.kind === 'out' ? 'bg-rose-50' : 'bg-amber-50'}">
+          <span class="font-bold ${r.kind === 'out' ? 'text-rose-700' : 'text-amber-700'} line-clamp-1">${r.p.product_name}</span>
+          <span class="font-black shrink-0 ml-2">${r.kind === 'out' ? '❌ ସରିଗଲା' : ('⚠️ ' + q + ' ବଳିଛି')}</span>
+        </div>`;
+      }).join('') : '<p class="text-[11px] text-emerald-600 font-bold text-center py-2">✅ ସବୁ ପ୍ରୋଡକ୍ଟରେ ପର୍ଯ୍ୟାପ୍ତ ଷ୍ଟକ୍ ଅଛି!</p>';
+    }
+
+    // ❌ Customer-side cancel (allowed only BEFORE out for delivery).
+    function cancelMyOrder(id) {
+      if (!confirm('ଆପଣ ଏହି ଅର୍ଡର ବାତିଲ୍ କରିବାକୁ ଚାହୁଁଛନ୍ତି କି?')) return;
+      var orders = getMyOrders();
+      var o = orders.find(x => String(x.id) === String(id));
+      if (!o) { alert('ଅର୍ଡର ମିଳିଲା ନାହିଁ।'); return; }
+      if (['out_for_delivery', 'delivered', 'cancelled'].indexOf(o.status) >= 0) {
+        alert('❌ ଅର୍ଡର ଡେଲିଭରୀ ପାଇଁ ବାହାରି ସାରିଛି — ଏବେ ବାତିଲ୍ କରିପାରିବେ ନାହିଁ।');
+        return;
+      }
+      o.status = 'cancelled';
+      o.stage = 5;
+      setMyOrders(orders);
+      postToSheet({ action: 'update_order_status', order_id: o.order_id, status: 'cancelled' });
+      renderOrders();
+      alert('❌ ଅର୍ଡର ବାତିଲ୍ ହେଲା। ଦୋକାନୀ ମଧ୍ୟ ଜାଣିପାରିବେ।');
+    }
+
+    // --- IMAGE LINK GENERATOR (upload -> public URL via ImgBB) ---
+    function saveImgbbKey() {
+      var k = document.getElementById('imgbbKeyInput').value.trim();
+      localStorage.setItem('munna_imgbb_key', k);
+      alert(k ? "✅ ImgBB API Key ସେଭ୍ ହେଲା! ଏବେ Banners ଟ୍ୟାବ୍ ରୁ ଫଟୋ ଅପଲୋଡ୍ କରି ଲିଙ୍କ୍ ତିଆରି କରନ୍ତୁ।" : "⚠️ ImgBB Key ହଟାଗଲା।");
+    }
+
+    function getImgbbKey() {
+      // Saved override first, otherwise the built-in default key.
+      return (localStorage.getItem('munna_imgbb_key') || '').trim() || DEFAULT_IMGBB_KEY;
+    }
+
+    async function generateImageLink() {
+      var fileInput = document.getElementById('imgLinkFile');
+      var btn = document.getElementById('imgLinkGenBtn');
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) { alert("ପ୍ରଥମେ ଏକ ଫଟୋ ବାଛନ୍ତୁ!"); return; }
+
+      var key = getImgbbKey(); // built-in default key; override via Sheets tab
+      if (!key) {
+        alert("⚙️ ପ୍ରଥମେ Sheets ଟ୍ୟାବ୍ ରେ ImgBB API Key ସେଟ୍ କରନ୍ତୁ।\n(ଫ୍ରି key: https://api.imgbb.com/)");
+        switchAdminTab('sync');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Uploading...';
+      try {
+        var url = await uploadToImgBB(file, key);
+        if (url) {
+          document.getElementById('imgLinkOutput').value = url;
+          document.getElementById('imgLinkPreview').src = url;
+          document.getElementById('imgLinkResult').classList.remove('hidden');
+        } else {
+          alert("❌ ଅପଲୋଡ୍ ବିଫଳ ହେଲା। ImgBB Key ଠିକ୍ ଅଛି କି ଯାଞ୍ଚ କରନ୍ତୁ।");
+        }
+      } catch (e) {
+        alert("❌ ତ୍ରୁଟି: " + e.message);
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ph-bold ph-link-simple"></i> Generate Link';
+    }
+
+    function uploadToImgBB(file, key) {
+      return new Promise(function (resolve) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          var base64 = String(reader.result).split(',')[1];
+          var body = new FormData();
+          body.append('image', base64);
+          fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(key), {
+            method: 'POST', body: body
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              resolve(d && d.data && d.data.url ? d.data.url : '');
+            })
+            .catch(function () { resolve(''); });
+        };
+        reader.onerror = function () { resolve(''); };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function copyImgLink() {
+      var out = document.getElementById('imgLinkOutput');
+      out.select();
+      out.setSelectionRange(0, 99999);
+      try {
+        document.execCommand('copy');
+        alert("✅ ଲିଙ୍କ୍ କପି ହେଲା!");
+      } catch (e) {
+        if (navigator.clipboard) navigator.clipboard.writeText(out.value);
+      }
+    }
+
+    function useImgLinkForBanner() {
+      var url = document.getElementById('imgLinkOutput').value.trim();
+      if (!url) return;
+      document.getElementById('newBannerImg').value = url;
+      updateImagePreview(url);
+      switchAdminTab('banners');
+      document.getElementById('newBannerTitle').focus();
+    }
+
+    // --- JIOMART & WEB SMART PRODUCT SEARCH ---
+    function setSearchSource(src) {
+      currentSearchSource = src;
+      var jioBtn = document.getElementById('toggleJioBtn');
+      var webBtn = document.getElementById('toggleWebBtn');
+      var pinBox = document.getElementById('pincodeWrapper');
+      if (src === 'jiomart') {
+        jioBtn.className = "px-2 py-0.5 rounded-md bg-[#1864ab] text-white";
+        webBtn.className = "px-2 py-0.5 rounded-md text-slate-600";
+        pinBox.classList.remove('hidden');
+      } else {
+        webBtn.className = "px-2 py-0.5 rounded-md bg-[#1864ab] text-white";
+        jioBtn.className = "px-2 py-0.5 rounded-md text-slate-600";
+        pinBox.classList.add('hidden');
+      }
+    }
+
+    // --- JioMart search backends (same headers/parsing as jiomart_search_proxy.py) ---
+    // 1) Apps Script webhook: UrlFetchApp calls JioMart SERVER-SIDE with the
+    //    full header set, so CORS and JioMart's browser bot-blocking never
+    //    apply. This is the same code path that works when you run
+    //    jiomart_search_proxy.py locally - just hosted in the Sheet.
+    async function searchJioMartViaHook(q, pin) {
+      var url = sheetHookUrl('action=SEARCH_JIOMART&query=' + encodeURIComponent(q) + '&pincode=' + encodeURIComponent(pin));
+      if (!url) return null;
+      try {
+        var res = await fetch(url);
+        var data = await res.json();
+        if (data && data.status === 'success' && Array.isArray(data.items)) {
+          return data.items.filter(function (it) { return it && it.url && it.sellable !== false; });
+        }
+      } catch (e) {}
+      return null;
+    }
+    // 2) Optional local proxy: python jiomart_search_proxy.py (port 8085).
+    async function searchJioMartViaProxy(q, pin) {
+      var base = (localStorage.getItem('munna_jiomart_proxy') || '').trim();
+      if (!base) return null;
+      try {
+        var res = await fetch(base + (base.indexOf('?') >= 0 ? '&' : '?') + 'q=' + encodeURIComponent(q) + '&pincode=' + encodeURIComponent(pin));
+        var data = await res.json();
+        if (data && Array.isArray(data.items)) {
+          return data.items.filter(function (it) { return it && it.url && it.sellable !== false; });
+        }
+      } catch (e) {}
+      return null;
+    }
+    // 3) Last resort: public CORS proxy (frequently blocked/slow - keep as fallback).
+    async function searchJioMartViaAllOrigins(q) {
+      var out = [];
+      try {
+        var targetJioUrl = `https://www.jiomart.com/api/service/application/catalog/v1.0/products?q=${encodeURIComponent(q)}&page_size=12&page_no=1`;
+        var proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetJioUrl)}`;
+        var proxyRes = await fetch(proxyUrl);
+        var proxyJson = await proxyRes.json();
+        if (proxyJson && proxyJson.contents) {
+          var jioData = JSON.parse(proxyJson.contents);
+          var items = jioData.items || (jioData.data && jioData.data.items) || [];
+          items.forEach(item => {
+            var imgUrl = (item.medias && item.medias[0]) ? item.medias[0].url : "";
+            var mrp = item.price ? (item.price.marked ? (item.price.marked.min || item.price.marked) : "") : "";
+            var sp = item.price ? (item.price.effective ? (item.price.effective.min || item.price.effective) : "") : "";
+            var cat = (item.hierarchy && item.hierarchy.l3_category) ? item.hierarchy.l3_category.name : "Grocery";
+            if (imgUrl) out.push({ title: item.name || q, url: imgUrl, mrp: String(mrp), sp: String(sp), cat: cat, source: "JioMart" });
+          });
+        }
+      } catch(e){}
+      return out;
+    }
+
+    async function triggerLiveSearch() {
+      var q = document.getElementById('newProdName').value.trim();
+      var pin = document.getElementById('searchPincode').value.trim() || '752106';
+      if (!q || q.length < 2) { alert("ସାମଗ୍ରୀର ନାମ ଲେଖନ୍ତୁ!"); return; }
+
+      var searchBtn = document.getElementById('smartSearchBtn');
+      searchBtn.disabled = true;
+      searchBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Searching...';
+
+      var dropdown = document.getElementById('imageDropdownContainer');
+      var grid = document.getElementById('imageGridResults');
+      dropdown.classList.remove('hidden');
+      grid.innerHTML = '<div class="col-span-full py-4 text-center text-xs text-blue-600 font-bold"><i class="ph-bold ph-spinner animate-spin"></i> JioMart ଲାଇଭ୍ ଡାଟା ଖୋଜା ଚାଲିଛି...</div>';
+
+      // Try every backend in order until one returns products.
+      var results = [], sourceUsed = '';
+      // 1) Apps Script webhook (server-side JioMart with pincode headers).
+      var viaHook = await searchJioMartViaHook(q, pin);
+      if (viaHook && viaHook.length) { results = viaHook; sourceUsed = 'Apps Script'; }
+      if (!results.length) {
+        var viaProxy = await searchJioMartViaProxy(q, pin);
+        if (viaProxy && viaProxy.length) { results = viaProxy; sourceUsed = 'Local Proxy'; }
+      }
+      if (!results.length) {
+        var viaOrigins = await searchJioMartViaAllOrigins(q);
+        if (viaOrigins && viaOrigins.length) { results = viaOrigins; sourceUsed = 'AllOrigins'; }
+      }
+
+      searchBtn.disabled = false;
+      searchBtn.innerHTML = '<i class="ph-bold ph-magnifying-glass"></i> Search';
+      document.getElementById('resultsHeaderTitle').innerText = 'JioMart Results' + (sourceUsed ? ' (' + sourceUsed + ')' : '') + ':';
+
+      if (results.length === 0) {
+        var hint = localStorage.getItem('munna_sheet_webhook')
+          ? ' — webhook/proxy ଠିକ୍ ଅଛି କିନ୍ତୁ JioMart ରୁ ଫଳାଫଳ ମିଳିଲା ନାହିଁ; ଅନ୍ୟ ନାମ ଚେଷ୍ଟା କରନ୍ତୁ।'
+          : ' — Admin → Sheets ରେ Apps Script Webhook ସେଟ୍ କରନ୍ତୁ (କିମ୍ବା Local Proxy ଦିଅନ୍ତୁ)।';
+        grid.innerHTML = '<p class="col-span-full text-xs text-rose-500 font-bold text-center py-2">କୌଣସି ଫଳାଫଳ ମିଳିଲା ନାହିଁ' + hint + '</p>';
+        return;
+      }
+
+      grid.innerHTML = results.map(item => `
+        <div onclick="selectProductToForm('${encodeURIComponent(item.url)}', '${encodeURIComponent(item.title)}', '${encodeURIComponent(item.cat)}', '${item.mrp}', '${item.sp}')"
+             class="cursor-pointer bg-white p-2 rounded-xl border border-slate-200 hover:border-blue-500 text-center flex flex-col items-center">
+          <img src="${item.url}" class="w-full h-20 object-contain mb-1">
+          <span class="text-[10px] font-bold text-slate-800 line-clamp-1">${item.title}</span>
+          <span class="text-[10px] font-extrabold text-emerald-600 mt-0.5">Rs.${item.sp}</span>
+        </div>
+      `).join('');
+    }
+
+    function selectProductToForm(url, title, cat, mrp, sp) {
+      document.getElementById('newProdImg').value = decodeURIComponent(url);
+      updateImagePreview(decodeURIComponent(url));
+      document.getElementById('newProdName').value = decodeURIComponent(title);
+      document.getElementById('newProdCat').value = decodeURIComponent(cat);
+      if (mrp) document.getElementById('newProdMRP').value = mrp;
+      if (sp) document.getElementById('newProdSP').value = sp;
+      closeImageDropdown();
+    }
+    function closeImageDropdown() { document.getElementById('imageDropdownContainer').classList.add('hidden'); }
+    function updateImagePreview(u) {
+      var box = document.getElementById('imgPreviewBox');
+      var img = document.getElementById('imgPreviewTag');
+      if (u && u.startsWith('http')) { img.src = u; box.classList.remove('hidden'); } else { box.classList.add('hidden'); }
+    }
+
+    // --- CATALOG CRUD & SYNC ---
+    async function handleAdminFormSubmit(e) {
+      e.preventDefault();
+      var isEdit = document.getElementById('editEan').value !== "";
+      var ean = isEdit ? document.getElementById('editEan').value : ("EAN-" + Date.now());
+      var nm = document.getElementById('newProdName').value.trim();
+      var mrp = document.getElementById('newProdMRP').value.trim();
+      var sp = document.getElementById('newProdSP').value.trim();
+      var st = document.getElementById('newProdStock').value.trim();
+      var cat = document.getElementById('newProdCat').value.trim() || 'General';
+      var img = document.getElementById('newProdImg').value.trim() || "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400";
+
+      var prodObj = { ean, product_name: nm, mrp, selling_price: sp, stock_qty: st, image_url: img, category: cat };
+
+      if (isEdit) {
+        var idx = window.STORE_CATALOG.findIndex(x => String(x.ean) === String(ean));
+        if (idx !== -1) window.STORE_CATALOG[idx] = prodObj;
+      } else {
+        window.STORE_CATALOG.unshift(prodObj);
+      }
+
+      localStorage.setItem('munna_store_catalog', JSON.stringify(window.STORE_CATALOG));
+
+      var hook = localStorage.getItem('munna_sheet_webhook');
+      if (hook) {
+        try {
+          fetch(hook, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: isEdit ? "EDIT_PRODUCT" : "ADD_PRODUCT", ean, name: nm, mrp, sellingPrice: sp, stock: st, category: cat, image: img })
+          });
+        } catch(err){}
+      }
+
+      alert("✅ ସଫଳତାର ସହ ସେଭ୍ ହେଲା!");
+      resetAdminForm();
+      renderAdminList();
+      render();
+    }
+
+    function resetAdminForm() {
+      document.getElementById('editEan').value = '';
+      document.getElementById('newProdName').value = '';
+      document.getElementById('newProdMRP').value = '';
+      document.getElementById('newProdSP').value = '';
+      document.getElementById('newProdStock').value = '10';
+      document.getElementById('newProdCat').value = '';
+      document.getElementById('newProdImg').value = '';
+      updateImagePreview('');
+      closeImageDropdown();
+      document.getElementById('cancelEditBtn').classList.add('hidden');
+    }
+
+    function clearDbSearch() {
+      document.getElementById('dbSearchInput').value = '';
+      renderAdminList();
+    }
+
+    function renderAdminList() {
+      var box = document.getElementById('adminInventoryList');
+      var searchEl = document.getElementById('dbSearchInput');
+      var clearBtn = document.getElementById('dbSearchClearBtn');
+      var q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+      if (clearBtn) clearBtn.classList.toggle('hidden', !q);
+
+      // Database search: filter by product name / category / EAN (case-insensitive)
+      var items = window.STORE_CATALOG;
+      if (q) {
+        items = items.filter(function (p) {
+          var nm = String(p.product_name || '').toLowerCase();
+          var cat = String(p.category || '').toLowerCase();
+          var ean = String(p.ean || '').toLowerCase();
+          return nm.indexOf(q) >= 0 || cat.indexOf(q) >= 0 || ean.indexOf(q) >= 0;
+        });
+      }
+
+      if (!items.length) {
+        box.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">' +
+          (q ? '🔍 "' + q + '" ପାଇଁ କିଛି ମିଳିଲା ନାହିଁ।' : 'କୌଣସି ପ୍ରୋଡକ୍ଟ ନାହିଁ।') + '</p>';
+        document.getElementById('adminTotalItems').innerText =
+          q ? items.length + ' / ' + window.STORE_CATALOG.length + ' Items' : window.STORE_CATALOG.length + ' Items';
+        return;
+      }
+
+      box.innerHTML = items.map((p) => {
+        var realIdx = window.STORE_CATALOG.indexOf(p);
+        var isTrend = shopConfig.trending.indexOf(String(p.ean)) >= 0;
+        var sq = parseInt(p.stock_qty, 10); if (isNaN(sq)) sq = 10;
+        var stockBadge = sq <= 0
+          ? '<span class="text-[9px] font-black text-rose-600">❌ OUT</span>'
+          : (sq <= 5
+            ? `<span class="text-[9px] font-black text-amber-600">⚠️ LOW (${sq})</span>`
+            : `<span class="text-[9px] text-slate-400 font-bold">Stock: ${sq}</span>`);
+        return `
+        <div class="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-xs">
+          <div>
+            <h5 class="font-bold text-slate-800">${p.product_name}</h5>
+            <span class="text-[10px] text-slate-500">Rs.${p.selling_price} | </span>${stockBadge}
+          </div>
+          <div class="flex gap-1 items-center">
+            <button onclick="toggleTrending('${p.ean}')" title="Trending ରେ ଯୋଡ଼ନ୍ତୁ/ହଟାନ୍ତୁ" class="w-6 h-6 rounded text-sm ${isTrend ? 'text-amber-500' : 'text-slate-300'}">${isTrend ? '★' : '☆'}</button>
+            <button onclick="editAdminProduct(${realIdx})" class="px-2 py-1 bg-amber-500 text-white rounded font-bold text-[10px]">Edit</button>
+            <button onclick="deleteAdminProduct(${realIdx})" class="px-2 py-1 bg-rose-50 text-rose-600 rounded font-bold text-[10px]">Delete</button>
+          </div>
+        </div>
+      `;
+      }).join('');
+      document.getElementById('adminTotalItems').innerText =
+        q ? items.length + ' / ' + window.STORE_CATALOG.length + ' Items' : window.STORE_CATALOG.length + ' Items';
+    }
+
+    function editAdminProduct(idx) {
+      var p = window.STORE_CATALOG[idx];
+      document.getElementById('editEan').value = p.ean;
+      document.getElementById('newProdName').value = p.product_name;
+      document.getElementById('newProdMRP').value = p.mrp;
+      document.getElementById('newProdSP').value = p.selling_price;
+      document.getElementById('newProdStock').value = p.stock_qty || 10;
+      document.getElementById('newProdCat').value = p.category;
+      document.getElementById('newProdImg').value = p.image_url;
+      updateImagePreview(p.image_url);
+      document.getElementById('cancelEditBtn').classList.remove('hidden');
+      document.getElementById('adminFormCard').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function deleteAdminProduct(idx) {
+      if (confirm("ଡିଲିଟ୍ କରିବାକୁ ଚାହାନ୍ତି କି?")) {
+        window.STORE_CATALOG.splice(idx, 1);
+        localStorage.setItem('munna_store_catalog', JSON.stringify(window.STORE_CATALOG));
+        renderAdminList();
+        render();
+      }
+    }
+
+    function saveWebhook() {
+      var u = document.getElementById('webhookInput').value.trim();
+      localStorage.setItem('munna_sheet_webhook', u);
+      alert("Webhook Saved!");
+      syncFromGoogleSheet();
+      syncOrdersFromSheet();
+      syncAddressesFromSheet();
+    }
+    function saveJioMartProxy() {
+      var u = document.getElementById('jiomartProxyInput').value.trim();
+      localStorage.setItem('munna_jiomart_proxy', u);
+      alert(u ? "JioMart Proxy Saved! (e.g. http://localhost:8085)" : "JioMart Proxy Cleared!");
+    }
+
+    async function syncFromGoogleSheet() {
+      // Prefer the saved webhook; fall back to DEFAULT_SHEET_WEBHOOK so a
+      // brand-new device still fetches the LIVE inventory instead of staying
+      // on the built-in sample products.
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim() || DEFAULT_SHEET_WEBHOOK;
+      if (!hook) return;
+      try {
+        var res = await fetch(hook);
+        var data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          window.STORE_CATALOG = data;
+          localStorage.setItem('munna_store_catalog', JSON.stringify(data));
+          render();
+          renderAdminList();
+        }
+      } catch(e){}
+    }
+    async function manualSync() {
+      await syncFromGoogleSheet();
+      await syncOrdersFromSheet();
+      await syncAddressesFromSheet();
+      alert("Google Sheets Sync Complete!");
+    }
+
+    // --- LOCAL STORAGE HELPERS ---
+    function getTgUser() { try { return (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null; } catch (e) { return null; } }
+    function uidKey(base) { var u = getTgUser(); return base + '_' + (u && u.id ? u.id : 'anon'); }
+    function getAddresses() { try { return JSON.parse(localStorage.getItem(uidKey('munna_addresses')) || '[]'); } catch(e){ return []; } }
+    function setAddresses(a) { try { localStorage.setItem(uidKey('munna_addresses'), JSON.stringify(a)); } catch(e){} }
+    // --- UNIFIED ORDER MODEL (same format as the Telegram bot's Google Sheet) ---
+    // Orders tab: Timestamp | Order ID | Customer Name | Phone | Address |
+    // Items | Total | Channel | Telegram User ID | Status | Status Msg ID |
+    // Location | Payment  (see db.ORDERS_HEADERS in the bot)
+    var ORDER_STATUSES = ['pending', 'accepted', 'packing', 'out_for_delivery', 'delivered', 'cancelled'];
+    var STATUS_STAGE = { pending: 1, accepted: 2, packing: 3, out_for_delivery: 4, delivered: 5, cancelled: 5 };
+    var STAGE_STATUS = ['pending', 'accepted', 'packing', 'out_for_delivery', 'delivered'];
+
+    // Order id shaped exactly like the bot's db.make_order_id(): MUN-YYYYMMDD-XXXXXX
+    function makeOrderId() {
+      var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); };
+      var stamp = '' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate());
+      var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', rand = '';
+      for (var i = 0; i < 6; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+      return 'MUN-' + stamp + '-' + rand;
+    }
+    // Timestamp shaped like the bot's "%Y-%m-%d %H:%M:%S"
+    function sheetTimestamp(d) {
+      var p = function (n) { return String(n).padStart(2, '0'); };
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' +
+        p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+    }
+    // Items text shaped like the bot: "Oil x2 @ Rs.340; Salt x1 @ Rs.25"
+    function itemsToText(lines) {
+      return (lines || []).map(function (l) {
+        return l.name + ' x' + (parseInt(l.qty, 10) || 1) + ' @ Rs.' + (parseFloat(l.price) || 0);
+      }).join('; ');
+    }
+    function parseItemsText(txt) {
+      if (Array.isArray(txt)) return txt;
+      var out = [];
+      String(txt || '').split(';').forEach(function (seg) {
+        seg = seg.trim();
+        if (!seg) return;
+        var m = seg.match(/^(.*?)\s*[xX]\s*(\d+)\s*@\s*Rs\.?\s*(.+)$/);
+        if (m) out.push({ name: m[1].trim(), qty: parseInt(m[2], 10) || 1, price: parseFloat(m[3]) || 0 });
+        else out.push({ name: seg, qty: 1, price: 0 });
+      });
+      return out;
+    }
+    // Accepts: Sheet rows (bot), our unified objects, and old local orders.
+    // Every order reaches ONE shape, so the UI never cares where it came from.
+    function normalizeOrder(o) {
+      if (!o || typeof o !== 'object') return null;
+      var id = String(o.order_id || o.id || '').trim();
+      if (!id) return null;
+      var itemsRaw = (o.items !== undefined && o.items !== null) ? o.items : (o.items_text || '');
+      var lines = (Array.isArray(itemsRaw) && itemsRaw.length && typeof itemsRaw[0] === 'object' && itemsRaw[0] !== null)
+        ? itemsRaw.map(function (it) {
+            return { ean: it.ean || '', name: it.name || 'Item', qty: parseInt(it.qty, 10) || 1, price: parseFloat(it.price) || 0 };
+          })
+        : parseItemsText(itemsRaw);
+      var status = String(o.status || '').trim();
+      if (ORDER_STATUSES.indexOf(status) < 0) {
+        var stageN = parseInt(o.stage, 10);
+        status = (stageN >= 1 && stageN <= 5) ? STAGE_STATUS[stageN - 1] : 'pending';
+      }
+      var lat = o.lat, lng = o.lng;
+      if ((lat === undefined || lat === '' || lat === null) && o.location) {
+        var locParts = String(o.location).split(',');
+        lat = parseFloat(locParts[0]);
+        lng = parseFloat(locParts[1]);
+      }
+      var ts = o.timestamp || o.date || '';
+      if (ts.indexOf('T') >= 0) ts = ts.replace('T', ' ').substring(0, 19);
+      var name = o.customer_name || o.name || '';
+      return {
+        id: id, order_id: id, date: ts, timestamp: ts,
+        name: name, customer_name: name,
+        phone: o.phone || '', address: o.address || '',
+        lat: lat, lng: lng,
+        location: o.location || ((lat !== undefined && lat !== '' && !isNaN(lat)) ? (lat + ',' + lng) : ''),
+        payment: o.payment || 'COD',
+        total: parseFloat(String(o.total || 0).replace(/,/g, '')) || 0,
+        items: lines,
+        items_text: (typeof itemsRaw === 'string' && itemsRaw) ? itemsRaw : itemsToText(lines),
+        stage: STATUS_STAGE[status] || 1,
+        status: status,
+        channel: o.channel || 'webapp',
+        telegram_user_id: o.telegram_user_id || '',
+        status_msg_id: o.status_msg_id || ''
+      };
+    }
+    function getMyOrders() {
+      try {
+        return (JSON.parse(localStorage.getItem('MUNA_ALL_ORDERS') || '[]') || [])
+          .map(normalizeOrder).filter(Boolean);
+      } catch (e) { return []; }
+    }
+    function setMyOrders(o) { try { localStorage.setItem('MUNA_ALL_ORDERS', JSON.stringify(o)); } catch(e){} }
+
+
+    function sendToBot(payload) {
+      if (tg && tg.sendData) { try { tg.sendData(JSON.stringify(payload)); return true; } catch(e){} }
+      return false;
+    }
+
+    // --- SHARED-DATABASE HELPERS (Google Sheet via Apps Script webhook) ---
+    function sheetHookUrl(suffix) {
+      // localStorage first, DEFAULT_SHEET_WEBHOOK fallback — customer phones
+      // that never opened Admin still reach the shared Sheet (banners/order
+      // sync must work on EVERY device, not just the admin's).
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
+        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      if (!hook) return '';
+      return hook + (hook.indexOf('?') >= 0 ? '&' : '?') + (suffix || '');
+    }
+    function postToSheet(payload) {
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
+        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      if (!hook) return;
+      try {
+        fetch(hook, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {}
+    }
+    // Status change (webapp admin) -> shared Sheet -> bot edits the customer's
+    // live Telegram status message.
+    function pushOrderStatus(order) {
+      if (!order) return;
+      postToSheet({ action: 'update_order_status', order_id: order.order_id, status: order.status });
+    }
+    // Bill edit (webapp admin) -> shared Sheet (bot admin panel reads it).
+    function pushOrderBill(order) {
+      if (!order) return;
+      postToSheet({
+        action: 'update_order_bill',
+        order_id: order.order_id,
+        items: order.items_text || itemsToText(order.items),
+        total: order.total
+      });
+    }
+    // Address book -> bot (Telegram) or the shared Addresses tab (browser).
+    function pushAddressToSheet(addr) {
+      if (!addr) return;
+      if (sendToBot({ action: 'SAVE_ADDRESS', customer: addr.name, name: addr.name, phone: addr.phone, address: addr.address })) return;
+      var u = getTgUser();
+      if (u && u.id) {
+        postToSheet({ action: 'save_address', user_id: String(u.id), name: addr.name, phone: addr.phone, address: addr.address, location: '' });
+      }
+    }
+
+    // Pull orders from the shared Sheet: Telegram (chat/miniapp/ai) + browser
+    // (webapp) orders all show up here. The Sheet wins on conflicts because
+    // the bot's Admin Panel advances status there.
+    async function syncOrdersFromSheet() {
+      var url = sheetHookUrl('action=GET_ORDERS');
+      if (!url) return false;
+      try {
+        var res = await fetch(url);
+        var data = await res.json();
+        var remote = (data && Array.isArray(data.orders)) ? data.orders : [];
+        if (!remote.length) return false;
+        var byId = {};
+        getMyOrders().forEach(function (o) { byId[o.order_id] = o; });
+        remote.forEach(function (r) {
+          var n = normalizeOrder(r);
+          if (n) byId[n.order_id] = n;
+        });
+        var merged = Object.keys(byId).map(function (k) { return byId[k]; })
+          .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+        setMyOrders(merged);
+        var os = document.getElementById('ordersScreen');
+        if (os && !os.classList.contains('hidden')) renderOrders();
+        var ad = document.getElementById('adminDashboard');
+        if (ad && !ad.classList.contains('hidden')) renderAdminOrders();
+        return true;
+      } catch (e) { return false; }
+    }
+    // --- SHARED ADMIN SETTINGS (Config tab) ---
+    // Admin sets once -> EVERY customer sees it. Banners live here now
+    // (Sheet wins; localStorage is only an offline cache).
+    function pushConfigToSheet(key, value) {
+      // Returns false when no webhook is configured, so callers can warn.
+      if (!key) return false;
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
+        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      if (!hook) return false;
+      try {
+        fetch(hook, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'SAVE_CONFIG', key: key, value: value })
+        });
+        return true;
+      } catch (e) { return false; }
+    }
+    async function syncBannersFromSheet() {
+      // Cache-buster: Apps Script can serve a stale
+      // config for minutes. The timestamp makes EVERY poll a fresh read so a
+      // newly-set admin banner appears on customer phones within ~2 minutes.
+      var url = sheetHookUrl('action=GET_CONFIG&_=' + Date.now());
+      if (!url) return false;
+      try {
+        var res = await fetch(url);
+        var data = await res.json();
+        var cfg = (data && data.config) || {};
+        // ALWAYS apply shop settings + trending BEFORE banners, so the
+        // trending strip / delivery / coupon update on EVERY poll.
+        applyShopConfig_(cfg);
+        cacheShopConfig_();
+        if (cfg.banners) {
+          var shared = [];
+          try { shared = JSON.parse(cfg.banners) || []; } catch (e) { shared = []; }
+          if (Array.isArray(shared) && shared.length) {
+            // Shared banners REPLACE everything — old local defaults are
+            // wiped so they can never scroll again on any device.
+            banners = shared.slice(0, 5);
+            try {
+              localStorage.setItem('SHOP_BANNERS', JSON.stringify(banners));
+              localStorage.setItem('SHOP_BANNERS_SHARED', '1');
+            } catch (e) {}
+            initCarousel();
+            var ad = document.getElementById('adminDashboard');
+            if (ad && !ad.classList.contains('hidden')) renderAdminBanners();
+            return true;
+          }
+        }
+      } catch (e) {}
+      return false;
+    }
+    function pushBannersToSheet() {
+      // True = POST queued to the Sheet; false = no webhook (caller warns).
+      return pushConfigToSheet('banners', JSON.stringify(banners.slice(0, 5))) !== false;
+    }
+
+    // Pull the customer's saved address from the bot (bot checkout / SAVE_ADDRESS).
+    async function syncAddressesFromSheet() {
+      var u = getTgUser();
+      if (!u || !u.id) return false;
+      var url = sheetHookUrl('action=GET_ADDRESSES&user_id=' + encodeURIComponent(u.id));
+      if (!url) return false;
+      try {
+        var res = await fetch(url);
+        var data = await res.json();
+        var remote = (data && Array.isArray(data.addresses)) ? data.addresses : [];
+        if (!remote.length) return false;
+        var a = remote[0];
+        var local = getAddresses();
+        var match = null;
+        if (String(a.phone || '').trim()) {
+          match = local.filter(function (x) { return String(x.phone || '').trim() === String(a.phone).trim(); })[0] || null;
+        }
+        if (match) {
+          match.name = a.name || match.name;
+          match.phone = a.phone || match.phone;
+          match.address = a.address || match.address;
+        } else {
+          match = { id: 'A' + Date.now(), name: a.name || '', phone: a.phone || '', address: a.address || '' };
+          local.unshift(match);
+        }
+        local.forEach(function (x) { x.isDefault = (x === match); });
+        setAddresses(local);
+        var al = document.getElementById('addressScreen');
+        if (al && !al.classList.contains('hidden')) renderAddressList();
+        prefillOrderForm();
+        return true;
+      } catch (e) { return false; }
+    }
+
+    function prefillOrderForm() {
+      var u = getTgUser();
+      var addrs = getAddresses();
+      var def = addrs.find(a => a.isDefault) || addrs[0];
+      if (def) {
+        document.getElementById('orderCustName').value = def.name;
+        document.getElementById('orderCustPhone').value = def.phone;
+        document.getElementById('orderCustAddress').value = def.address;
+      } else if (u) {
+        document.getElementById('orderCustName').value = u.first_name || '';
+      }
+    }
+
+    function renderSavedAddressPick() {
+      var box = document.getElementById('savedAddressPick');
+      var list = getAddresses();
+      if (!list.length) { box.innerHTML = ''; return; }
+      box.innerHTML = list.slice(0,2).map(a => `
+        <div onclick="pickSavedAddress('${a.id}')" class="p-2 rounded-xl border border-slate-200 bg-white cursor-pointer text-[11px]">
+          <span class="font-bold">${a.name}</span> · <span class="text-slate-500">${a.phone}</span>
+          <p class="text-slate-600 line-clamp-1">${a.address}</p>
+        </div>
+      `).join('');
+    }
+
+    function pickSavedAddress(id) {
+      var a = getAddresses().find(x => x.id === id);
+      if (!a) return;
+      document.getElementById('orderCustName').value = a.name;
+      document.getElementById('orderCustPhone').value = a.phone;
+      document.getElementById('orderCustAddress').value = a.address;
+    }
+
+    function openAddressForm(id) {
+      document.getElementById('addressForm').classList.remove('hidden');
+      document.getElementById('addrEditId').value = id || '';
+    }
+    function closeAddressForm() { document.getElementById('addressForm').classList.add('hidden'); }
+    function saveAddressForm() {
+      var id = document.getElementById('addrEditId').value;
+      var name = document.getElementById('addrName').value.trim();
+      var phone = document.getElementById('addrPhone').value.trim();
+      var address = document.getElementById('addrText').value.trim();
+      var isDefault = document.getElementById('addrDefault').checked;
+      if (!name || !phone || !address) { alert("ସମସ୍ତ ତଥ୍ୟ ପୂରଣ କରନ୍ତୁ!"); return; }
+      var list = getAddresses();
+      if (isDefault) list.forEach(a => a.isDefault = false);
+      if (id) {
+        var a = list.find(x => x.id === id);
+        if (a) { a.name = name; a.phone = phone; a.address = address; a.isDefault = isDefault; }
+      } else {
+        list.push({ id: 'A' + Date.now(), name, phone, address, isDefault: isDefault || list.length === 0 });
+      }
+      setAddresses(list);
+      // Sync to the shared database (Telegram bot reads the same entry).
+      pushAddressToSheet((id && list.find(x => x.id === id)) || list[list.length - 1]);
+      closeAddressForm();
+      renderAddressList();
+    }
+    function renderAddressList() {
+      var box = document.getElementById('addressList');
+      var list = getAddresses();
+      if (!list.length) { box.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">କୌଣସି ଠିକଣା ସେଭ୍ ହୋଇନାହିଁ।</p>'; return; }
+      box.innerHTML = list.map(a => `
+        <div class="bg-white p-3 rounded-2xl border border-slate-200">
+          <div class="font-bold text-xs">${a.name} · ${a.phone}</div>
+          <div class="text-[11px] text-slate-600 mt-0.5">${a.address}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderProfile() {
+      var u = getTgUser();
+      var name = (u && u.first_name) || 'Customer';
+      document.getElementById('profName').innerText = name;
+      document.getElementById('profAvatar').innerText = name.charAt(0).toUpperCase();
+      document.getElementById('profOrderCount').innerText = getMyOrders().length;
+      document.getElementById('profAddrCount').innerText = getAddresses().length;
+    }
+
+    function handleSearch(v) { query = v || ""; document.getElementById('clearSearchBtn').classList.toggle('hidden', !query); render(); }
+    function clearSearch() { document.getElementById('searchInput').value = ""; query = ""; document.getElementById('clearSearchBtn').classList.add('hidden'); render(); }
+    function toggleLang() {
+      isEnglish = !isEnglish;
+      document.getElementById('langBtnText').innerText = isEnglish ? "ଓଡ଼ିଆ" : "English";
+      document.getElementById('lblStoreName').innerText = isEnglish ? "MUNNA MOBILE & GROCERY" : "ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ";
+    }
+
+    // --- INITIALIZATION ---
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        var sp = new URLSearchParams(window.location.search);
+        var sUrl = sp.get('sheet');
+        // ?sheet= deep-link always wins (the bot passes its webhook this way).
+        if (sUrl) {
+          localStorage.setItem('munna_sheet_webhook', sUrl);
+        } else if (!localStorage.getItem('munna_sheet_webhook') && DEFAULT_SHEET_WEBHOOK) {
+          // First visit on a new device: adopt the default webhook and pull
+          // the LIVE catalog right away instead of the sample products.
+          localStorage.setItem('munna_sheet_webhook', DEFAULT_SHEET_WEBHOOK);
+        }
+      } catch(e){}
+
+      initCarousel();
+      loadCart_(); // restore cart + applied coupon so refresh never empties it
+      render();
+      prefillOrderForm();
+      renderProfile();
+      updateCartBadge();
+      // Fetch + render live inventory (localStorage webhook or DEFAULT_SHEET_WEBHOOK).
+      syncFromGoogleSheet();
+      // Admin-set offer banners are shared: Sheet first (ALL customers see the
+      // same banners), local cache only until the Sheet answers.
+      syncBannersFromSheet();
+      setInterval(function () { syncBannersFromSheet(); syncFromGoogleSheet(); }, 120000);
+      // Shared-database sync: Telegram (bot) orders + saved addresses, then
+      // keep refreshing so stage/status changes made in the bot show up here.
+      syncOrdersFromSheet();
+      syncAddressesFromSheet();
+      setInterval(function () { syncOrdersFromSheet(); }, 60000);
+      setInterval(function () { syncAddressesFromSheet(); }, 300000);
+    });
+  </script>
+</body>
+</html>

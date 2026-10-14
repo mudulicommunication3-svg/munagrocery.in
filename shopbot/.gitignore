@@ -1,0 +1,43 @@
+# Secrets & credentials - NEVER commit these to GitHub
+.env
+credentials.json
+*_credentials.json
+*-credentials.json
+service-account*.json
+KEY.txt
+
+# Bot logs (contain the bot token in request URLs) + runtime admin/settings
+bot_err.log
+bot_run.log
+admins.json
+bot_settings.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Runtime secret data (logs, backups, partial state) - never in git
+.secret/
+
+# Scratch / temp output + stray duplicates
+a.txt
+d.txt
+t.txt
+aout.txt
+dout.txt
+tout.txt
+export_out.txt
+export_err.txt
+imp_out.txt
+imp_err.txt
+bot_out.log
+WEBAPP2.html
+
+# Test run outputs
+tests/*.txt
+
+# Web sync state (webapp <-> bot order sync - machine local)
+.web_sync_state.json
+.web_sync_state.json.tmp

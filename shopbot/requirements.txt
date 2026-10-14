@@ -1,0 +1,28 @@
+# MUNNA MOBILE & Grocery — backend dependencies (Python 3)
+
+# Telegram Admin Bot (v20+ / asyncio)
+python-telegram-bot>=20.7
+
+# Google Sheets database (see db.py: gspread 6.x is google-auth based;
+# oauth2client is kept because the project spec requires it and db.py falls
+# back to gspread.service_account() automatically when unsupported)
+gspread>=6.0.0,<7
+oauth2client>=4.1.3
+
+# Product image lookup now uses JioMart's public catalog API directly
+# (see jiomart_search.py) - no Google Custom Search / API key required.
+
+# Google Gemini AI customer assistant
+google-generativeai>=0.8.0
+
+# Grok (xAI) AI assistant - called through the OpenAI-compatible API
+# (ai_agent.py routes between Gemini and Grok via the admin panel toggle)
+openai>=1.0.0
+
+# Environment variables (.env)
+python-dotenv>=1.0.0
+
+# Groq AI assistant (fast hosted Llama/Qwen/Gemma/Mixtral)
+# ai_agent.py routes between Gemini, Grok and Groq via the admin panel toggle
+groq>=0.13.0
+
