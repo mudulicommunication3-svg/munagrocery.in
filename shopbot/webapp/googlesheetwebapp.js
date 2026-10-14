@@ -613,7 +613,11 @@ function readConfig_(ss) {
   for (var i = 1; i < rows.length; i++) {
     var k = String(rows[i][0] || "").trim();
     if (!k) continue;
-    out[k] = String(rows[i][1] === undefined || rows[i][1] === null ? "" : rows[i][1]);
+    var v = String(rows[i][1] === undefined || rows[i][1] === null ? "" : rows[i][1]);
+    // FIRST row of a key wins: a duplicate key row (historic race, e.g. an
+    // empty "trending") must NEVER wipe the real value — saveConfig_ keeps
+    // row 1 updated and deletes any duplicate rows it finds.
+    if (!(k in out)) out[k] = v;
   }
   return out;
 }
@@ -625,12 +629,21 @@ function saveConfig_(ss, key, value) {
   }
   var sh = ensureSheet_(ss, CONFIG_SHEET, CONFIG_HEADERS);
   var rows = sh.getDataRange().getValues();
+  var matches = []; // 1-based sheet rows that hold this key
   for (var i = 1; i < rows.length; i++) {
-    if (String(rows[i][0] || "").trim() === key) {
-      sh.getRange(i + 1, 1, 1, 2).setValues([[key, String(value === undefined || value === null ? "" : value)]]);
-      return { status: "success", key: key };
-    }
+    if (String(rows[i][0] || "").trim() === key) matches.push(i + 1);
   }
-  sh.appendRow([key, String(value === undefined || value === null ? "" : value)]);
+  var val = String(value === undefined || value === null ? "" : value);
+  if (matches.length) {
+    sh.getRange(matches[0], 1, 1, 2).setValues([[key, val]]);
+    // Self-heal: remove duplicate rows of the same key (bottom-up), so a
+    // past race (two concurrent saves both appending) can never poison
+    // readConfig_ again.
+    for (var d = matches.length - 1; d >= 1; d--) {
+      sh.deleteRow(matches[d]);
+    }
+    return { status: "success", key: key };
+  }
+  sh.appendRow([key, val]);
   return { status: "success", key: key };
 }

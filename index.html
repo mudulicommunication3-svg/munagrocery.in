@@ -1821,28 +1821,39 @@
       }
       // ✅ Verify: re-fetch the Sheet config and confirm OUR values landed.
       // (no-cors POST can't return a response, so this read-back is the proof.)
+      // On mismatch -> push trending ONCE more (heals an empty duplicate
+      // Config row left by an old-script race) and re-check before failing.
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Verifying…'; }
+      var okVerify = false, vcfg = {};
       try {
         await new Promise(function (r) { setTimeout(r, 2500); }); // let Apps Script write
         var vurl = sheetHookUrl('action=GET_CONFIG&_=' + Date.now());
-        if (vurl) {
+        var wantTrend = (shopConfig.trending || []).join(',');
+        var wantFee = String(shopConfig.deliveryFee);
+        for (var attempt = 0; attempt < 2 && !okVerify; attempt++) {
+          if (!vurl) break;
           var vres = await fetch(vurl);
           var vdata = await vres.json();
-          var vcfg = (vdata && vdata.config) || {};
-          var wantTrend = (shopConfig.trending || []).join(',');
+          vcfg = (vdata && vdata.config) || {};
           var gotTrend = String(vcfg.trending || '').trim();
-          var wantFee = String(shopConfig.deliveryFee);
           var gotFee = (vcfg.delivery_fee !== undefined && vcfg.delivery_fee !== null) ? String(vcfg.delivery_fee) : '';
           if (gotTrend === wantTrend && (wantFee === '' || gotFee === wantFee)) {
-            applyShopConfig_(vcfg); cacheShopConfig_();
-            alert('✅ ଯାଞ୍ଚ ହୋଇଗଲା — Sheet ରେ ସେଭ୍ ଅଛି!\n🔥 Trending · 🚚 ଡେଲିଭରୀ · 🎟️ କୁପନ୍ · 📢 Banners — ସମସ୍ତ ଗ୍ରାହକ ଫୋନ୍ ରେ ୨ ମିନିଟ୍ ମଧ୍ୟରେ ଦେଖାଯିବ!');
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> 💾 Save All to Sheet'; }
-            return;
+            okVerify = true;
+            break;
+          }
+          if (attempt === 0) {
+            pushConfigToSheet('trending', wantTrend);
+            await new Promise(function (r) { setTimeout(r, 2500); });
           }
         }
       } catch (e) {}
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> 💾 Save All to Sheet'; }
-      alert('📤 ପଠାଗଲା, କିନ୍ତୁ Sheet ଯାଞ୍ଚ ହେଲା ନାହିଁ — Config tab ରେ trending row ଅଛି କି ଦେଖନ୍ତୁ।');
+      if (okVerify) {
+        applyShopConfig_(vcfg); cacheShopConfig_();
+        alert('✅ ଯାଞ୍ଚ ହୋଇଗଲା — Sheet ରେ ସେଭ୍ ଅଛି!\n🔥 Trending · 🚚 ଡେଲିଭରୀ · 🎟️ କୁପନ୍ · 📢 Banners — ସମସ୍ତ ଗ୍ରାହକ ଫୋନ୍ ରେ ୨ ମିନିଟ୍ ମଧ୍ୟରେ ଦେଖାଯିବ!');
+        return;
+      }
+      alert('📤 ସେଭ୍ ପଠାଗଲା କିନ୍ତୁ ଯାଞ୍ଚ ହେଲା ନାହିଁ।\n\n1️⃣ Apps Script ରେ ନୂଆ googlesheetwebapp.js ପେଷ୍ଟ୍ କରି Deploy କରନ୍ତୁ (ଏଥିରେ ଏହି auto-fix ଅଛି)।\n2️⃣ Config tab ରେ ଗୋଟିଏ key ର ୨ଟି ରୋ ଥିଲେ (ଯେପରି trending) ଗୋଟେ ଡିଲିଟ୍ କରନ୍ତୁ।');
     }
 
     // 🔥 Trending Offers strip on the home page (admin toggles per product).
