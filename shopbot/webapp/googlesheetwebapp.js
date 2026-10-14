@@ -48,6 +48,10 @@ function nowStamp_() {
 // =========================================================================
 function doGet(e) {
   var params = e ? e.parameter : {};
+  // MUST be assigned before the GET_SEARCH bus below — with `var` hoisting a
+  // later declaration would hand `undefined` into getSearch_ and crash its
+  // insertSheet (TypeError: Cannot read properties of undefined).
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // ବିକଳ୍ପ A0: Bot-PC search bus (SETTAB: SearchQueue) — ଫୋନ୍ PC ର live
   // JioMart search ବ୍ୟବହାର କରେ (bot ର jiomart_search.fetch_items ପ୍ରମାଣିତ)।
@@ -70,8 +74,6 @@ function doGet(e) {
     }
     return jsonResponse({ status: "success", items: results });
   }
-
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // ବିକଳ୍ପ B: Orders tab -> webapp ରେ Telegram ଓ browser ଦୁଇ ପାଖର order ଦେଖାଇବ
   if (params && params.action === "GET_ORDERS") {
