@@ -672,13 +672,7 @@
               <button onclick="saveWebhook()" class="px-2.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">Save</button>
               <button onclick="manualSync()" id="syncNowBtn" class="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg shrink-0">Sync</button>
             </div>
-            <label class="text-[11px] font-bold text-slate-700 block pt-1">JioMart Search Proxy (optional — PC ରେ jiomart_search_proxy.py)</label>
-            <div class="flex gap-1.5">
-              <input type="text" id="jiomartProxyInput" placeholder="ଫୋନ୍ ରୁ: http://192.168.1.14:8085 · PC ରେ: http://localhost:8085" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
-              <button onclick="saveJioMartProxy()" class="px-2.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">Save</button>
-              <button onclick="testJioMartProxy()" class="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg shrink-0">Test</button>
-            </div>
-            <p class="text-[10px] text-slate-400 leading-snug">🔍 JioMart search କ୍ରମ: <b>Local Proxy</b> (run_bot.cmd ସହ ଆପେ ଚାଲେ) → Bot Search Bus → Apps Script → Relay → OpenFoodFacts । ଫୋନ୍ ରେ <b>http://192.168.1.14:8085</b> ସେଭ୍ କରି Test କରନ୍ତୁ (ଫୋନ୍ ଓ PC ଗୋଟେ Wi-Fi ରେ ଥାଆନ୍ତୁ) ।</p>
+            <p class="text-[10px] text-slate-400 leading-snug">🔍 JioMart search କ୍ରମ: <b>Bot Search Bus</b> (ବଟ୍ PC ର ସିଧା JioMart engine — Sheet ଦେଇ, କୌଣସି ପ୍ରକ୍ସି ଲାଗେ ନାହିଁ) → Apps Script → Relay → OpenFoodFacts । ବଟ୍ (python main.py) ଚାଲୁଥିଲେ Smart Search ଅସଲି JioMart ଡାଟା ଦେବ ।</p>
             <label class="text-[11px] font-bold text-slate-700 block pt-1">🖼️ ImgBB API Key (built-in କୀ ଅଛି — ବଦଳାଇବାକୁ ଚାହିଁଲେ ନୂଆ key ଦିଅନ୍ତୁ)</label>
             <div class="flex gap-1.5">
               <input type="text" id="imgbbKeyInput" placeholder="ImgBB API key ପେଷ୍ଟ କରନ୍ତୁ..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
@@ -1529,7 +1523,6 @@
         syncUsersFromSheet();
         var hook = localStorage.getItem('munna_sheet_webhook');
         if (hook) document.getElementById('webhookInput').value = hook;
-        document.getElementById('jiomartProxyInput').value = localStorage.getItem('munna_jiomart_proxy') || '';
         document.getElementById('imgbbKeyInput').value = localStorage.getItem('munna_imgbb_key') || '';
         fillShopSettingsInputs();
         renderStockHealth();
@@ -2199,11 +2192,13 @@
       }
     }
 
-    // --- JioMart search backends (same headers/parsing as jiomart_search_proxy.py) ---
-    // 1) Apps Script webhook: UrlFetchApp calls JioMart SERVER-SIDE with the
-    //    full header set, so CORS and JioMart's browser bot-blocking never
-    //    apply. This is the same code path that works when you run
-    //    jiomart_search_proxy.py locally - just hosted in the Sheet.
+    // --- JioMart search backends (bot method first: the Sheet SearchQueue bus
+    //     hands each query to the bot PC, which runs the SAME engine the
+    //     Telegram bot uses - jiomart_search.fetch_items - and writes the
+    //     items back to the Sheet. No local proxy needed.) ---
+    // Apps Script webhook: UrlFetchApp calls JioMart SERVER-SIDE with the
+    // full header set, so CORS and JioMart's browser bot-blocking never
+    // apply (backup when the bot PC is offline).
     async function searchJioMartViaHook(q, pin) {
       var url = sheetHookUrl('action=SEARCH_JIOMART&query=' + encodeURIComponent(q) + '&pincode=' + encodeURIComponent(pin));
       if (!url) return null;
@@ -2216,33 +2211,7 @@
       } catch (e) {}
       return null;
     }
-    // 2) Optional local proxy: python jiomart_search_proxy.py (port 8085).
-    // ⚠️ 'localhost' କେବଳ ସେହି PC ର browser ରେ କାମ କରେ — ମୋବାଇଲ୍ ଫୋନ୍ ରୁ
-    // ଚାହିଁଲେ PC ର LAN IP ଦିଅନ୍ତୁ (ଯେପରି http://192.168.1.50:8085)।
-    async function searchJioMartViaProxy(q, pin) {
-      var base = (localStorage.getItem('munna_jiomart_proxy') || '').trim();
-      if (!base) return null;
-      // A saved localhost/127.0.0.1 URL only works in THIS PC's browser —
-      // skip it instantly on a phone instead of burning the 8s timeout.
-      if (/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(base)) {
-        var h = (location.hostname || '').toLowerCase();
-        if (h !== 'localhost' && h !== '127.0.0.1' && h !== '') return null;
-      }
-      var timed = {};
-      try {
-        var ctrl = new AbortController();
-        var timer = setTimeout(function () { ctrl.abort(); }, 8000);
-        timed = { signal: ctrl.signal };
-        var res = await fetch(base + (base.indexOf('?') >= 0 ? '&' : '?') + 'q=' + encodeURIComponent(q) + '&pincode=' + encodeURIComponent(pin), timed);
-        clearTimeout(timer);
-        var data = await res.json();
-        if (data && Array.isArray(data.items)) {
-          return data.items.filter(function (it) { return it && it.url && it.sellable !== false; });
-        }
-      } catch (e) { lastBackendError = 'Local Proxy: ' + e.message; }
-      return null;
-    }
-    // 3) Public CORS relay (merged medias[] + price + hierarchy, like the bot).
+    // Public CORS relay (merged medias[] + price + hierarchy, like the bot).
     // Try AllOrigins first, then the thingproxy-style corsproxy.io fallback.
     async function fetchViaRelay_(proxyUrl, timeoutMs) {
       var ctrl = new AbortController();
@@ -2407,17 +2376,12 @@
       // Try every backend in order until one returns products.
       var results = [], sourceUsed = '';
       window.lastBackendError = lastBackendError = '';
-      // 1) Local PC proxy (jiomart_search_proxy.py:8085) — the SAME engine
-      //    as the Telegram bot; fastest path when phone+PC share Wi-Fi.
-      var viaProxy = await searchJioMartViaProxy(q, pin);
-      if (viaProxy && viaProxy.length) { results = viaProxy; sourceUsed = 'Local Proxy'; }
-      // 2) Bot-PC search bus (Sheet SearchQueue) — works even off-LAN
-      //    (needs Apps Script redeploy with PUT_SEARCH/GET_SEARCH).
-      if (!results.length) {
-        var viaBus = await searchBusViaSheet(q, pin);
-        if (viaBus && viaBus.length) { results = viaBus; sourceUsed = 'Bot PC'; }
-      }
-      // 3) Apps Script webhook (server-side JioMart with pincode headers).
+      // 1) Bot-PC search bus (Sheet SearchQueue) — THE bot method: the
+      //    running bot (search_bus.py) answers with jiomart_search.fetch_items,
+      //    the exact engine behind /product. Works from any network.
+      var viaBus = await searchBusViaSheet(q, pin);
+      if (viaBus && viaBus.length) { results = viaBus; sourceUsed = 'Bot PC'; }
+      // 2) Apps Script webhook (server-side JioMart with pincode headers).
       if (!results.length) {
         var viaHook = await searchJioMartViaHook(q, pin);
         if (viaHook && viaHook.length) { results = viaHook; sourceUsed = 'Apps Script'; }
@@ -2441,8 +2405,8 @@
 
       if (results.length === 0) {
         var hint = localStorage.getItem('munna_sheet_webhook')
-          ? ' — webhook/proxy ଠିକ୍ ଅଛି କିନ୍ତୁ JioMart ରୁ ଫଳାଫଳ ମିଳିଲା ନାହିଁ; ଅନ୍ୟ ନାମ ଚେଷ୍ଟା କରନ୍ତୁ।'
-          : ' — Admin → Sheets ରେ Apps Script Webhook ସେଟ୍ କରନ୍ତୁ (କିମ୍ବା Local Proxy ଦିଅନ୍ତୁ)।';
+          ? ' — webhook ଠିକ୍ ଅଛି କିନ୍ତୁ JioMart ରୁ ଫଳାଫଳ ମିଳିଲା ନାହିଁ; ଅନ୍ୟ ନାମ ଚେଷ୍ଟା କରନ୍ତୁ।'
+          : ' — Apps Script Webhook ସେଟ୍ କରନ୍ତୁ ଏବଂ ବଟ୍ PC ରେ python main.py ଚାଲୁରଖନ୍ତୁ (ବଟ୍ search bus ମାଧ୍ୟମରେ JioMart ସର୍ଚ୍ଚ କରେ)।';
         var dbg = '';
         try { if (window.lastBackendError) dbg = '<br><span class="text-slate-500 font-normal">(' + window.lastBackendError + ')</span>'; } catch (e) {}
         grid.innerHTML = '<p class="col-span-full text-xs text-rose-500 font-bold text-center py-2">କୌଣସି ଫଳାଫଳ ମିଳିଲା ନାହିଁ' + hint + dbg + '</p>';
@@ -2632,32 +2596,6 @@
       syncOrdersFromSheet();
       syncAddressesFromSheet();
     }
-    function saveJioMartProxy() {
-      var u = document.getElementById('jiomartProxyInput').value.trim();
-      localStorage.setItem('munna_jiomart_proxy', u);
-      alert(u ? "JioMart Proxy Saved! (PC ରେ: http://localhost:8085 · ଫୋନ୍ ରୁ: http://PC-IP:8085 — PC ଓ ଫୋନ୍ ଗୋଟେ Wi-Fi ରେ ଥାଆନ୍ତୁ)" : "JioMart Proxy Cleared!");
-    }
-    // One-tap proxy health check: proves the browser can reach the proxy
-    // AND the proxy can reach JioMart (shows the real error otherwise).
-    async function testJioMartProxy() {
-      var base = (localStorage.getItem('munna_jiomart_proxy') || document.getElementById('jiomartProxyInput').value || '').trim();
-      if (!base) { alert('ପ୍ରଥମେ proxy URL ଲେଖି Save କରନ୍ତୁ ।'); return; }
-      alert('⏳ Proxy ପରୀକ୍ଷା ଚାଲିଛି…');
-      try {
-        var ctrl = new AbortController();
-        var timer = setTimeout(function () { ctrl.abort(); }, 12000);
-        var res = await fetch(base + (base.indexOf('?') >= 0 ? '&' : '?') + 'q=oil&pincode=752106', { signal: ctrl.signal });
-        clearTimeout(timer);
-        var data = await res.json();
-        var n = (data && Array.isArray(data.items)) ? data.items.length : 0;
-        if (n) alert('✅ Proxy ଠିକ୍ ଅଛି! "oil" ପାଇଁ ' + n + ' ଫଳାଫଳ ମିଳିଲା ।');
-        else alert('⚠️ Proxy ପହଞ୍ଚିଲା କିନ୍ତୁ JioMart ରୁ ଶୂନ୍ୟ ଫଳାଫଳ — ଅନ୍ୟ ନାମ ଚେଷ୍ଟା କରନ୍ତୁ ।');
-      } catch (e) {
-        alert('❌ Proxy ପହଞ୍ଚିଲା ନାହିଁ:\n' + e.message +
-          '\n\n• URL ରେ http://PC-IP:8085 ଅଛି କି (localhost ନୁହେଁ)?\n• PC ରେ python jiomart_search_proxy.py ଚାଲୁଛି କି?\n• ଫୋନ୍ ଓ PC ଗୋଟେ Wi-Fi ରେ ଅଛନ୍ତି କି?\n• Windows Firewall ରେ port 8085 ଖୋଲା କି?');
-      }
-    }
-
     async function syncFromGoogleSheet() {
       // Prefer the saved webhook; fall back to DEFAULT_SHEET_WEBHOOK so a
       // brand-new device still fetches the LIVE inventory instead of staying

@@ -1,6 +1,6 @@
 @echo off
 cd /d D:\munagrocery.in\shopbot
-rem JioMart search proxy for the webapp admin panel (port 8085, 0.0.0.0).
-rem Starts with every bot launch; exits quietly if already running.
-start "" /min run_proxy.cmd
+rem MUNNA MOBILE & Grocery bot. JioMart search for the webapp runs through
+rem the Sheet search bus (search_bus.py -> jiomart_search.fetch_items), the
+rem same engine as /product - no local proxy on port 8085 anymore.
 python main.py >> bot_run.log 2>&1

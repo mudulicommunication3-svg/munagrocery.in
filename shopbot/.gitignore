@@ -9,7 +9,8 @@ KEY.txt
 # Bot logs (contain the bot token in request URLs) + runtime admin/settings
 bot_err.log
 bot_run.log
-proxy_run.log
+_bot_out.log
+_bot_err.log
 admins.json
 bot_settings.json
 
