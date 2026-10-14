@@ -80,6 +80,10 @@
           <i class="ph-bold ph-translate"></i>
           <span id="langBtnText">English</span>
         </button>
+        <button id="headerAuthBtn" onclick="onHeaderAuth()" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold flex items-center gap-1">
+          <i class="ph-bold ph-user-circle"></i>
+          <span id="headerAuthText">Login</span>
+        </button>
         <button onclick="openAdminModal()" class="px-2.5 py-1 rounded-lg bg-[#ffd43b] text-slate-950 text-xs font-black flex items-center gap-1 shadow-xs hover:bg-yellow-400">
           <i class="ph-bold ph-lock-key"></i>
           <span>Admin</span>
@@ -377,6 +381,7 @@
           <p id="profId" class="text-[10px] text-slate-400"></p>
         </div>
       </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5" id="authRowCard"></div>
       <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
         <button onclick="showScreen('orders')" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-receipt text-[#1864ab] text-lg"></i> My Orders (ମୋ ଅର୍ଡର)</button>
         <button onclick="showScreen('address')" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-map-pin text-[#1864ab] text-lg"></i> Saved Addresses (ଠିକଣା)</button>
@@ -769,6 +774,63 @@
           <button onclick="manualScanGo()" class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold rounded-lg shrink-0">ଖୋଜନ୍ତୁ</button>
         </div>
         <p class="text-[10px] text-slate-400 text-center leading-snug">📸 Camera · 🖼️ ଫଟୋରେ ବାରକୋଡ୍ · କିମ୍ବା ହାତରେ EAN ଲେଖନ୍ତୁ</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LOGIN MODAL (OTP / GOOGLE / TELEGRAM / GUEST) ================= -->
+  <div id="loginModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[65] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto no-scrollbar">
+      <div class="bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2">
+        <i class="ph-bold ph-user-circle text-lg"></i>
+        <span class="font-extrabold text-sm">ଲଗଇନ୍ (Login)</span>
+        <button onclick="closeLoginModal()" class="ml-auto w-7 h-7 rounded-full bg-white/15 flex items-center justify-center"><i class="ph-bold ph-x"></i></button>
+      </div>
+
+      <!-- Login tabs -->
+      <div class="flex bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600">
+        <button onclick="switchLoginTab('otp')" id="loginTabBtn-otp" class="flex-1 py-2.5 text-center border-b-2 border-[#1864ab] text-[#1864ab]">📱 OTP</button>
+        <button onclick="switchLoginTab('google')" id="loginTabBtn-google" class="flex-1 py-2.5 text-center border-b-2 border-transparent">🔵 Google</button>
+        <button onclick="switchLoginTab('tg')" id="loginTabBtn-tg" class="flex-1 py-2.5 text-center border-b-2 border-transparent">✈️ Telegram</button>
+      </div>
+
+      <div class="p-4 space-y-3">
+        <!-- TAB 1: Mobile OTP -->
+        <div id="loginTab-otp" class="space-y-2.5">
+          <input type="text" id="loginName" placeholder="ଆପଣଙ୍କ ନାଁ (ଐଚ୍ଛିକ)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
+          <div class="flex gap-1.5">
+            <input type="tel" id="loginPhone" maxlength="10" inputmode="numeric" placeholder="10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର" class="flex-1 px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
+            <button onclick="sendOtp()" class="px-3 py-2 bg-[#1864ab] hover:bg-blue-800 text-white text-xs font-extrabold rounded-lg shrink-0">OTP ପଠାନ୍ତୁ</button>
+          </div>
+          <p id="otpHint" class="hidden text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 font-bold"></p>
+          <div class="flex gap-1.5">
+            <input type="tel" id="loginOtp" maxlength="4" inputmode="numeric" placeholder="4-ଅଙ୍କ OTP ଲେଖନ୍ତୁ" class="flex-1 px-3 py-2 text-xs tracking-widest text-center font-black rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
+            <button onclick="verifyOtp()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-lg shrink-0 flex items-center gap-1"><i class="ph-bold ph-check"></i> ଯାଞ୍ଚ</button>
+          </div>
+        </div>
+
+        <!-- TAB 2: Google Sign-In -->
+        <div id="loginTab-google" class="hidden space-y-2.5 text-center">
+          <p class="text-[11px] text-slate-500 leading-snug">ଗୋଟିଏ ଟ୍ୟାପ୍‌ରେ ଗୁଗଲ୍ ଆକାଉଣ୍ଟ୍ ଦ୍ୱାରା ଲଗଇନ୍ ।</p>
+          <div id="googleBtnBox" class="flex justify-center min-h-[44px] items-center"></div>
+          <p id="googleCfgMsg" class="text-[10px] text-slate-400 leading-snug"></p>
+        </div>
+
+        <!-- TAB 3: Telegram -->
+        <div id="loginTab-tg" class="hidden space-y-2.5">
+          <p class="text-[11px] text-slate-500 leading-snug">ଟେଲିଗ୍ରାମ୍ ବଟ୍/ଆପ୍ ଭିତରେ ଖୋଲିଲେ ଆପଣଙ୍କ ପ୍ରୋଫାଇଲ୍ ନିଜେ ଭରିଯିବ ।</p>
+          <div id="tgLoginInfo" class="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 text-xs text-slate-700"></div>
+          <button onclick="telegramLogin()" id="tgLoginBtn" class="w-full py-2.5 rounded-xl bg-[#229ed9] hover:bg-sky-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-paper-plane-tilt"></i> Telegram ରୁ ଲଗଇନ୍
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2 text-[10px] text-slate-400">
+          <span class="flex-1 border-t border-slate-200"></span> କିମ୍ବା <span class="flex-1 border-t border-slate-200"></span>
+        </div>
+        <button onclick="guestCheckout()" class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-guest"></i> ବିନା ଲଗଇନ୍‌ରେ ଅର୍ଡର କରନ୍ତୁ (Guest)
+        </button>
       </div>
     </div>
   </div>
@@ -1390,7 +1452,11 @@
     // --- 5-STAGE LIVE ORDER TRACKING ---
     function renderOrders() {
       var box = document.getElementById('ordersList');
-      var filterPhone = document.getElementById('trackOrderPhoneInput').value.trim();
+      // Default filter: logged-in user's own phone (their orders only).
+      var sess = getSessionUser();
+      var phoneEl = document.getElementById('trackOrderPhoneInput');
+      if (phoneEl && !phoneEl.value.trim() && sess && sess.phone) phoneEl.value = sess.phone;
+      var filterPhone = phoneEl ? phoneEl.value.trim() : '';
       var orders = getMyOrders();
 
       if (filterPhone) {
@@ -2714,12 +2780,17 @@
 
     function prefillOrderForm() {
       var u = getTgUser();
+      var s = getSessionUser();
       var addrs = getAddresses();
       var def = addrs.find(a => a.isDefault) || addrs[0];
       if (def) {
-        document.getElementById('orderCustName').value = def.name;
-        document.getElementById('orderCustPhone').value = def.phone;
+        // Session profile wins; saved default address fills the rest.
+        document.getElementById('orderCustName').value = (s && s.name) || def.name || ((u && u.first_name) || '');
+        document.getElementById('orderCustPhone').value = (s && s.phone) || def.phone;
         document.getElementById('orderCustAddress').value = def.address;
+      } else if (s) {
+        document.getElementById('orderCustName').value = s.name || '';
+        document.getElementById('orderCustPhone').value = s.phone || '';
       } else if (u) {
         document.getElementById('orderCustName').value = u.first_name || '';
       }
@@ -2766,6 +2837,14 @@
         list.push({ id: 'A' + Date.now(), name, phone, address, isDefault: isDefault || list.length === 0 });
       }
       setAddresses(list);
+      // If this phone matches the logged-in user, refresh their profile name too.
+      try {
+        var sess = getSessionUser();
+        if (sess && String(sess.phone || '').trim() === String(phone || '').trim() && name) {
+          sess.name = name;
+          setSessionUser(sess);
+        }
+      } catch (e) {}
       // Sync to the shared database (Telegram bot reads the same entry).
       pushAddressToSheet((id && list.find(x => x.id === id)) || list[list.length - 1]);
       closeAddressForm();
@@ -2776,18 +2855,76 @@
       var list = getAddresses();
       if (!list.length) { box.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">କୌଣସି ଠିକଣା ସେଭ୍ ହୋଇନାହିଁ।</p>'; return; }
       box.innerHTML = list.map(a => `
-        <div class="bg-white p-3 rounded-2xl border border-slate-200">
-          <div class="font-bold text-xs">${a.name} · ${a.phone}</div>
+        <div class="bg-white p-3 rounded-2xl border ${a.isDefault ? 'border-emerald-400 ring-1 ring-emerald-200' : 'border-slate-200'}">
+          <div class="flex items-center justify-between gap-2">
+            <div class="font-bold text-xs min-w-0">${a.name} · ${a.phone}</div>
+            ${a.isDefault ? '<span class="text-[9px] bg-emerald-50 text-emerald-700 font-black px-1.5 py-0.5 rounded shrink-0">✓ DEFAULT</span>' : ''}
+          </div>
           <div class="text-[11px] text-slate-600 mt-0.5">${a.address}</div>
+          <div class="flex gap-1.5 mt-2">
+            <button onclick="openAddressFormEdit_('${a.id}')" class="flex-1 py-1.5 rounded-lg bg-blue-50 text-[#1864ab] text-[10px] font-black border border-blue-100">✏️ Edit</button>
+            ${a.isDefault ? '' : `<button onclick="setDefaultAddress_('${a.id}')" class="flex-1 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-[10px] font-black border border-emerald-200">✓ Default କରନ୍ତୁ</button>`}
+            <button onclick="deleteAddress_('${a.id}')" class="flex-1 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-[10px] font-black border border-rose-200"><i class="ph-bold ph-trash"></i> Delete</button>
+          </div>
         </div>
       `).join('');
     }
+    // Address book: edit fill-in, default switching, delete.
+    function openAddressFormEdit_(id) {
+      var a = getAddresses().find(x => x.id === id);
+      if (!a) return;
+      openAddressForm(id);
+      document.getElementById('addrName').value = a.name || '';
+      document.getElementById('addrPhone').value = a.phone || '';
+      document.getElementById('addrText').value = a.address || '';
+      document.getElementById('addrDefault').checked = !!a.isDefault;
+    }
+    function setDefaultAddress_(id) {
+      var list = getAddresses();
+      list.forEach(function (a) { a.isDefault = (String(a.id) === String(id)); });
+      setAddresses(list);
+      var d = list.find(function (a) { return String(a.id) === String(id); });
+      if (d) pushAddressToSheet(d);
+      renderAddressList();
+      prefillOrderForm();
+    }
+    function deleteAddress_(id) {
+      var list = getAddresses();
+      var gone = list.filter(function (a) { return String(a.id) === String(id); })[0];
+      list = list.filter(function (a) { return String(a.id) !== String(id); });
+      if (gone && gone.isDefault && list.length) list[0].isDefault = true;
+      setAddresses(list);
+      try {
+        if (gone && gone.phone) {
+          var sess = getSessionUser();
+          if (sess && String(sess.phone || '').trim() === String(gone.phone || '').trim()) logoutUser();
+        }
+      } catch (e) {}
+      renderAddressList();
+      renderProfile();
+    }
 
     function renderProfile() {
+      var s = getSessionUser();
       var u = getTgUser();
-      var name = (u && u.first_name) || 'Customer';
+      var name = (s && s.name) || ((u && u.first_name) || 'Customer');
+      var phone = (s && s.phone) || '';
+      var tag = (s && s.provider) ? { otp: '📱 OTP', google: '🔵 Google', telegram: '✈️ Telegram', guest: '👋 Guest' }[s.provider] || '' : '';
       document.getElementById('profName').innerText = name;
       document.getElementById('profAvatar').innerText = name.charAt(0).toUpperCase();
+      document.getElementById('profPhone').innerText = phone ? ('📞 ' + phone) : '';
+      var pid = document.getElementById('profId');
+      if (pid) pid.innerText = tag + ((s && s.tg_id) ? (' · TG ' + s.tg_id) : '');
+      var card = document.getElementById('authRowCard');
+      if (card) {
+        card.innerHTML = s
+          ? '<div class="flex items-center justify-between gap-2">' +
+            '<span class="text-xs text-slate-600">👋 <b class="text-slate-800">' + name + '</b>' +
+            (tag ? ' <span class="ml-1 text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded">' + tag + '</span>' : '') + '</span>' +
+            '<button onclick="logoutUser()" class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[11px] font-black flex items-center gap-1"><i class="ph-bold ph-sign-out"></i> Logout</button>' +
+            '</div>'
+          : '<button onclick="openLoginModal()" class="w-full py-2.5 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs flex items-center justify-center gap-1.5"><i class="ph-bold ph-user-circle"></i> ଲଗଇନ୍ / ସାଇନ୍-ଅପ୍ କରନ୍ତୁ (Login)</button>';
+      }
       document.getElementById('profOrderCount').innerText = getMyOrders().length;
       document.getElementById('profAddrCount').innerText = getAddresses().length;
     }
@@ -3085,6 +3222,277 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    // ================= CUSTOMER LOGIN & USER PANEL =================
+    // Session: { name, phone, tg_id, provider } in MUNA_USER_SESSION.
+    function getSessionUser() {
+      try { return JSON.parse(localStorage.getItem('MUNA_USER_SESSION') || 'null'); } catch (e) { return null; }
+    }
+    function setSessionUser(u) {
+      try {
+        if (u) localStorage.setItem('MUNA_USER_SESSION', JSON.stringify(u));
+        else localStorage.removeItem('MUNA_USER_SESSION');
+      } catch (e) {}
+      updateHeaderAuth();
+    }
+    function loginDone(u, msg) {
+      if (!u.phone && u.provider !== 'guest') return false;
+      setSessionUser(u);
+      closeLoginModal();
+      try {
+        var addrs = getAddresses();
+        var match = addrs.filter(function (a) { return String(a.phone || '').trim() === String(u.phone || '').trim(); })[0];
+        if (match && u.name) {
+          match.name = match.name || u.name;
+          setAddresses(addrs);
+        }
+      } catch (e) {}
+      prefillOrderForm();
+      if (msg) alert(msg);
+      return true;
+    }
+    function logoutUser() {
+      setSessionUser(null);
+      renderProfile();
+    }
+    function sessionFirstName() {
+      var s = getSessionUser();
+      var n = s && s.name ? String(s.name).trim().split(' ')[0] : '';
+      return n || (s && s.phone ? '👤' : '');
+    }
+
+    // Header button: Login (logged out) / first name (logged in).
+    function updateHeaderAuth() {
+      var s = getSessionUser();
+      var t = document.getElementById('headerAuthText');
+      if (!t) return;
+      t.innerText = s ? (sessionFirstName() || 'Profile') : 'Login';
+    }
+    function onHeaderAuth() {
+      if (getSessionUser()) showScreen('profile');
+      else openLoginModal();
+    }
+
+    // Login modal open/close + tabs.
+    function openLoginModal() {
+      document.getElementById('loginModal').classList.remove('hidden');
+      document.getElementById('loginPhone').value = '';
+      document.getElementById('loginOtp').value = '';
+      fillTgLoginInfo();
+      fillGoogleTab();
+      switchLoginTab('otp');
+    }
+    function closeLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
+    function switchLoginTab(t) {
+      ['otp', 'google', 'tg'].forEach(function (tab) {
+        var el = document.getElementById('loginTab-' + tab);
+        if (el) el.classList.toggle('hidden', tab !== t);
+        var b = document.getElementById('loginTabBtn-' + tab);
+        if (b) {
+          b.classList.toggle('border-[#1864ab]', tab === t);
+          b.classList.toggle('text-[#1864ab]', tab === t);
+          b.classList.toggle('border-transparent', tab !== t);
+        }
+      });
+      if (t === 'tg') fillTgLoginInfo();
+      if (t === 'google') fillGoogleTab();
+    }
+
+    // --- Mobile OTP (4-digit, 3 min expiry, stored in localStorage) ---
+    function validPhone_(ph) { return /^[6-9]\d{9}$/.test(String(ph || '').trim()); }
+    function sendOtp() {
+      var phone = document.getElementById('loginPhone').value.trim();
+      if (!validPhone_(phone)) { alert('ଦୟାକରି ଠିକ୍ 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।'); return; }
+      var code = String(Math.floor(1000 + Math.random() * 9000));
+      try { localStorage.setItem('MUNA_LOGIN_OTP', JSON.stringify({ code: code, phone: phone, exp: Date.now() + 3 * 60000 })); } catch (e) {}
+      document.getElementById('loginOtp').value = '';
+      var hint = document.getElementById('otpHint');
+      hint.classList.remove('hidden');
+      hint.innerText = '✅ ' + phone + ' ପାଇଁ OTP ତିଆରି ହେଲା (Demo SMS): ' + code + '  ·  ୩ ମିନିଟ୍ ମଧ୍ୟରେ ଲେଖନ୍ତୁ।';
+      document.getElementById('loginOtp').focus();
+    }
+    function verifyOtp() {
+      var phone = document.getElementById('loginPhone').value.trim();
+      var typed = document.getElementById('loginOtp').value.trim();
+      var saved = null;
+      try { saved = JSON.parse(localStorage.getItem('MUNA_LOGIN_OTP') || 'null'); } catch (e) {}
+      if (!saved || saved.phone !== phone) { alert('❌ ପ୍ରଥମେ ନମ୍ବର ଦେଇ "OTP ପଠାନ୍ତୁ" ଚାପନ୍ତୁ।'); return; }
+      if (Date.now() > (saved.exp || 0)) { alert('⏰ OTP ମିଆଦ ସରିଗଲା — ପୁଣି ପଠାନ୍ତୁ।'); return; }
+      if (typed !== String(saved.code)) { alert('❌ ଭୁଲ୍ OTP — ପୁଣି ଲେଖନ୍ତୁ।'); return; }
+      try { localStorage.removeItem('MUNA_LOGIN_OTP'); } catch (e) {}
+      var typedName = document.getElementById('loginName').value.trim();
+      var known = '';
+      try {
+        var m = getAddresses().filter(function (a) { return String(a.phone || '').trim() === phone; })[0];
+        if (m && m.name) known = m.name;
+      } catch (e) {}
+      var tgu = getTgUser();
+      loginDone({
+        name: typedName || known || ((tgu && tgu.first_name) || '') || 'Customer',
+        phone: phone,
+        tg_id: (tgu && tgu.id) ? String(tgu.id) : '',
+        provider: 'otp'
+      }, '✅ ଲଗଇନ୍ ସଫଳ ହେଲା! ସ୍ୱାଗତ, ' + (typedName || known || 'ଗ୍ରାହକ') + '।');
+      renderProfile();
+    }
+
+    // --- Google Sign-In (One-Tap / OAuth via Google Identity Services) ---
+    function getGoogleClientId_() {
+      var q = '';
+      try { q = new URLSearchParams(window.location.search).get('gcid') || ''; } catch (e) {}
+      var saved = '';
+      try { saved = localStorage.getItem('munna_google_client_id') || ''; } catch (e) {}
+      if (saved) return String(saved).trim();
+      if (q) {
+        try { localStorage.setItem('munna_google_client_id', String(q).trim()); } catch (e) {}
+        return String(q).trim();
+      }
+      return '';
+    }
+    function fillGoogleTab() {
+      var box = document.getElementById('googleBtnBox');
+      var msg = document.getElementById('googleCfgMsg');
+      if (!box || !msg) return;
+      box.innerHTML = '';
+      msg.innerText = '';
+      var cid = getGoogleClientId_();
+      if (!cid) {
+        msg.innerHTML = '⚙️ Admin: Google Cloud Console → OAuth Client ID ବନାଇ URL ରେ <b>?gcid=YOUR_CLIENT_ID</b> ଦିଅନ୍ତୁ (ଥରେ ଦେଲେ ସେଭ୍ ହୋଇଯିବ) ।<br>ଏବେ ପାଇଁ ଡେମୋ ବଟନ୍ ବ୍ୟବହାର କରନ୍ତୁ ।';
+        box.innerHTML = '<button onclick="googleDemoLogin()" class="px-4 py-2.5 rounded-xl bg-white border border-slate-300 shadow-sm text-xs font-bold text-slate-700 flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[#4285F4] text-white text-[10px] font-black flex items-center justify-center">G</span> Demo ଭାବେ Google ଲଗଇନ୍</button>';
+        return;
+      }
+      try {
+        msg.innerText = 'ଗୁଗଲ୍ ବଟନ୍ / One-Tap ଖୋଲୁଛି… (OAuth Client ID ସେଟ୍)';
+        loadGisScript_(function (ok) { renderGoogleButton_(cid, ok); });
+      } catch (e) {
+        msg.innerText = '❌ Google script load ହେଲା ନାହିଁ — OTP/Telegram ବ୍ୟବହାର କରନ୍ତୁ ।';
+      }
+    }
+    function loadGisScript_(cb) {
+      if (window.google && window.google.accounts && window.google.accounts.id) { cb(true); return; }
+      var s = document.getElementById('gisScriptTag');
+      if (s) { setTimeout(function () { cb(!!(window.google && window.google.accounts)); }, 4000); return; }
+      var tag = document.createElement('script');
+      tag.id = 'gisScriptTag';
+      tag.src = 'https://accounts.google.com/gsi/client';
+      tag.async = true;
+      tag.defer = true;
+      tag.onload = function () { cb(true); };
+      tag.onerror = function () { cb(false); };
+      document.head.appendChild(tag);
+    }
+    function renderGoogleButton_(cid, ok) {
+      var box = document.getElementById('googleBtnBox');
+      var msg = document.getElementById('googleCfgMsg');
+      if (!ok || !window.google || !window.google.accounts) {
+        if (box) box.innerHTML = '<button onclick="googleDemoLogin()" class="px-4 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-700">Demo ଭାବେ ଲଗଇନ୍</button>';
+        if (msg) msg.innerText = '❌ Google ଯୋଗାଯୋଗ ନାହିଁ — ଇଣ୍ଟରନେଟ୍ ଯାଞ୍ଚ କରନ୍ତୁ ।';
+        return;
+      }
+      try {
+        window.google.accounts.id.initialize({ client_id: cid, callback: googleCredential_, auto_select: false });
+        window.google.accounts.id.renderButton(box, { theme: 'outline', size: 'large', width: 250, text: 'signin_with' });
+        try { window.google.accounts.id.prompt(); } catch (e) {}
+        if (msg) msg.innerText = 'ଆପଣଙ୍କ ଗୁଗଲ୍ ଆକାଉଣ୍ଟ୍ ବାଛନ୍ତୁ ।';
+      } catch (e) {
+        if (msg) msg.innerText = '❌ Google ସେଟଅପ୍ ତ୍ରୁଟି — Client ID ଯାଞ୍ଚ କରନ୍ତୁ ।';
+      }
+    }
+    function googleCredential_(resp) {
+      var payload = {};
+      try {
+        var parts = String((resp && resp.credential) || '').split('.');
+        payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      } catch (e) { payload = {}; }
+      var email = payload.email || '';
+      try {
+        var savedPh = localStorage.getItem('munna_google_phone_' + email) || '';
+        if (!savedPh) {
+          var ask = prompt('📱 ଗୁଗଲ୍ ଅର୍ଡର ପାଇଁ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ (10 ଅଙ୍କ):', '') || '';
+          ask = String(ask).replace(/\D/g, '').slice(-10);
+          if (/^[6-9]\d{9}$/.test(ask)) {
+            savedPh = ask;
+            try { localStorage.setItem('munna_google_phone_' + email, ask); } catch (e) {}
+          }
+        }
+        if (!savedPh) { alert('ମୋବାଇଲ୍ ନମ୍ବର ବିନା ଅର୍ଡର କରିପାରିବେ ନାହିଁ ।'); return; }
+        var tgu = getTgUser();
+        loginDone({
+          name: payload.name || payload.given_name || email.split('@')[0] || 'Customer',
+          phone: savedPh, email: email,
+          tg_id: (tgu && tgu.id) ? String(tgu.id) : '',
+          provider: 'google'
+        }, '✅ Google ଲଗଇନ୍ ସଫଳ! ସ୍ୱାଗତ ।');
+        renderProfile();
+      } catch (e) { alert('❌ Google ଲଗଇନ୍ ବିଫଳ ହେଲା ।'); }
+    }
+    function googleDemoLogin() {
+      var nm = (prompt('📝 ଡେମୋ Google ଲଗଇନ୍ — ଆପଣଙ୍କ ନାଁ:', '') || '').trim();
+      if (!nm) return;
+      var ph = (prompt('📱 ମୋବାଇଲ୍ ନମ୍ବର (10 ଅଙ୍କ):', '') || '').replace(/\D/g, '').slice(-10);
+      if (!/^[6-9]\d{9}$/.test(ph)) { alert('ଠିକ୍ ନମ୍ବର ଦିଅନ୍ତୁ ।'); return; }
+      var tgu = getTgUser();
+      loginDone({
+        name: nm, phone: ph,
+        tg_id: (tgu && tgu.id) ? String(tgu.id) : '',
+        provider: 'google'
+      }, '✅ (Demo) Google ଲଗଇନ୍ ସଫଳ! ସ୍ୱାଗତ, ' + nm + ' ।');
+      renderProfile();
+    }
+
+    // --- Telegram auto-login (WebApp user -> profile, no typing) ---
+    function fillTgLoginInfo() {
+      var box = document.getElementById('tgLoginInfo');
+      var btn = document.getElementById('tgLoginBtn');
+      if (!box) return;
+      var u = getTgUser();
+      if (u) {
+        var nm = [u.first_name, u.last_name].filter(Boolean).join(' ') || 'Telegram User';
+        box.innerHTML = '<b>✅ ମିଳିଲା:</b> ' + nm +
+          (u.username ? ' (@' + u.username + ')' : '') +
+          (u.phone_number ? '<br>📞 ' + u.phone_number : '');
+        if (btn) btn.disabled = false;
+      } else {
+        box.innerHTML = '⚠️ ଟେଲିଗ୍ରାମ୍ ବାହାରେ (ବ୍ରାଉଜର୍‌ରେ) ଖୋଲାଅଛି — ବଟ୍ ଭିତରେ ଖୋଲିଲେ ନିଜେ ଲଗଇନ୍ ହେବ ।';
+        if (btn) btn.disabled = true;
+      }
+    }
+    function telegramLogin() {
+      var u = getTgUser();
+      if (!u) { alert('ଟେଲିଗ୍ରାମ୍ ବଟ୍ ଭିତରେ ଖୋଲନ୍ତୁ ।'); return; }
+      var nm = [u.first_name, u.last_name].filter(Boolean).join(' ') || (u.username || 'Telegram User');
+      var ph = u.phone_number || '';
+      if (!ph) {
+        ph = (prompt('📱 ପ୍ରଥମ ଅର୍ଡର ପାଇଁ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ (10 ଅଙ୍କ):', '') || '').replace(/\D/g, '').slice(-10);
+        if (ph && !/^[6-9]\d{9}$/.test(ph)) { alert('ଠିକ୍ ନମ୍ବର ଦିଅନ୍ତୁ ।'); return; }
+      }
+      loginDone({
+        name: nm, phone: ph || '',
+        tg_id: u.id ? String(u.id) : '',
+        provider: 'telegram'
+      }, '✅ Telegram ଲଗଇନ୍ ସଫଳ! ସ୍ୱାଗତ, ' + nm + ' ।');
+      renderProfile();
+    }
+    // Silent auto-login inside Telegram (session empty + tg user present).
+    function autoTelegramLogin_() {
+      if (getSessionUser()) return;
+      var u = getTgUser();
+      if (!u) return;
+      var nm = [u.first_name, u.last_name].filter(Boolean).join(' ') || (u.username || 'Telegram User');
+      setSessionUser({
+        name: nm,
+        phone: u.phone_number || '',
+        tg_id: u.id ? String(u.id) : '',
+        provider: 'telegram'
+      });
+    }
+
+    // --- Guest checkout (no mandatory pre-login) ---
+    function guestCheckout() {
+      closeLoginModal();
+      showScreen('cart');
+      alert('👋 ବିନା ଲଗଇନ୍‌ରେ ଅର୍ଡର କରନ୍ତୁ — ନାଁ / ଫୋନ୍ / ଠିକଣା ଲେଖି Checkout କରନ୍ତୁ ।');
+    }
+
     // --- INITIALIZATION ---
     window.addEventListener('DOMContentLoaded', () => {
       try {
@@ -3102,6 +3510,8 @@
 
       initCarousel();
       loadCart_(); // restore cart + applied coupon so refresh never empties it
+      autoTelegramLogin_(); // Telegram WebApp -> silent profile login
+      updateHeaderAuth(); // header shows Login or the customer's first name
       render();
       prefillOrderForm();
       renderProfile();
