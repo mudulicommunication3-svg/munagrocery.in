@@ -672,10 +672,11 @@
               <button onclick="saveWebhook()" class="px-2.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">Save</button>
               <button onclick="manualSync()" id="syncNowBtn" class="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg shrink-0">Sync</button>
             </div>
-            <label class="text-[11px] font-bold text-slate-700 block pt-1">JioMart Search Proxy (optional — jiomart_search_proxy.py)</label>
+            <label class="text-[11px] font-bold text-slate-700 block pt-1">JioMart Search Proxy (optional — PC ରେ jiomart_search_proxy.py)</label>
             <div class="flex gap-1.5">
-              <input type="text" id="jiomartProxyInput" placeholder="http://localhost:8085" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+              <input type="text" id="jiomartProxyInput" placeholder="ଫୋନ୍ ରୁ: http://PC-IP:8085 · PC ରେ: http://localhost:8085" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
               <button onclick="saveJioMartProxy()" class="px-2.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">Save</button>
+              <button onclick="testJioMartProxy()" class="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg shrink-0">Test</button>
             </div>
             <p class="text-[10px] text-slate-400 leading-snug">🔍 JioMart search କ୍ରମ: Apps Script Webhook → Local Proxy → AllOrigins। Webhook ରେ SEARCH_JIOMART ପୂର୍ବରୁ ଅଛି ତେଣୁ webhook ସେଟ୍ ଥିଲେ proxy ଦରକାର ନାହିଁ।</p>
             <label class="text-[11px] font-bold text-slate-700 block pt-1">🖼️ ImgBB API Key (built-in କୀ ଅଛି — ବଦଳାଇବାକୁ ଚାହିଁଲେ ନୂଆ key ଦିଅନ୍ତୁ)</label>
@@ -2216,38 +2217,122 @@
       return null;
     }
     // 2) Optional local proxy: python jiomart_search_proxy.py (port 8085).
+    // ⚠️ 'localhost' କେବଳ ସେହି PC ର browser ରେ କାମ କରେ — ମୋବାଇଲ୍ ଫୋନ୍ ରୁ
+    // ଚାହିଁଲେ PC ର LAN IP ଦିଅନ୍ତୁ (ଯେପରି http://192.168.1.50:8085)।
     async function searchJioMartViaProxy(q, pin) {
       var base = (localStorage.getItem('munna_jiomart_proxy') || '').trim();
       if (!base) return null;
+      var timed = {};
       try {
-        var res = await fetch(base + (base.indexOf('?') >= 0 ? '&' : '?') + 'q=' + encodeURIComponent(q) + '&pincode=' + encodeURIComponent(pin));
+        var ctrl = new AbortController();
+        var timer = setTimeout(function () { ctrl.abort(); }, 8000);
+        timed = { signal: ctrl.signal };
+        var res = await fetch(base + (base.indexOf('?') >= 0 ? '&' : '?') + 'q=' + encodeURIComponent(q) + '&pincode=' + encodeURIComponent(pin), timed);
+        clearTimeout(timer);
         var data = await res.json();
         if (data && Array.isArray(data.items)) {
           return data.items.filter(function (it) { return it && it.url && it.sellable !== false; });
         }
-      } catch (e) {}
+      } catch (e) { lastBackendError = 'Local Proxy: ' + e.message; }
       return null;
     }
-    // 3) Last resort: public CORS proxy (frequently blocked/slow - keep as fallback).
+    // 3) Public CORS relay (merged medias[] + price + hierarchy, like the bot).
+    // Try AllOrigins first, then the thingproxy-style corsproxy.io fallback.
+    async function fetchViaRelay_(proxyUrl, timeoutMs) {
+      var ctrl = new AbortController();
+      var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs || 15000);
+      try {
+        var proxyRes = await fetch(proxyUrl, { signal: ctrl.signal });
+        clearTimeout(timer);
+        return await proxyRes.text();
+      } catch (e) { clearTimeout(timer); throw e; }
+    }
+    function parseJioRelayText_(contents, q) {
+      var out = [];
+      var jioData = JSON.parse(contents);
+      var items = jioData.items || (jioData.data && jioData.data.items) || [];
+      (items || []).forEach(function (item) {
+        if (!item || typeof item !== 'object') return;
+        var imgUrl = '';
+        ((item.medias || [])).forEach(function (m) {
+          if (!imgUrl && m && m.url && (!m.type || String(m.type).toLowerCase() === 'image')) imgUrl = m.url;
+        });
+        if (!imgUrl && item.medias && item.medias[0] && item.medias[0].url) imgUrl = item.medias[0].url;
+        var mrp = '', sp = '';
+        try {
+          var p = item.price || {};
+          mrp = p.marked ? ((typeof p.marked === 'object') ? (p.marked.min || p.marked.max || '') : p.marked) : '';
+          sp = p.effective ? ((typeof p.effective === 'object') ? (p.effective.min || p.effective.max || '') : p.effective) : '';
+        } catch (e) {}
+        var hier = item.hierarchy || {};
+        var cat = ((hier.l3_category || {}).name) || ((hier.l2_category || {}).name) || 'Grocery';
+        var sell = item.sellable;
+        if (imgUrl) out.push({ title: item.name || q, url: imgUrl, mrp: String(mrp), sp: String(sp), cat: cat, sellable: sell === undefined ? true : sell, source: 'JioMart' });
+      });
+      return out;
+    }
     async function searchJioMartViaAllOrigins(q) {
       var out = [];
       try {
-        var targetJioUrl = `https://www.jiomart.com/api/service/application/catalog/v1.0/products?q=${encodeURIComponent(q)}&page_size=12&page_no=1`;
-        var proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetJioUrl)}`;
-        var proxyRes = await fetch(proxyUrl);
-        var proxyJson = await proxyRes.json();
+        var targetJioUrl = 'https://www.jiomart.com/api/service/application/catalog/v1.0/products?q=' + encodeURIComponent(q) + '&page_size=12&page_no=1';
+        var resText = await fetchViaRelay_('https://api.allorigins.win/get?url=' + encodeURIComponent(targetJioUrl), 15000);
+        var proxyJson = JSON.parse(resText);
         if (proxyJson && proxyJson.contents) {
-          var jioData = JSON.parse(proxyJson.contents);
-          var items = jioData.items || (jioData.data && jioData.data.items) || [];
-          items.forEach(item => {
-            var imgUrl = (item.medias && item.medias[0]) ? item.medias[0].url : "";
-            var mrp = item.price ? (item.price.marked ? (item.price.marked.min || item.price.marked) : "") : "";
-            var sp = item.price ? (item.price.effective ? (item.price.effective.min || item.price.effective) : "") : "";
-            var cat = (item.hierarchy && item.hierarchy.l3_category) ? item.hierarchy.l3_category.name : "Grocery";
-            if (imgUrl) out.push({ title: item.name || q, url: imgUrl, mrp: String(mrp), sp: String(sp), cat: cat, source: "JioMart" });
-          });
+          out = parseJioRelayText_(proxyJson.contents, q);
+        } else {
+          lastBackendError = 'AllOrigins: empty relay response';
         }
-      } catch(e){}
+      } catch (e) { lastBackendError = 'AllOrigins: ' + e.message; }
+      return out;
+    }
+    // 4) Backup relay: corsproxy.io (?url=...) then raw allorigins (/raw).
+    // OpenFoodFacts: grocery barcode/offer database search (CORS-open API) moved to openfoodfacts fallback below.
+    async function searchJioMartViaCorsProxy(q) {
+      var out = [];
+      var targetJioUrl = 'https://www.jiomart.com/api/service/application/catalog/v1.0/products?q=' + encodeURIComponent(q) + '&page_size=12&page_no=1';
+      var relays = [
+        'https://corsproxy.io/?url=' + encodeURIComponent(targetJioUrl),
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetJioUrl)
+      ];
+      for (var i = 0; i < relays.length && !out.length; i++) {
+        try {
+          var txt = await fetchViaRelay_(relays[i], 15000);
+          try { out = parseJioRelayText_(txt, q); }
+          catch (e2) {
+            try { out = parseJioRelayText_(JSON.parse(txt).contents || '', q); } catch (e3) {}
+          }
+        } catch (e) { lastBackendError = 'Relay ' + (i + 1) + ': ' + e.message; }
+      }
+      return out;
+    }
+
+    // 5) OpenFoodFacts grocery search — CORS-open API, item name + photo.
+    // Works even when JioMart blocks every relay (no MRP — admin types it).
+    var lastBackendError = '';
+    async function searchOpenFoodFacts(q) {
+      var out = [];
+      try {
+        var ctrl = new AbortController();
+        var timer = setTimeout(function () { ctrl.abort(); }, 15000);
+        var url = 'https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + encodeURIComponent(q) +
+          '&search_simple=1&action=process&json=1&page_size=10';
+        var res = await fetch(url, { signal: ctrl.signal, headers: { 'Accept': 'application/json' } });
+        clearTimeout(timer);
+        var data = await res.json();
+        ((data && data.products) || []).forEach(function (p) {
+          var img = p.image_front_url || p.image_url || '';
+          var nm = p.product_name || '';
+          if (!img || !nm) return;
+          var brands = p.brands || '';
+          out.push({
+            title: (brands ? (nm + ' (' + brands.split(',')[0].trim() + ')') : nm),
+            url: img,
+            mrp: '', sp: '',
+            cat: (p.categories_tags && p.categories_tags[0]) ? String(p.categories_tags[0]).replace(/^[a-z-]+:/, '') : 'Grocery',
+            source: 'OpenFoodFacts'
+          });
+        });
+      } catch (e) { lastBackendError = 'OpenFoodFacts: ' + e.message; }
       return out;
     }
 
@@ -2267,6 +2352,7 @@
 
       // Try every backend in order until one returns products.
       var results = [], sourceUsed = '';
+      window.lastBackendError = lastBackendError = '';
       // 1) Apps Script webhook (server-side JioMart with pincode headers).
       var viaHook = await searchJioMartViaHook(q, pin);
       if (viaHook && viaHook.length) { results = viaHook; sourceUsed = 'Apps Script'; }
@@ -2278,6 +2364,14 @@
         var viaOrigins = await searchJioMartViaAllOrigins(q);
         if (viaOrigins && viaOrigins.length) { results = viaOrigins; sourceUsed = 'AllOrigins'; }
       }
+      if (!results.length) {
+        var viaRelays = await searchJioMartViaCorsProxy(q);
+        if (viaRelays && viaRelays.length) { results = viaRelays; sourceUsed = 'Web Relay'; }
+      }
+      if (!results.length) {
+        var viaOff = await searchOpenFoodFacts(q);
+        if (viaOff && viaOff.length) { results = viaOff; sourceUsed = 'OpenFoodFacts'; }
+      }
 
       searchBtn.disabled = false;
       searchBtn.innerHTML = '<i class="ph-bold ph-magnifying-glass"></i> Search';
@@ -2287,7 +2381,9 @@
         var hint = localStorage.getItem('munna_sheet_webhook')
           ? ' — webhook/proxy ଠିକ୍ ଅଛି କିନ୍ତୁ JioMart ରୁ ଫଳାଫଳ ମିଳିଲା ନାହିଁ; ଅନ୍ୟ ନାମ ଚେଷ୍ଟା କରନ୍ତୁ।'
           : ' — Admin → Sheets ରେ Apps Script Webhook ସେଟ୍ କରନ୍ତୁ (କିମ୍ବା Local Proxy ଦିଅନ୍ତୁ)।';
-        grid.innerHTML = '<p class="col-span-full text-xs text-rose-500 font-bold text-center py-2">କୌଣସି ଫଳାଫଳ ମିଳିଲା ନାହିଁ' + hint + '</p>';
+        var dbg = '';
+        try { if (window.lastBackendError) dbg = '<br><span class="text-slate-500 font-normal">(' + window.lastBackendError + ')</span>'; } catch (e) {}
+        grid.innerHTML = '<p class="col-span-full text-xs text-rose-500 font-bold text-center py-2">କୌଣସି ଫଳାଫଳ ମିଳିଲା ନାହିଁ' + hint + dbg + '</p>';
         return;
       }
 
@@ -2477,7 +2573,27 @@
     function saveJioMartProxy() {
       var u = document.getElementById('jiomartProxyInput').value.trim();
       localStorage.setItem('munna_jiomart_proxy', u);
-      alert(u ? "JioMart Proxy Saved! (e.g. http://localhost:8085)" : "JioMart Proxy Cleared!");
+      alert(u ? "JioMart Proxy Saved! (PC ରେ: http://localhost:8085 · ଫୋନ୍ ରୁ: http://PC-IP:8085 — PC ଓ ଫୋନ୍ ଗୋଟେ Wi-Fi ରେ ଥାଆନ୍ତୁ)" : "JioMart Proxy Cleared!");
+    }
+    // One-tap proxy health check: proves the browser can reach the proxy
+    // AND the proxy can reach JioMart (shows the real error otherwise).
+    async function testJioMartProxy() {
+      var base = (localStorage.getItem('munna_jiomart_proxy') || document.getElementById('jiomartProxyInput').value || '').trim();
+      if (!base) { alert('ପ୍ରଥମେ proxy URL ଲେଖି Save କରନ୍ତୁ ।'); return; }
+      alert('⏳ Proxy ପରୀକ୍ଷା ଚାଲିଛି…');
+      try {
+        var ctrl = new AbortController();
+        var timer = setTimeout(function () { ctrl.abort(); }, 12000);
+        var res = await fetch(base + (base.indexOf('?') >= 0 ? '&' : '?') + 'q=oil&pincode=752106', { signal: ctrl.signal });
+        clearTimeout(timer);
+        var data = await res.json();
+        var n = (data && Array.isArray(data.items)) ? data.items.length : 0;
+        if (n) alert('✅ Proxy ଠିକ୍ ଅଛି! "oil" ପାଇଁ ' + n + ' ଫଳାଫଳ ମିଳିଲା ।');
+        else alert('⚠️ Proxy ପହଞ୍ଚିଲା କିନ୍ତୁ JioMart ରୁ ଶୂନ୍ୟ ଫଳାଫଳ — ଅନ୍ୟ ନାମ ଚେଷ୍ଟା କରନ୍ତୁ ।');
+      } catch (e) {
+        alert('❌ Proxy ପହଞ୍ଚିଲା ନାହିଁ:\n' + e.message +
+          '\n\n• URL ରେ http://PC-IP:8085 ଅଛି କି (localhost ନୁହେଁ)?\n• PC ରେ python jiomart_search_proxy.py ଚାଲୁଛି କି?\n• ଫୋନ୍ ଓ PC ଗୋଟେ Wi-Fi ରେ ଅଛନ୍ତି କି?\n• Windows Firewall ରେ port 8085 ଖୋଲା କି?');
+      }
     }
 
     async function syncFromGoogleSheet() {

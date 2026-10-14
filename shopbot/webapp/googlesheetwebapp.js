@@ -53,6 +53,11 @@ function doGet(e) {
     var q = params.query || "";
     var pin = params.pincode || "752106";
     var results = fetchJioMartByPin(q, pin);
+    // dbg=1 -> why-empty diagnosis (http code, body head) shown in browser.
+    if (params.dbg === "1") {
+      var d = diagJioMart_(q, pin);
+      return jsonResponse({ status: "success", items: results, diag: d });
+    }
     return jsonResponse({ status: "success", items: results });
   }
 
@@ -593,6 +598,39 @@ function fetchJioMartByPin(query, pin) {
   }
 
   return results;
+}
+
+// Debug helper: raw HTTP status + body head from JioMart (no parsing).
+// Call: ?action=SEARCH_JIOMART&query=oil&pincode=752106&dbg=1
+function diagJioMart_(query, pin) {
+  var out = { url: "", code: -1, len: 0, head: "", err: "" };
+  try {
+    var targetPin = String(pin || "752106").trim();
+    out.url = "https://www.jiomart.com/api/service/application/catalog/v1.0/products?q="
+      + encodeURIComponent(String(query || "").trim()) + "&page_size=3&page_no=1";
+    var res = UrlFetchApp.fetch(out.url, {
+      method: "GET",
+      muteHttpExceptions: true,
+      followRedirects: true,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Mobile Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Origin": "https://www.jiomart.com",
+        "Referer": "https://www.jiomart.com/",
+        "pincode": targetPin,
+        "x-pincode": targetPin,
+        "x-location-detail": JSON.stringify({ country: "INDIA", country_iso_code: "IN", pincode: targetPin }),
+        "visitor-id": Utilities.getUuid()
+      }
+    });
+    out.code = res.getResponseCode();
+    var txt = res.getContentText() || "";
+    out.len = txt.length;
+    out.head = txt.substring(0, 300);
+  } catch (e) {
+    out.err = e.toString();
+  }
+  return out;
 }
 
 // ଘ. Shared Config (Config tab: Key | Value) — admin ଥରେ set କଲେ ସମସ୍ତ
