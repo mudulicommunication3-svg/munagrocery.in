@@ -2336,6 +2336,47 @@
       return out;
     }
 
+    // 0) Bot-PC search bus (Sheet SearchQueue): POST a request, poll for the
+    // bot PC's answer — the ONLY path proven to reach JioMart (bot's
+    // jiomart_search.fetch_items). ~5-20s depending on the bot poll loop.
+    async function searchBusViaSheet(q, pin) {
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
+        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      if (!hook) return null;
+      var rid = 'SQ-' + Date.now().toString(36).toUpperCase() + '-' +
+        Math.random().toString(36).slice(2, 6).toUpperCase();
+      try {
+        var ctrl0 = new AbortController();
+        var t0 = setTimeout(function () { ctrl0.abort(); }, 8000);
+        // Same shape as postToSheet (proved working for create_order).
+        await fetch(hook, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'PUT_SEARCH', request_id: rid, query: q, pincode: pin }),
+          signal: ctrl0.signal
+        });
+        clearTimeout(t0);
+      } catch (e) { lastBackendError = 'SearchBus POST: ' + e.message; return null; }
+      var deadline = Date.now() + 40000;
+      while (Date.now() < deadline) {
+        await new Promise(function (r) { setTimeout(r, 3000); });
+        try {
+          var res = await fetch(sheetHookUrl('action=GET_SEARCH&request_id=' + encodeURIComponent(rid) + '&_=' + Date.now()));
+          var data = await res.json();
+          if (data && data.status === 'done' && Array.isArray(data.items) && data.items.length) {
+            return data.items.filter(function (it) { return it && it.url && it.sellable !== false; });
+          }
+          if (data && data.status === 'error') {
+            lastBackendError = 'Bot search: ' + (data.error || 'failed');
+            return null;
+          }
+        } catch (e) { lastBackendError = 'SearchBus GET: ' + e.message; }
+      }
+      lastBackendError = 'Bot search: 40sରେ ଉତ୍ତର ମିଳିଲା ନାହିଁ (ବଟ୍ PC ଅଫଲାଇନ୍?)';
+      return null;
+    }
+
     async function triggerLiveSearch() {
       var q = document.getElementById('newProdName').value.trim();
       var pin = document.getElementById('searchPincode').value.trim() || '752106';
@@ -2353,9 +2394,14 @@
       // Try every backend in order until one returns products.
       var results = [], sourceUsed = '';
       window.lastBackendError = lastBackendError = '';
+      // 0) Bot-PC search bus (Sheet SearchQueue) — proven JioMart access.
+      var viaBus = await searchBusViaSheet(q, pin);
+      if (viaBus && viaBus.length) { results = viaBus; sourceUsed = 'Bot PC'; }
       // 1) Apps Script webhook (server-side JioMart with pincode headers).
-      var viaHook = await searchJioMartViaHook(q, pin);
-      if (viaHook && viaHook.length) { results = viaHook; sourceUsed = 'Apps Script'; }
+      if (!results.length) {
+        var viaHook = await searchJioMartViaHook(q, pin);
+        if (viaHook && viaHook.length) { results = viaHook; sourceUsed = 'Apps Script'; }
+      }
       if (!results.length) {
         var viaProxy = await searchJioMartViaProxy(q, pin);
         if (viaProxy && viaProxy.length) { results = viaProxy; sourceUsed = 'Local Proxy'; }

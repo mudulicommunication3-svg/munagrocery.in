@@ -12,7 +12,8 @@
 //
 // doGet  actions: SEARCH_JIOMART | GET_ORDERS | GET_ADDRESSES | GET_USERS | GET_CONFIG | (catalog)
 // doPost actions: create_order | update_order_status | update_order_bill |
-//                 save_address | SAVE_CONFIG | EDIT_PRODUCT | ADD_PRODUCT | (legacy)
+//                 save_address | SAVE_CONFIG | EDIT_PRODUCT | ADD_PRODUCT |
+//                 PUT_SEARCH | (legacy)
 // =========================================================================
 
 var ORDER_HEADERS = [
@@ -48,7 +49,16 @@ function nowStamp_() {
 function doGet(e) {
   var params = e ? e.parameter : {};
 
-  // ବିକଳ୍ପ A: JioMart ଲାଇଭ୍ Search Proxy
+  // ବିକଳ୍ପ A0: Bot-PC search bus (SETTAB: SearchQueue) — ଫୋନ୍ PC ର live
+  // JioMart search ବ୍ୟବହାର କରେ (bot ର jiomart_search.fetch_items ପ୍ରମାଣିତ)।
+  // POST {"action":"PUT_SEARCH","request_id","query","pincode"} -> row append.
+  // GET ?action=GET_SEARCH&request_id=... -> {status, items[]} (done/error/waiting).
+
+  // ବିକଳ୍ପ A0: Bot-PC search bus — GET ?action=GET_SEARCH&request_id=...
+  // (webapp ଫୋନ୍ PC ର live JioMart ଉତ୍ତର ପଢ଼େ; PUT_SEARCH ରୁ doPost ଲେଖେ)
+  if (params && params.action === "GET_SEARCH") {
+    return jsonResponse(getSearch_(ss, params));
+  }
   if (params && params.action === "SEARCH_JIOMART") {
     var q = params.query || "";
     var pin = params.pincode || "752106";
@@ -121,6 +131,11 @@ function doPost(e) {
     var data = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var prodSheet = ss.getSheetByName("Sheet1");
+
+    // ବିକଳ୍ପ A0: Bot-PC search bus — webapp ଫୋନ୍ ଏଠାରେ request ପକାଏ
+    if (data.action === "PUT_SEARCH") {
+      return jsonResponse(putSearch_(ss, data));
+    }
 
     // ବିକଳ୍ପ 1: ପ୍ରଡକ୍ଟ EDIT / UPDATE
     if (data.action === "EDIT_PRODUCT") {
@@ -506,6 +521,67 @@ function readAllUsers_(ss) {
 }
 
 // =========================================================================
+// =========================================================================
+// A0. Bot-PC search bus (SearchQueue tab) — phone asks, bot PC answers.
+//   doPost PUT_SEARCH  {"action":"PUT_SEARCH","request_id","query","pincode"}
+//   doGet  GET_SEARCH  ?action=GET_SEARCH&request_id=...
+// -> {status:"done"|"error"|"waiting", items:[{title,url,mrp,sp,cat}], error}
+// The webapp polls GET_SEARCH; the bot's search_bus.py poll loop writes done.
+// =========================================================================
+var SEARCH_BUS_TAB = "SearchQueue";
+var SEARCH_BUS_HEADERS = [
+  "Request ID", "Query", "Pincode", "Status",
+  "Items JSON", "Error", "Created At", "Updated At"
+];
+
+function searchBusSheet_(ss) {
+  var sh = null;
+  try { sh = ss.getSheetByName(SEARCH_BUS_TAB); } catch (e) {}
+  if (!sh) {
+    sh = ss.insertSheet(SEARCH_BUS_TAB);
+    sh.getRange(1, 1, 1, SEARCH_BUS_HEADERS.length).setValues([SEARCH_BUS_HEADERS]);
+  }
+  return sh;
+}
+
+function putSearch_(ss, data) {
+  var rid = String(data.request_id || "").trim();
+  var q = String(data.query || "").trim();
+  var pin = String(data.pincode || "752106").trim();
+  if (!rid || !q) return { status: "error", message: "request_id + query required" };
+  var sh = searchBusSheet_(ss);
+  sh.appendRow([rid, q, pin, "pending", "", "", nowStamp_(), nowStamp_()]);
+  // Cap the tab: keep the newest 15 requests only (Sheet quota safety).
+  try {
+    var n = sh.getLastRow();
+    if (n > 16) sh.deleteRows(2, n - 16);
+  } catch (e) {}
+  return { status: "queued", request_id: rid };
+}
+
+function getSearch_(ss, params) {
+  var rid = String((params && params.request_id) || "").trim();
+  if (!rid) return { status: "error", message: "request_id required", items: [] };
+  var sh = searchBusSheet_(ss);
+  var rows = [];
+  try { rows = sh.getDataRange().getValues(); } catch (e) { return { status: "waiting", items: [] }; }
+  for (var i = rows.length - 1; i >= 1; i--) {
+    if (String(rows[i][0] || "").trim() === rid) {
+      var status = String(rows[i][3] || "").trim();
+      if (status === "done") {
+        var items = [];
+        try { items = JSON.parse(rows[i][4] || "[]") || []; } catch (e) {}
+        return { status: "done", items: items };
+      }
+      if (status === "error") {
+        return { status: "error", items: [], error: String(rows[i][5] || "") };
+      }
+      return { status: "waiting", items: [] };
+    }
+  }
+  return { status: "waiting", items: [] };
+}
+
 // ଗ. JioMart API Fetcher (jm1.8.0_3.py Headers ଓ Parsing Pattern)
 // =========================================================================
 function fetchJioMartByPin(query, pin) {
