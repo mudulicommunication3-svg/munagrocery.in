@@ -26,6 +26,9 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<!-- Barcode/QR scanner (EAN-13, QR, CODE-128...) for quick search & billing -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Oriya:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -99,12 +102,17 @@
           id="searchInput" 
           placeholder="ମୋବାଇଲ୍, ଚାର୍ଜର କିମ୍ବା ଗ୍ରୋସରୀ ସନ୍ଧାନ କରନ୍ତୁ..."
           oninput="handleSearch(this.value)"
-          class="w-full pl-9 pr-9 py-2 bg-white text-slate-800 text-xs rounded-xl shadow-xs border border-transparent focus:border-yellow-400 outline-none placeholder:text-slate-400 font-medium"
+          class="w-full pl-9 pr-16 py-2 bg-white text-slate-800 text-xs rounded-xl shadow-xs border border-transparent focus:border-yellow-400 outline-none placeholder:text-slate-400 font-medium"
         >
+        <button onclick="openScanner('customer')" title="ବାରକୋଡ୍ / QR ସ୍କାନ୍ କରନ୍ତୁ" class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[#1864ab]">
+          <i class="ph-bold ph-barcode text-base"></i>
+        </button>
         <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
           <i class="ph-bold ph-x-circle text-base"></i>
         </button>
       </div>
+      <!-- Recent scans (saved) for one-tap re-search -->
+      <div id="scanHistoryRow" class="hidden gap-1.5 overflow-x-auto no-scrollbar pt-1.5"></div>
     </div>
   </header>
 
@@ -431,11 +439,16 @@
       <div class="p-3.5 space-y-3 flex-1">
         <!-- Tab 1: Orders (5-Stage Fulfillment & Live Item Editing) -->
         <div id="admTab-orders" class="space-y-3">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-2">
             <h4 class="text-xs font-black text-slate-700">📦 Customer Orders (5-Stage Dispatch)</h4>
-            <button onclick="renderAdminOrders()" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1">
-              <i class="ph-bold ph-arrows-clockwise"></i> Refresh
-            </button>
+            <div class="flex items-center gap-2">
+              <button onclick="openScanner('quickbill')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-lg flex items-center gap-1 shadow-xs">
+                <i class="ph-bold ph-barcode"></i> ⚡ Quick Bill
+              </button>
+              <button onclick="renderAdminOrders()" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1">
+                <i class="ph-bold ph-arrows-clockwise"></i> Refresh
+              </button>
+            </div>
           </div>
           <div id="adminOrdersContainer" class="space-y-3"></div>
         </div>
@@ -544,6 +557,16 @@
               </div>
 
               <div>
+                <label class="text-[11px] font-bold text-slate-700">EAN / ବାରକୋଡ୍ (ଗ୍ରାହକ ସ୍କାନ୍ ପାଇଁ)</label>
+                <div class="flex gap-1.5">
+                  <input type="text" id="newProdEan" placeholder="ଯେପରି 8901234567890 — ଖାଲି ରଖିଲେ auto" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                  <button type="button" onclick="openScanner('admin')" title="ବାରକୋଡ୍ ସ୍କାନ୍" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                    <i class="ph-bold ph-barcode"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div>
                 <label class="text-[11px] font-bold text-slate-700">Image URL</label>
                 <input type="url" id="newProdImg" oninput="updateImagePreview(this.value)" placeholder="https://... କିମ୍ବା JioMart ସର୍ଚ୍ଚରୁ ବାଛନ୍ତୁ" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
                 <button type="button" onclick="switchAdminTab('banners')" class="mt-1 text-[10px] text-[#1864ab] font-bold hover:underline">🖼️ ନିଜ ଫଟୋର ଲିଙ୍କ୍ ତିଆରି କରନ୍ତୁ (Image Link Generator)</button>
@@ -571,7 +594,10 @@
                 <i class="ph-bold ph-magnifying-glass absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                 <input type="text" id="dbSearchInput" oninput="renderAdminList()"
                        placeholder="🔍 ଡାଟାବେସ୍‌ରୁ ଖୋଜନ୍ତୁ (ନାଁ / EAN / ବର୍ଗ)..."
-                       class="w-full text-xs pl-7 pr-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                       class="w-full text-xs pl-7 pr-8 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                <button type="button" onclick="openScanner('admin')" title="EAN ସ୍କାନ୍ କରନ୍ତୁ" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#1864ab]">
+                  <i class="ph-bold ph-barcode text-sm"></i>
+                </button>
               </div>
               <button type="button" onclick="clearDbSearch()" id="dbSearchClearBtn"
                       class="hidden px-2 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg shrink-0">
@@ -694,6 +720,55 @@
             <p class="text-[10px] text-slate-400 leading-snug">✅ ଥରେ ସେଭ୍ କଲେ ସମସ୍ତଙ୍କ ଫୋନ୍ ରେ ଲାଗୁ (Config tab)। Cart ରେ ଗ୍ରାହକ କୁପନ୍ apply କରିପାରିବେ।</p>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PRODUCT SCANNER (EAN/QR CAMERA + PHOTO + MANUAL) ================= -->
+  <div id="scannerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div class="bg-[#1864ab] text-white px-4 py-2.5 flex items-center justify-between shrink-0">
+        <span class="font-extrabold text-sm flex items-center gap-1.5"><i class="ph-bold ph-barcode"></i> ସ୍କାନ୍ କରନ୍ତୁ (Scan)</span>
+        <button onclick="closeScanner()" class="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center"><i class="ph-bold ph-x"></i></button>
+      </div>
+
+      <!-- Scan result banner + actions -->
+      <div id="scanResultBanner" class="hidden px-3 pt-3 space-y-2 shrink-0"></div>
+
+      <!-- Store-side Quick Bill (POS): running scanned lines -->
+      <div id="quickBillBox" class="hidden px-3 pt-3 space-y-2 shrink-0">
+        <div class="flex items-center justify-between text-xs font-black text-slate-800">
+          <span>⚡ Quick Bill</span>
+          <span id="qbTotal" class="text-[#1864ab]">Rs.0</span>
+        </div>
+        <div id="qbItems" class="space-y-1.5 max-h-36 overflow-y-auto no-scrollbar"></div>
+        <input id="qbName" type="text" placeholder="ଗ୍ରାହକ ନାଁ (ଐଚ୍ଛିକ)" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+        <input id="qbPhone" type="tel" placeholder="ଫୋନ୍ ନମ୍ବର (ଐଚ୍ଛିକ)" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+        <button onclick="saveQuickBill()" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-floppy-disk"></i> ବିଲ୍ ସେଭ୍ କରନ୍ତୁ (Save Order)
+        </button>
+      </div>
+
+      <!-- Live camera view -->
+      <div id="scannerReader" class="mx-3 mt-3 rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center" style="min-height:170px">
+        <span id="scannerIdleHint" class="text-[11px] text-slate-300 p-4 text-center">📷 Camera ଆରମ୍ଭ ହେଉଛି...<br>ବାରକୋଡ୍ / QR ଆଗରେ ଧରନ୍ତୁ</span>
+      </div>
+
+      <div class="p-3 space-y-2 shrink-0">
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="startCameraScan()" id="camBtn" class="py-2 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white text-xs font-extrabold flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-camera"></i> Camera ଚାଲାନ୍ତୁ
+          </button>
+          <button onclick="document.getElementById('scanPhotoInput').click()" class="py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-extrabold flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-image"></i> ଫଟୋରୁ ସ୍କାନ୍
+          </button>
+        </div>
+        <input type="file" id="scanPhotoInput" accept="image/*" class="hidden">
+        <div class="flex gap-1.5">
+          <input id="scanManualInput" type="text" placeholder="EAN / QR ଟେକ୍ସଟ୍ ଲେଖି ଖୋଜନ୍ତୁ..." onkeydown="if(event.key==='Enter') manualScanGo()" class="flex-1 text-xs px-2.5 py-2 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab] uppercase">
+          <button onclick="manualScanGo()" class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold rounded-lg shrink-0">ଖୋଜନ୍ତୁ</button>
+        </div>
+        <p class="text-[10px] text-slate-400 text-center leading-snug">📸 Camera · 🖼️ ଫଟୋରେ ବାରକୋଡ୍ · କିମ୍ବା ହାତରେ EAN ଲେଖନ୍ତୁ</p>
       </div>
     </div>
   </div>
@@ -2180,7 +2255,17 @@
     async function handleAdminFormSubmit(e) {
       e.preventDefault();
       var isEdit = document.getElementById('editEan').value !== "";
-      var ean = isEdit ? document.getElementById('editEan').value : ("EAN-" + Date.now());
+      var eanField = document.getElementById('newProdEan');
+      var ean = isEdit ? document.getElementById('editEan').value
+                       : ((eanField && eanField.value.trim()) || ("EAN-" + Date.now()));
+      if (!isEdit) {
+        // EAN column: every product gets a scannable code (manual or from a scan).
+        var dupScan = window.STORE_CATALOG.find(function (x) { return String(x.ean).trim() === String(ean).trim(); });
+        if (dupScan) {
+          alert("❌ ଏହି EAN ପୂର୍ବରୁ ଅଛି: " + dupScan.product_name + " — Edit କରନ୍ତୁ କିମ୍ବା ଅଲଗା EAN ଦିଅନ୍ତୁ।");
+          return;
+        }
+      }
       var nm = document.getElementById('newProdName').value.trim();
       var mrp = document.getElementById('newProdMRP').value.trim();
       var sp = document.getElementById('newProdSP').value.trim();
@@ -2225,6 +2310,8 @@
       document.getElementById('newProdStock').value = '10';
       document.getElementById('newProdCat').value = '';
       document.getElementById('newProdImg').value = '';
+      var eanReset = document.getElementById('newProdEan');
+      if (eanReset) eanReset.value = '';
       updateImagePreview('');
       closeImageDropdown();
       document.getElementById('cancelEditBtn').classList.add('hidden');
@@ -2297,6 +2384,8 @@
       document.getElementById('newProdStock').value = p.stock_qty || 10;
       document.getElementById('newProdCat').value = p.category;
       document.getElementById('newProdImg').value = p.image_url;
+      var eanFill = document.getElementById('newProdEan');
+      if (eanFill) eanFill.value = p.ean || '';
       updateImagePreview(p.image_url);
       document.getElementById('cancelEditBtn').classList.remove('hidden');
       document.getElementById('adminFormCard').scrollIntoView({ behavior: 'smooth' });
@@ -2711,6 +2800,291 @@
       document.getElementById('lblStoreName').innerText = isEnglish ? "MUNNA MOBILE & GROCERY" : "ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ";
     }
 
+    // --- PRODUCT SCANNER (EAN/QR: camera + photo + manual) ---
+    var scannerCtx = 'customer';   // 'customer' | 'admin' | 'quickbill'
+    var html5Qr = null;
+    var camRunning = false;
+    var qbLines = [];              // store-side Quick Bill running lines
+
+    function openScanner(ctx) {
+      scannerCtx = ctx || 'customer';
+      document.getElementById('scannerModal').classList.remove('hidden');
+      document.getElementById('scanResultBanner').classList.add('hidden');
+      document.getElementById('quickBillBox').classList.toggle('hidden', scannerCtx !== 'quickbill');
+      document.getElementById('scanManualInput').value = '';
+      if (scannerCtx === 'quickbill') renderQuickBill();
+      startCameraScan();
+    }
+
+    function closeScanner() {
+      stopCameraScan();
+      document.getElementById('scannerModal').classList.add('hidden');
+    }
+
+    function showScanBanner(main, actions) {
+      var b = document.getElementById('scanResultBanner');
+      b.innerHTML = '<div class="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-xs text-emerald-900 leading-snug">' + main + '</div>' +
+        (actions ? '<div class="flex gap-2">' + actions + '</div>' : '');
+      b.classList.remove('hidden');
+    }
+
+    function scannerBtn(label, fn) {
+      return '<button onclick="' + fn + '" class="flex-1 py-2 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white text-[11px] font-extrabold">' + label + '</button>';
+    }
+
+    function startCameraScan() {
+      var idle = document.getElementById('scannerIdleHint');
+      if (typeof Html5Qrcode === 'undefined') {
+        if (idle) { idle.style.display = ''; idle.innerText = '❌ Scanner library load ହେଲା ନାହିଁ — ଇଣ୍ଟରନେଟ୍ ଯାଞ୍ଚ କରି ତଳେ ଫଟୋ / EAN ବ୍ୟବହାର କରନ୍ତୁ'; }
+        return;
+      }
+      if (idle) idle.style.display = 'none';
+      if (camRunning) return;
+      if (!html5Qr) html5Qr = new Html5Qrcode('scannerReader', { verbose: false });
+      html5Qr.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 230, height: 160 } },
+        function (decodedText) { onScanResult(decodedText); },
+        function () {}
+      ).then(function () { camRunning = true; })
+       .catch(function () {
+         camRunning = false;
+         if (idle) { idle.style.display = ''; idle.innerText = '📷 Camera ଚାଲିଲା ନାହିଁ (permission / କ୍ୟାମେରା ନାହିଁ) — ତଳେ ଫଟୋ କିମ୍ବା ହାତରେ EAN ଲେଖନ୍ତୁ'; }
+       });
+    }
+
+    function stopCameraScan() {
+      if (html5Qr && camRunning) {
+        var h = html5Qr;
+        camRunning = false;
+        h.stop().then(function () { try { h.clear(); } catch (e) {} html5Qr = null; }).catch(function () {});
+      }
+    }
+
+    function scanPhotoFile(file) {
+      if (typeof Html5Qrcode === 'undefined') { alert('❌ Scanner library load ହେଲା ନାହିଁ — ଇଣ୍ଟରନେଟ୍ ଯାଞ୍ଚ କରନ୍ତୁ।'); return; }
+      var h = new Html5Qrcode('scannerReader', { verbose: false });
+      var p;
+      try {
+        p = (typeof h.scanFileV2 === 'function') ? h.scanFileV2(file, false) : h.scanFile(file, false);
+      } catch (e) { alert('❌ ସ୍କାନ୍ ତ୍ରୁଟି: ' + e.message); return; }
+      p.then(function (r) {
+        var txt = (typeof r === 'string') ? r : ((r && r.decodedText) || '');
+        html5Qr = null;
+        onScanResult(txt);
+      }).catch(function () {
+        alert('❌ ଫଟୋରେ ବାରକୋଡ୍ / QR ମିଳିଲା ନାହିଁ — ଅନ୍ୟ ଫଟୋ ଚେଷ୍ଟା କରନ୍ତୁ।');
+        startCameraScan();
+      });
+    }
+    (function wirePhotoScan_() {
+      var f = document.getElementById('scanPhotoInput');
+      if (!f || !f.addEventListener) return;
+      f.addEventListener('change', function () {
+        var file = f.files && f.files[0];
+        f.value = '';
+        if (!file) return;
+        stopCameraScan();
+        setTimeout(function () { scanPhotoFile(file); }, 400);
+      });
+    })();
+
+    function manualScanGo() {
+      var v = document.getElementById('scanManualInput').value.trim();
+      if (!v) return;
+      onScanResult(v);
+    }
+
+    // One scan/text -> route by context (customer search+cart, admin lookup, POS bill).
+    function onScanResult(text) {
+      text = String(text || '').trim();
+      if (!text) return;
+      if (scannerCtx === 'quickbill') { qbAddByCode(text); return; }
+      var p = window.STORE_CATALOG.find(function (x) { return String(x.ean).trim() === text; });
+
+      if (scannerCtx === 'customer') {
+        if (p) {
+          saveScanHistory_(p);
+          handleSearch(p.product_name);                 // quick search: card visible
+          var sEl = document.getElementById('searchInput');
+          if (sEl) sEl.value = p.product_name;
+          setQty(p.ean, (cart[p.ean] || 0) + 1);        // quick billing: one scan = one in cart
+          showScanBanner(
+            '<b>✅ ' + p.product_name + '</b><br>Rs.' + money(p.selling_price) + ' — କାର୍ଟରେ 1ଟି ଯୋଡ଼ାଗଲା',
+            scannerBtn('📸 ଅନ୍ୟ ସ୍କାନ୍', 'startCameraScan()') +
+            scannerBtn('🛒 କାର୍ଟ ଦେଖନ୍ତୁ', 'closeScanner(); openCartDrawer()'));
+          return;
+        }
+        handleSearch(text);                              // name / QR text fallback search
+        var s2 = document.getElementById('searchInput');
+        if (s2) s2.value = text;
+        showScanBanner('🔍 “' + text + '” ପାଇଁ ଖୋଜାଗଲା — ଫଳାଫଳ ତଳେ ଦେଖନ୍ତୁ',
+          scannerBtn('📸 ଅନ୍ୟ ସ୍କାନ୍', 'startCameraScan()'));
+        return;
+      }
+
+      // Admin / store side lookup
+      if (p) {
+        var dbEl = document.getElementById('dbSearchInput');
+        if (dbEl) dbEl.value = text;
+        renderAdminList();
+        showScanBanner(
+          '<b>' + p.product_name + '</b><br>Rs.' + money(p.selling_price) + ' · Stock: ' + (p.stock_qty || 0),
+          scannerBtn('✏️ Edit', "editAdminProductByEan(decodeURIComponent('" + encodeURIComponent(String(p.ean)).replace(/'/g, '%27') + "'))") +
+          scannerBtn('📸 ଅନ୍ୟ ସ୍କାନ୍', 'startCameraScan()'));
+        return;
+      }
+      quickAddWithEanPrompt_(text);                     // unknown EAN -> quick add
+    }
+
+    // --- STORE-SIDE QUICK BILL (POS): scan -> running bill -> order in Sheet ---
+    function qbAddByCode(code) {
+      var p = window.STORE_CATALOG.find(function (x) { return String(x.ean).trim() === String(code).trim(); });
+      if (!p) {
+        showScanBanner('❌ EAN <b>' + code + '</b> କାଟାଲଗ୍‌ରେ ନାହିଁ — ପ୍ରଥମେ ଯୋଡ଼ନ୍ତୁ।',
+          scannerBtn('➕ ପ୍ରୋଡକ୍ଟ ଯୋଡ଼ନ୍ତୁ', "quickAddWithEan(decodeURIComponent('" + encodeURIComponent(String(code)).replace(/'/g, '%27') + "'))") +
+          scannerBtn('📸 ପୁଣି ସ୍କାନ୍', 'startCameraScan()'));
+        return;
+      }
+      var line = qbLines.find(function (l) { return String(l.ean) === String(p.ean); });
+      if (line) line.qty += 1;
+      else qbLines.push({ ean: String(p.ean), name: p.product_name, price: parseFloat(p.selling_price) || 0, qty: 1 });
+      renderQuickBill();
+      showScanBanner('✅ <b>' + p.product_name + '</b> (+1) — Rs.' + money(p.selling_price),
+        scannerBtn('📸 ଅନ୍ୟ ସ୍କାନ୍', 'startCameraScan()'));
+    }
+
+    function renderQuickBill() {
+      var box = document.getElementById('qbItems');
+      if (!box) return;
+      var total = 0;
+      if (!qbLines.length) {
+        box.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-1">ବାରକୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ — ଜିନିଷ ଏଠାରେ ଯୋଡ଼ିବ</p>';
+      } else {
+        box.innerHTML = qbLines.map(function (l, i) {
+          total += l.price * l.qty;
+          return '<div class="flex items-center justify-between text-[11px] bg-slate-50 px-2 py-1.5 rounded-lg gap-2">' +
+            '<span class="font-bold flex-1 min-w-0 truncate">' + l.name + '</span>' +
+            '<span class="flex items-center gap-1">' +
+            '<button onclick="qbChange(' + i + ',-1)" class="w-5 h-5 rounded bg-slate-200 font-bold">-</button>' +
+            '<b class="w-5 text-center">' + l.qty + '</b>' +
+            '<button onclick="qbChange(' + i + ',1)" class="w-5 h-5 rounded bg-[#1864ab] text-white font-bold">+</button>' +
+            '</span>' +
+            '<span class="font-black text-[#1864ab] w-16 text-right">Rs.' + money(l.price * l.qty) + '</span>' +
+            '<button onclick="qbRemove(' + i + ')" class="text-rose-600 font-bold px-1"><i class="ph-bold ph-trash"></i></button>' +
+            '</div>';
+        }).join('');
+      }
+      var t = document.getElementById('qbTotal');
+      if (t) t.innerText = 'Rs.' + money(total);
+    }
+
+    function qbChange(i, d) {
+      if (!qbLines[i]) return;
+      qbLines[i].qty += d;
+      if (qbLines[i].qty <= 0) qbLines.splice(i, 1);
+      renderQuickBill();
+    }
+
+    function qbRemove(i) { qbLines.splice(i, 1); renderQuickBill(); }
+
+    function saveQuickBill() {
+      if (!qbLines.length) { alert('⚡ ଖାଲି ବିଲ୍ — ପ୍ରଥମେ ବାରକୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ!'); return; }
+      var name = (((document.getElementById('qbName') || {}).value) || '').trim() || 'Store Walk-in';
+      var phone = (((document.getElementById('qbPhone') || {}).value) || '').trim();
+      var lines = qbLines.slice();
+      var total = lines.reduce(function (a, l) { return a + l.price * l.qty; }, 0);
+      var orderObj = {
+        order_id: makeOrderId(),
+        timestamp: sheetTimestamp(new Date()),
+        customer_name: name,
+        phone: phone,
+        address: 'Store counter (in-store billing)',
+        items: itemsToText(lines),
+        total: total,
+        channel: 'webapp',
+        telegram_user_id: '',
+        status: 'pending',
+        status_msg_id: '',
+        location: '',
+        payment: 'COD',
+        lines: lines
+      };
+      var orders = getMyOrders();
+      orders.unshift(orderObj);
+      setMyOrders(orders);
+      postToSheet({ action: 'create_order', order: orderObj });  // Sheet: stock deduct + admin sync
+      qbLines = [];
+      var nEl = document.getElementById('qbName'); if (nEl) nEl.value = '';
+      var pEl = document.getElementById('qbPhone'); if (pEl) pEl.value = '';
+      renderQuickBill();
+      renderAdminOrders();
+      alert('✅ ବିଲ୍ ସେଭ୍ ହେଲା!\nOrder: ' + orderObj.order_id + '\nମୋଟ: Rs.' + money(total) + '\n(ଷ୍ଟକ୍ ନିଜେ କମିବ)');
+      closeScanner();
+      switchAdminTab('orders');
+    }
+
+    // Unknown EAN on the store side -> offer instant "add product" with EAN pre-filled.
+    function quickAddWithEanPrompt_(ean) {
+      showScanBanner('🆕 EAN <b>' + ean + '</b> କାଟାଲଗ୍‌ରେ ନାହିଁ',
+        scannerBtn('➕ ନୂଆ ପ୍ରୋଡକ୍ଟ ଯୋଡ଼ନ୍ତୁ', "quickAddWithEan(decodeURIComponent('" + encodeURIComponent(String(ean)).replace(/'/g, '%27') + "'))") +
+        scannerBtn('📸 ପୁଣି ସ୍କାନ୍', 'startCameraScan()'));
+    }
+
+    function quickAddWithEan(ean) {
+      closeScanner();
+      switchAdminTab('stock');
+      resetAdminForm();
+      var el = document.getElementById('newProdEan');
+      if (el) el.value = ean;
+      var n = document.getElementById('newProdName');
+      if (n && n.focus) n.focus();
+      var card = document.getElementById('adminFormCard');
+      if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth' });
+      alert('📋 EAN ବସିଗଲା — ନାଁ, ଦାମ୍, ଫଟୋ ଦେଇ Save କରନ୍ତୁ।');
+    }
+
+    function editAdminProductByEan(ean) {
+      var idx = window.STORE_CATALOG.findIndex(function (x) { return String(x.ean) === String(ean); });
+      if (idx < 0) return;
+      closeScanner();
+      switchAdminTab('stock');
+      editAdminProduct(idx);
+    }
+
+    // --- SAVED SCANS (customer): recent EAN/Photo scans re-usable in one tap ---
+    function saveScanHistory_(p) {
+      try {
+        var h = JSON.parse(localStorage.getItem('MUNA_SCAN_HISTORY') || '[]');
+        if (!Array.isArray(h)) h = [];
+        h = h.filter(function (x) { return String(x.ean) !== String(p.ean); });
+        h.unshift({ ean: String(p.ean), name: p.product_name, price: p.selling_price, ts: Date.now() });
+        localStorage.setItem('MUNA_SCAN_HISTORY', JSON.stringify(h.slice(0, 10)));
+      } catch (e) {}
+      renderScanHistory();
+    }
+
+    function renderScanHistory() {
+      var row = document.getElementById('scanHistoryRow');
+      if (!row) return;
+      var h = [];
+      try { h = JSON.parse(localStorage.getItem('MUNA_SCAN_HISTORY') || '[]') || []; } catch (e) {}
+      if (!h.length) { row.classList.add('hidden'); row.innerHTML = ''; return; }
+      row.classList.remove('hidden');
+      row.innerHTML = '<span class="shrink-0 text-slate-400 font-bold py-1" title="ସାମ୍ପ୍ରତିକ ସ୍କାନ୍">🕘</span>' +
+        h.map(function (x) {
+          return '<button onclick="quickSearchFromHistory(\'' + encodeURIComponent(String(x.name)).replace(/'/g, '%27') + '\')" class="shrink-0 px-2.5 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-bold text-slate-600 whitespace-nowrap">' + x.name + '</button>';
+        }).join('');
+    }
+
+    function quickSearchFromHistory(name) {
+      var n = decodeURIComponent(name);
+      var el = document.getElementById('searchInput');
+      if (el) el.value = n;
+      handleSearch(n);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
     // --- INITIALIZATION ---
     window.addEventListener('DOMContentLoaded', () => {
       try {
@@ -2732,6 +3106,7 @@
       prefillOrderForm();
       renderProfile();
       updateCartBadge();
+      renderScanHistory();
       // Fetch + render live inventory (localStorage webhook or DEFAULT_SHEET_WEBHOOK).
       syncFromGoogleSheet();
       // Admin-set offer banners are shared: Sheet first (ALL customers see the
