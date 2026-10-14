@@ -674,11 +674,11 @@
             </div>
             <label class="text-[11px] font-bold text-slate-700 block pt-1">JioMart Search Proxy (optional — PC ରେ jiomart_search_proxy.py)</label>
             <div class="flex gap-1.5">
-              <input type="text" id="jiomartProxyInput" placeholder="ଫୋନ୍ ରୁ: http://PC-IP:8085 · PC ରେ: http://localhost:8085" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+              <input type="text" id="jiomartProxyInput" placeholder="ଫୋନ୍ ରୁ: http://192.168.1.14:8085 · PC ରେ: http://localhost:8085" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
               <button onclick="saveJioMartProxy()" class="px-2.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">Save</button>
               <button onclick="testJioMartProxy()" class="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg shrink-0">Test</button>
             </div>
-            <p class="text-[10px] text-slate-400 leading-snug">🔍 JioMart search କ୍ରମ: Apps Script Webhook → Local Proxy → AllOrigins। Webhook ରେ SEARCH_JIOMART ପୂର୍ବରୁ ଅଛି ତେଣୁ webhook ସେଟ୍ ଥିଲେ proxy ଦରକାର ନାହିଁ।</p>
+            <p class="text-[10px] text-slate-400 leading-snug">🔍 JioMart search କ୍ରମ: <b>Local Proxy</b> (run_bot.cmd ସହ ଆପେ ଚାଲେ) → Bot Search Bus → Apps Script → Relay → OpenFoodFacts । ଫୋନ୍ ରେ <b>http://192.168.1.14:8085</b> ସେଭ୍ କରି Test କରନ୍ତୁ (ଫୋନ୍ ଓ PC ଗୋଟେ Wi-Fi ରେ ଥାଆନ୍ତୁ) ।</p>
             <label class="text-[11px] font-bold text-slate-700 block pt-1">🖼️ ImgBB API Key (built-in କୀ ଅଛି — ବଦଳାଇବାକୁ ଚାହିଁଲେ ନୂଆ key ଦିଅନ୍ତୁ)</label>
             <div class="flex gap-1.5">
               <input type="text" id="imgbbKeyInput" placeholder="ImgBB API key ପେଷ୍ଟ କରନ୍ତୁ..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
@@ -2222,6 +2222,12 @@
     async function searchJioMartViaProxy(q, pin) {
       var base = (localStorage.getItem('munna_jiomart_proxy') || '').trim();
       if (!base) return null;
+      // A saved localhost/127.0.0.1 URL only works in THIS PC's browser —
+      // skip it instantly on a phone instead of burning the 8s timeout.
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(base)) {
+        var h = (location.hostname || '').toLowerCase();
+        if (h !== 'localhost' && h !== '127.0.0.1' && h !== '') return null;
+      }
       var timed = {};
       try {
         var ctrl = new AbortController();
@@ -2401,17 +2407,20 @@
       // Try every backend in order until one returns products.
       var results = [], sourceUsed = '';
       window.lastBackendError = lastBackendError = '';
-      // 0) Bot-PC search bus (Sheet SearchQueue) — proven JioMart access.
-      var viaBus = await searchBusViaSheet(q, pin);
-      if (viaBus && viaBus.length) { results = viaBus; sourceUsed = 'Bot PC'; }
-      // 1) Apps Script webhook (server-side JioMart with pincode headers).
+      // 1) Local PC proxy (jiomart_search_proxy.py:8085) — the SAME engine
+      //    as the Telegram bot; fastest path when phone+PC share Wi-Fi.
+      var viaProxy = await searchJioMartViaProxy(q, pin);
+      if (viaProxy && viaProxy.length) { results = viaProxy; sourceUsed = 'Local Proxy'; }
+      // 2) Bot-PC search bus (Sheet SearchQueue) — works even off-LAN
+      //    (needs Apps Script redeploy with PUT_SEARCH/GET_SEARCH).
+      if (!results.length) {
+        var viaBus = await searchBusViaSheet(q, pin);
+        if (viaBus && viaBus.length) { results = viaBus; sourceUsed = 'Bot PC'; }
+      }
+      // 3) Apps Script webhook (server-side JioMart with pincode headers).
       if (!results.length) {
         var viaHook = await searchJioMartViaHook(q, pin);
         if (viaHook && viaHook.length) { results = viaHook; sourceUsed = 'Apps Script'; }
-      }
-      if (!results.length) {
-        var viaProxy = await searchJioMartViaProxy(q, pin);
-        if (viaProxy && viaProxy.length) { results = viaProxy; sourceUsed = 'Local Proxy'; }
       }
       if (!results.length) {
         var viaOrigins = await searchJioMartViaAllOrigins(q);
