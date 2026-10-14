@@ -10,7 +10,7 @@
 // Channel: "webapp" (browser), "chat"/"miniapp"/"ai" (Telegram bot)
 // Status: pending | accepted | packing | out_for_delivery | delivered | cancelled
 //
-// doGet  actions: SEARCH_JIOMART | GET_ORDERS | GET_ADDRESSES | GET_CONFIG | (catalog)
+// doGet  actions: SEARCH_JIOMART | GET_ORDERS | GET_ADDRESSES | GET_USERS | GET_CONFIG | (catalog)
 // doPost actions: create_order | update_order_status | update_order_bill |
 //                 save_address | SAVE_CONFIG | EDIT_PRODUCT | ADD_PRODUCT | (legacy)
 // =========================================================================
@@ -69,6 +69,11 @@ function doGet(e) {
       status: "success",
       addresses: readAddresses_(ss, params.user_id || "")
     });
+  }
+
+  // ବିକଳ୍ପ C1: Users -> admin panel ର "ସମସ୍ତ ଗ୍ରାହକ" ଟ୍ୟାବ୍ (Orders + Addresses ରୁ unique)
+  if (params && params.action === "GET_USERS") {
+    return jsonResponse({ status: "success", users: readAllUsers_(ss) });
   }
 
   // ବିକଳ୍ପ C2: Config tab -> ସମସ୍ତ ଗ୍ରାହକଙ୍କ ପାଇଁ shared settings
@@ -348,8 +353,11 @@ function writeNewOrder_(ss, payload) {
   var eanLines = (o.lines || []).filter(function (l) { return l && l.ean; });
   if (eanLines.length) deductStock_(ss.getSheetByName("Sheet1"), eanLines);
   ordersSh.appendRow(orderRow_(o));
-  if (o.telegram_user_id && o.customer_name && o.address) {
-    upsertAddress_(ss, o.telegram_user_id, o.customer_name, o.address, o.phone, o.location);
+  // Register EVERY customer in Addresses so the admin "All Users" tab is
+  // complete (Telegram id inside the bot, else the phone number as key).
+  if (o.customer_name && o.address) {
+    var uid2 = String(o.telegram_user_id || o.phone || "").trim();
+    if (uid2) upsertAddress_(ss, uid2, o.customer_name, o.address, o.phone, o.location);
   }
   return { status: "success", type: "order_recorded", order_id: o.order_id };
 }
@@ -432,6 +440,63 @@ function readAddresses_(ss, userId) {
       updated_at: String(rows[i][5] || "")
     });
   }
+  return out;
+}
+
+// All unique customers for the admin panel "Users" tab (new HTML format):
+// merged from Orders + Addresses, newest activity first.
+//   { user_id, tg_id, name, phone, address, orders, spent, last }
+function readAllUsers_(ss) {
+  var map = {};
+  function put(key, base) {
+    key = String(key || "").trim();
+    if (!key) return null;
+    if (!map[key]) {
+      map[key] = { user_id: "", tg_id: "", name: "", phone: "", address: "", orders: 0, spent: 0, last: "" };
+    }
+    var u = map[key];
+    if (base) {
+      if (!u.name && base.name) u.name = base.name;
+      if (!u.phone && base.phone) u.phone = base.phone;
+      if (!u.address && base.address) u.address = base.address;
+      if (base.tg_id && !u.tg_id) u.tg_id = String(base.tg_id);
+      if (base.user_id && !u.user_id) u.user_id = String(base.user_id);
+    }
+    return u;
+  }
+
+  readAllOrders_(ss).forEach(function (o) {
+    var key = String(o.phone || "").trim() || String(o.telegram_user_id || "").trim();
+    var u = put(key, {
+      name: o.customer_name, phone: o.phone, address: o.address,
+      tg_id: o.telegram_user_id, user_id: o.telegram_user_id
+    });
+    if (!u) return;
+    u.orders += 1;
+    u.spent += (Number(o.total) || 0);
+    if (String(o.timestamp) > u.last) {
+      u.last = String(o.timestamp);
+      if (o.address) u.address = o.address;
+      if (o.customer_name) u.name = o.customer_name;
+    }
+  });
+
+  readAddresses_(ss, "").forEach(function (a) {
+    var key = String(a.phone || "").trim() || String(a.user_id || "").trim();
+    var u = put(key, {
+      name: a.name, phone: a.phone, address: a.address,
+      tg_id: a.user_id, user_id: a.user_id
+    });
+    if (u && a.updated_at && String(a.updated_at) > u.last) u.last = String(a.updated_at);
+  });
+
+  var out = [];
+  Object.keys(map).forEach(function (k) {
+    var u = map[k];
+    u.user_id = u.user_id || u.tg_id || k;
+    out.push(u);
+  });
+  out.sort(function (a, b) { return String(b.last).localeCompare(String(a.last)); });
   return out;
 }
 

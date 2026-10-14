@@ -183,23 +183,24 @@
     </div>
   </nav>
 
-  <!-- ================= CART & CHECKOUT DRAWER (WITH 3KM LEAFLET MAP) ================= -->
-  <div id="cartDrawerBackdrop" onclick="closeCartDrawer()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 hidden opacity-0 transition-opacity duration-300"></div>
-  <div id="cartDrawer" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl shadow-2xl z-50 transform translate-y-full transition-transform duration-300 ease-out flex flex-col max-h-[90vh]">
-    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-      <h3 class="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
-        <i class="ph-bold ph-shopping-cart text-[#1864ab]"></i>
-        <span>ଆପଣଙ୍କ କାର୍ଟ (Your Cart)</span>
+  <!-- ================= CART PAGE (SEPARATE SCREEN WITH FULL CHECKOUT FLOW) ================= -->
+  <div id="cartScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
+    <div class="sticky top-0 bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2 z-10 shadow-sm">
+      <button onclick="closeScreen('cart')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
+      <h3 class="font-extrabold text-sm flex items-center gap-1.5">
+        <i class="ph-bold ph-shopping-cart"></i>
+        <span>କାର୍ଟ ଓ ଚେକଆଉଟ୍ (Cart & Checkout)</span>
       </h3>
-      <button onclick="closeCartDrawer()" class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-        <i class="ph-bold ph-x text-sm"></i>
-      </button>
+      <button onclick="renderCartDrawer()" class="ml-auto text-[11px] font-bold flex items-center gap-1"><i class="ph-bold ph-arrows-clockwise"></i> Refresh</button>
     </div>
 
-    <div id="cartItemsContainer" class="p-4 overflow-y-auto space-y-2.5 flex-1 no-scrollbar"></div>
+    <div class="p-3 max-w-md mx-auto pb-28 space-y-3">
+      <div class="bg-white p-3 rounded-2xl border border-slate-200">
+        <div id="cartItemsContainer" class="space-y-2.5"></div>
+      </div>
 
-    <div id="cartFooterView" class="p-4 bg-slate-50 border-t border-slate-100">
-      <div class="space-y-1 text-xs font-semibold text-slate-600 pb-2 border-b border-slate-200">
+      <div id="cartFooterView" class="bg-white p-3 rounded-2xl border border-slate-200 space-y-3">
+        <div class="space-y-1 text-xs font-semibold text-slate-600 pb-2 border-b border-slate-200">
         <div class="flex justify-between">
           <span>ସର୍ବମୋଟ ସାମଗ୍ରୀ (Subtotal):</span>
           <span id="summarySubtotal">Rs.0</span>
@@ -228,7 +229,7 @@
           <i class="ph-bold ph-map-pin shrink-0"></i>
           <span id="cartAddrText" class="line-clamp-1">📍 ଡେଲିଭରୀ ଠିକଣା ଯୋଡ଼ନ୍ତୁ</span>
         </span>
-        <button onclick="closeCartDrawer(); showScreen('address');" class="text-[#1864ab] font-bold shrink-0 ml-2">➕ Add / Change</button>
+        <button onclick="showScreen('address');" class="text-[#1864ab] font-bold shrink-0 ml-2">➕ Add / Change</button>
       </div>
 
       <!-- Step 1: Cart Summary View -->
@@ -298,9 +299,10 @@
         <p class="text-xs text-slate-500 mt-0.5">Order ID: <span id="successOrderId" class="font-bold text-[#1864ab]"></span></p>
         <p class="text-xs text-slate-600 mt-1 font-bold">ଦେବାକୁ ଥିବା ଟଙ୍କା: <span id="successOrderPay" class="font-black text-emerald-700">Rs.0</span></p>
         <div class="flex gap-2 mt-3">
-          <button onclick="closeCartDrawer(); showScreen('orders')" class="flex-1 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Track Order</button>
-          <button onclick="closeCartDrawer(); showScreen('home')" class="flex-1 py-2.5 rounded-xl bg-[#1864ab] text-white font-bold text-xs">Continue Shopping</button>
+          <button onclick="showScreen('orders')" class="flex-1 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Track Order</button>
+          <button onclick="showScreen('home')" class="flex-1 py-2.5 rounded-xl bg-[#1864ab] text-white font-bold text-xs">Continue Shopping</button>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -400,9 +402,10 @@
       </div>
 
       <!-- Admin Top Nav Tabs -->
-      <div class="flex bg-white border-b border-slate-200 text-xs font-bold text-slate-600 sticky top-12 z-20">
-        <button onclick="switchAdminTab('orders')" id="admTabBtn-orders" class="flex-1 py-2.5 text-center border-b-2 border-[#1864ab] text-[#1864ab]">📦 Orders</button>
-        <button onclick="switchAdminTab('stock')" id="admTabBtn-stock" class="flex-1 py-2.5 text-center border-b-2 border-transparent">🏷️ Catalog</button>
+      <div class="flex bg-white border-b border-slate-200 text-[10px] font-bold text-slate-600 sticky top-12 z-20 overflow-x-auto no-scrollbar">
+        <button onclick="switchAdminTab('orders')" id="admTabBtn-orders" class="flex-1 py-2.5 text-center border-b-2 border-[#1864ab] text-[#1864ab] whitespace-nowrap px-1">📦 Orders</button>
+        <button onclick="switchAdminTab('users')" id="admTabBtn-users" class="flex-1 py-2.5 text-center border-b-2 border-transparent whitespace-nowrap px-1">👥 Users</button>
+        <button onclick="switchAdminTab('stock')" id="admTabBtn-stock" class="flex-1 py-2.5 text-center border-b-2 border-transparent whitespace-nowrap px-1">🏷️ Catalog</button>
         <button onclick="switchAdminTab('banners')" id="admTabBtn-banners" class="flex-1 py-2.5 text-center border-b-2 border-transparent">📢 Banners</button>
         <button onclick="switchAdminTab('sync')" id="admTabBtn-sync" class="flex-1 py-2.5 text-center border-b-2 border-transparent">⚙️ Sheets</button>
         <button onclick="switchAdminTab('settings')" id="admTabBtn-settings" class="flex-1 py-2.5 text-center border-b-2 border-transparent">🛒 Shop</button>
@@ -426,6 +429,25 @@
             </button>
           </div>
           <div id="adminOrdersContainer" class="space-y-3"></div>
+        </div>
+
+        <!-- Tab: ALL CUSTOMERS (every user from Orders + Addresses, Sheet-shared) -->
+        <div id="admTab-users" class="hidden space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-black text-slate-700">👥 ସମସ୍ତ ଗ୍ରାହକ (All Users)</h4>
+            <button onclick="syncUsersFromSheet()" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1">
+              <i class="ph-bold ph-arrows-clockwise"></i> Sync
+            </button>
+          </div>
+          <div id="adminUserStats" class="flex gap-2 text-[10px] font-bold flex-wrap"></div>
+          <div class="bg-white p-2.5 rounded-2xl border border-slate-200">
+            <div class="relative">
+              <i class="ph-bold ph-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <input type="text" id="adminUserSearch" oninput="renderAdminUsers()" placeholder="🔍 ନାଁ / ଫୋନ୍ / ଠିକଣା ରୁ ଖୋଜନ୍ତୁ..."
+                     class="w-full text-xs pl-8 pr-2.5 py-2 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            </div>
+          </div>
+          <div id="adminUsersList" class="space-y-2"></div>
         </div>
 
         <!-- Tab 2: Catalog Manager (Smart Search & Edit) -->
@@ -1024,21 +1046,13 @@
       }
     }
 
-    // --- CHECKOUT WORKFLOW ---
+    // --- CHECKOUT WORKFLOW (separate full-screen Cart page) ---
     function openCartDrawer() {
-      document.getElementById('cartDrawerBackdrop').classList.remove('hidden');
-      setTimeout(() => {
-        document.getElementById('cartDrawerBackdrop').classList.add('opacity-100');
-        document.getElementById('cartDrawer').classList.remove('translate-y-full');
-      }, 10);
-      setStep('Cart');
-      renderCartDrawer();
+      showScreen('cart');
     }
 
     function closeCartDrawer() {
-      document.getElementById('cartDrawer').classList.add('translate-y-full');
-      document.getElementById('cartDrawerBackdrop').classList.remove('opacity-100');
-      setTimeout(() => document.getElementById('cartDrawerBackdrop').classList.add('hidden'), 300);
+      showScreen('home');
     }
 
     function renderCartDrawer() {
@@ -1137,22 +1151,33 @@
       });
     }
 
+    // Smooth-scroll the Cart page to a checkout step card.
+    function scrollToStep_(id) {
+      var el = document.getElementById(id);
+      var screen = document.getElementById('cartScreen');
+      if (!el || !screen) return;
+      setTimeout(function () {
+        screen.scrollTo({ top: Math.max(0, el.offsetTop - 90), behavior: 'smooth' });
+      }, 30);
+    }
     function goCheckoutAddress() {
       if (!Object.keys(cart).length) { alert("Cart ଖାଲି ଅଛି!"); return; }
       prefillOrderForm();
       renderSavedAddressPick();
       setStep('Address');
       initCheckoutMap();
+      scrollToStep_('stepAddress');
     }
-    function backToCart() { setStep('Cart'); }
+    function backToCart() { setStep('Cart'); scrollToStep_('cartItemsContainer'); }
     function goCheckoutPayment() {
       if (!isWithinRadius) { alert("୩ କିଲୋମିଟର ବାହାରେ ସେବା ଉପଲବ୍ଧ ନାହିଁ!"); return; }
       if (!document.getElementById('orderCustAddress').value.trim() || !document.getElementById('orderCustPhone').value.trim()) {
         alert("କୃପା କରି ଠିକଣା ଓ ଫୋନ୍ ଦିଅନ୍ତୁ!"); return;
       }
       setStep('Payment');
+      scrollToStep_('stepPayment');
     }
-    function backToAddress() { setStep('Address'); }
+    function backToAddress() { setStep('Address'); scrollToStep_('stepAddress'); }
 
     function placeMiniOrder() {
       var name = document.getElementById('orderCustName').value.trim() || 'Customer';
@@ -1239,11 +1264,12 @@
       document.getElementById('successOrderId').innerText = orderObj.order_id;
       document.getElementById('successOrderPay').innerText = payInfo;
       setStep('Success');
+      scrollToStep_('stepSuccess');
     }
 
     // --- SCREEN NAVIGATION ---
     function showScreen(name) {
-      ['orders','address','profile'].forEach(s => {
+      ['cart','orders','address','profile'].forEach(s => {
         var el = document.getElementById(s + 'Screen');
         if (el) el.classList.toggle('hidden', s !== name);
       });
@@ -1252,6 +1278,20 @@
         b.classList.toggle('text-[#1864ab]', on);
         b.classList.toggle('text-slate-500', !on);
       });
+      // Floating cart bar belongs to the HOME screen only.
+      var fbar = document.getElementById('floatingCartBar');
+      if (fbar) {
+        fbar.classList.toggle('hidden', name !== 'home');
+        if (name === 'home') renderBar();
+      }
+      if (name === 'cart') {
+        // Re-entering with an empty cart (or after a placed order) restarts
+        // the flow at Step 1; otherwise the last checkout step is kept.
+        if (!Object.keys(cart).length) setStep('Cart');
+        renderCartDrawer();
+        var cs = document.getElementById('cartScreen');
+        if (cs) cs.scrollTop = 0;
+      }
       if (name === 'orders') {
         renderOrders();
         // Pull Telegram (bot) orders too - the Sheet is the shared database.
@@ -1335,6 +1375,7 @@
         renderAdminList();
         renderAdminBanners();
         syncOrdersFromSheet();
+        syncUsersFromSheet();
         var hook = localStorage.getItem('munna_sheet_webhook');
         if (hook) document.getElementById('webhookInput').value = hook;
         document.getElementById('jiomartProxyInput').value = localStorage.getItem('munna_jiomart_proxy') || '';
@@ -1348,7 +1389,7 @@
     function closeAdminDashboard() { document.getElementById('adminDashboard').classList.add('hidden'); }
 
     function switchAdminTab(t) {
-      ['orders','stock','banners','settings','sync'].forEach(tab => {
+      ['orders','users','stock','banners','settings','sync'].forEach(tab => {
         document.getElementById(`admTab-${tab}`).classList.toggle('hidden', tab !== t);
         var b = document.getElementById(`admTabBtn-${tab}`);
         b.classList.toggle('border-[#1864ab]', tab === t);
@@ -1356,6 +1397,7 @@
         b.classList.toggle('border-transparent', tab !== t);
       });
       if (t === 'orders') renderAdminOrders();
+      if (t === 'users') { renderAdminUsers(); syncUsersFromSheet(); }
       if (t === 'stock') { renderAdminList(); renderStockHealth(); }
       if (t === 'banners') renderAdminBanners();
       if (t === 'settings') fillShopSettingsInputs();
@@ -1397,6 +1439,134 @@
               <span>Bill: Rs.${money(o.total)}</span>
             </div>
             ${adminOrderActionsHtml(o, oIdx)}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- ALL CUSTOMERS (admin Users tab): local orders + Sheet Addresses ---
+    function aggregateUsers_() {
+      var map = {};
+      function ensure(key, base) {
+        key = String(key || '').trim();
+        if (!key) return null;
+        if (!map[key]) map[key] = { user_id: '', tg_id: '', name: '', phone: '', address: '', orders: 0, spent: 0, last: '' };
+        var u = map[key];
+        if (base) {
+          if (!u.name && base.name) u.name = base.name;
+          if (!u.phone && base.phone) u.phone = base.phone;
+          if (!u.address && base.address) u.address = base.address;
+          if (!u.tg_id && base.tg_id) u.tg_id = String(base.tg_id);
+          if (!u.user_id && base.user_id) u.user_id = String(base.user_id);
+        }
+        return u;
+      }
+      // Every order on THIS device contributes (all customers of this store).
+      getMyOrders().forEach(function (o) {
+        var key = String(o.phone || '').trim() || String(o.telegram_user_id || '').trim();
+        var u = ensure(key, { name: o.name, phone: o.phone, address: o.address, tg_id: o.telegram_user_id, user_id: o.telegram_user_id });
+        if (!u) return;
+        u.orders += 1;
+        u.spent += (parseFloat(o.total) || 0);
+        if (String(o.date || '') > u.last) {
+          u.last = String(o.date || '');
+          if (o.address) u.address = o.address;
+          if (o.name) u.name = o.name;
+        }
+      });
+      // Merge the Sheet-shared cache (every user, incl. Telegram bot orders).
+      try {
+        (JSON.parse(localStorage.getItem('MUNA_ALL_USERS') || '[]') || []).forEach(function (x) {
+          var key = String(x.phone || '').trim() || String(x.user_id || '').trim();
+          var u = ensure(key, x);
+          if (!u) return;
+          if (x.orders && !u.sheetCounted) { u.orders = Math.max(u.orders, x.orders); u.sheetCounted = true; }
+          if (x.spent && x.orders) u.spent = Math.max(u.spent, x.spent);
+          if (x.last && String(x.last) > u.last) u.last = String(x.last);
+        });
+      } catch (e) {}
+      return map;
+    }
+
+    function getAllUsers_() {
+      var map = aggregateUsers_();
+      return Object.keys(map).map(function (k) { var u = map[k]; u.key = k; return u; })
+        .sort(function (a, b) { return String(b.last || '').localeCompare(String(a.last || '')); });
+    }
+
+    // Pull ALL customers from the shared Sheet (GET_USERS action in
+    // googlesheetwebapp.js) and cache them for the admin Users tab.
+    async function syncUsersFromSheet() {
+      var url = sheetHookUrl('action=GET_USERS&_=' + Date.now());
+      if (url) {
+        try {
+          var res = await fetch(url);
+          var data = await res.json();
+          var users = (data && Array.isArray(data.users)) ? data.users : [];
+          if (users.length) {
+            try { localStorage.setItem('MUNA_ALL_USERS', JSON.stringify(users)); } catch (e) {}
+          }
+        } catch (e) {}
+      }
+      renderAdminUsers();
+    }
+
+    function renderAdminUsers() {
+      var box = document.getElementById('adminUsersList');
+      if (!box) return;
+      var searchEl = document.getElementById('adminUserSearch');
+      var q = searchEl ? String(searchEl.value || '').trim().toLowerCase() : '';
+      var users = getAllUsers_();
+
+      var stats = document.getElementById('adminUserStats');
+      if (stats) {
+        var totalOrders = users.reduce(function (a, u) { return a + (u.orders || 0); }, 0);
+        var totalSpent = users.reduce(function (a, u) { return a + (u.spent || 0); }, 0);
+        stats.innerHTML =
+          '<span class="px-2 py-1 rounded-lg bg-blue-50 text-blue-700">👥 ମୋଟ ଗ୍ରାହକ: ' + users.length + '</span>' +
+          '<span class="px-2 py-1 rounded-lg bg-amber-50 text-amber-700">📦 ମୋଟ ଅର୍ଡର: ' + totalOrders + '</span>' +
+          '<span class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700">💰 ବିକ୍ରୟ: Rs.' + money(totalSpent) + '</span>';
+      }
+
+      var filtered = users.filter(function (u) {
+        if (!q) return true;
+        return String(u.name || '').toLowerCase().indexOf(q) >= 0
+          || String(u.phone || '').indexOf(q) >= 0
+          || String(u.address || '').toLowerCase().indexOf(q) >= 0
+          || String(u.tg_id || u.user_id || '').indexOf(q) >= 0;
+      });
+
+      if (!filtered.length) {
+        box.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">କୌଣସି ଗ୍ରାହକ ମିଳିଲା ନାହିଁ।<br><span class="text-[10px]">Sync ଚାପନ୍ତୁ କିମ୍ବା ଅର୍ଡର ଆସିବା ପରେ ଦେଖାଯିବ।</span></p>';
+        return;
+      }
+
+      box.innerHTML = filtered.map(function (u) {
+        var mapsLink = u.address
+          ? ('https://www.google.com/maps/dir/?api=1&origin=' + STORE_LAT + ',' + STORE_LNG + '&destination=' + encodeURIComponent(u.address))
+          : '';
+        var lastStr = u.last ? String(u.last).substring(0, 16) : '—';
+        var initial = (u.name || '?').charAt(0).toUpperCase();
+        return `
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 text-xs space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="flex items-center gap-2 min-w-0">
+                <span class="w-8 h-8 rounded-full bg-blue-50 text-[#1864ab] font-black flex items-center justify-center shrink-0">${initial}</span>
+                <span class="min-w-0">
+                  <span class="font-black text-slate-800 block line-clamp-1">${u.name || 'Customer'}</span>
+                  <span class="text-[11px] text-slate-500">📞 ${u.phone || '—'}${u.tg_id ? (' · TG ' + u.tg_id) : ''}</span>
+                </span>
+              </span>
+              <span class="text-[10px] bg-blue-100 text-[#1864ab] font-black px-2 py-0.5 rounded-md shrink-0">${u.orders || 0} ଅର୍ଡର</span>
+            </div>
+            <div class="text-[11px] text-slate-600 flex items-start justify-between gap-2">
+              <span class="line-clamp-2">📍 ${u.address || 'ଠିକଣା ନାହିଁ'}</span>
+              ${mapsLink ? `<a href="${mapsLink}" target="_blank" class="text-[#1864ab] font-bold shrink-0 flex items-center gap-0.5"><i class="ph-bold ph-navigation-arrow"></i> Map</a>` : ''}
+            </div>
+            <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[11px]">
+              <span class="text-slate-500">ଶେଷ ଅର୍ଡର: <b class="text-slate-700">${lastStr}</b></span>
+              <span class="font-black text-emerald-700">ମୋଟ Rs.${money(u.spent)}</span>
+            </div>
           </div>
         `;
       }).join('');
@@ -1576,7 +1746,7 @@
       f('setCouponMinBill', shopConfig.couponMinBill || '');
     }
 
-    function saveShopSettings() {
+    function saveShopSettings(quiet) {
       shopConfig.deliveryFee = Math.max(0, parseFloat((document.getElementById('setDeliveryFee') || {}).value) || 0);
       shopConfig.freeAbove = Math.max(0, parseFloat((document.getElementById('setFreeAbove') || {}).value) || 0);
       shopConfig.couponCode = (((document.getElementById('setCouponCode') || {}).value) || '').trim().toUpperCase();
@@ -1593,9 +1763,26 @@
       ok = pushConfigToSheet('trending', (shopConfig.trending || []).join(',')) && ok;
       updateBillingSummary();
       renderTrending();
+      if (quiet) return ok;
       alert(ok ? '✅ ସବୁ ସେଟିଂସ୍ ସେଭ୍ ହେଲା — ସମସ୍ତ ଗ୍ରାହକଙ୍କ ଫୋନ୍ ରେ ଲାଗୁ!'
                : '⚠️ ଏହି ଫୋନ୍ ରେ ସେଭ୍ ହେଲା, କିନ୍ତୁ Sheet ରେ ପହଞ୍ଚିଲା ନାହିଁ (Apps Script ନୂଆ version Deploy କରନ୍ତୁ)।');
+      return ok;
     }
+
+    // Auto-save ANY admin change: typing in the Shop settings fields pushes
+    // every value to the shared Sheet 1.5s after the last keystroke, so a
+    // change is never lost even without pressing "Save All to Sheet".
+    (function wireShopAutoSave_() {
+      var t = null;
+      ['setDeliveryFee', 'setFreeAbove', 'setCouponCode', 'setCouponPercent', 'setCouponMinBill'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el || !el.addEventListener) return;
+        el.addEventListener('input', function () {
+          clearTimeout(t);
+          t = setTimeout(function () { saveShopSettings(true); }, 1500);
+        });
+      });
+    })();
 
     // 💾 MASTER SAVE — pushes EVERY admin change (settings + trending + banners)
     // to the shared Google Sheet so ALL customer phones update.
@@ -2316,7 +2503,11 @@
         var os = document.getElementById('ordersScreen');
         if (os && !os.classList.contains('hidden')) renderOrders();
         var ad = document.getElementById('adminDashboard');
-        if (ad && !ad.classList.contains('hidden')) renderAdminOrders();
+        if (ad && !ad.classList.contains('hidden')) {
+          renderAdminOrders();
+          var ut = document.getElementById('admTab-users');
+          if (ut && !ut.classList.contains('hidden')) renderAdminUsers();
+        }
         return true;
       } catch (e) { return false; }
     }
