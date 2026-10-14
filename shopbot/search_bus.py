@@ -74,20 +74,31 @@ def utc_now() -> str:
 
 
 def pack_items(items: List[Dict[str, Any]]) -> str:
-    """Slim the bot's item dicts to the webapp's shape."""
+    """Slim the bot's item dicts to the webapp's shape.
+
+    ``fetch_items`` returns RAW JioMart items (medias[], price.effective...),
+    so each one is run through ``jiomart_search._normalize_item`` first —
+    otherwise url stays empty (webapp filters those out) and sp becomes a
+    Python dict string.
+    """
     slim: List[Dict[str, Any]] = []
     for it in (items or [])[:MAX_ITEMS_PER_REQUEST]:
         try:
-            imgs = it.get("images") or []
-            img = imgs[0] if imgs else (it.get("image") or "")
+            if not isinstance(it, dict):
+                continue
+            norm = jiomart_search._normalize_item(it)
+            imgs = norm.get("images") or []
+            img = imgs[0] if imgs else (norm.get("image") or "")
+            sell = it.get("sellable")
+            sell = True if sell is None else bool(sell)
             slim.append(
                 {
-                    "title": it.get("name") or "Product",
+                    "title": norm.get("name") or "Product",
                     "url": img,
-                    "mrp": str(it.get("mrp", "") or ""),
-                    "sp": str(it.get("price", "") or ""),
-                    "cat": it.get("category") or "Grocery",
-                    "sellable": it.get("in_stock", True),
+                    "mrp": "%g" % float(norm.get("mrp") or 0),
+                    "sp": "%g" % float(norm.get("price") or 0),
+                    "cat": norm.get("category") or "Grocery",
+                    "sellable": sell,
                     "source": "JioMart",
                 }
             )
