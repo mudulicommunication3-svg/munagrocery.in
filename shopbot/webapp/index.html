@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ - MUNNA MOBILE & GROCERY</title>
 
+<!-- PWA: installable app (manifest + icons + theme) -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1864ab">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MUNNA GROCERY">
+
 <!-- Telegram WebApp SDK -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -2735,6 +2744,19 @@
       syncAddressesFromSheet();
       setInterval(function () { syncOrdersFromSheet(); }, 60000);
       setInterval(function () { syncAddressesFromSheet(); }, 300000);
+
+      // Manifest shortcuts: /?screen=orders|cart|address|profile
+      try {
+        var scr = new URLSearchParams(window.location.search).get('screen');
+        if (scr && ['orders', 'cart', 'address', 'profile'].indexOf(scr) >= 0) showScreen(scr);
+      } catch (e) {}
+
+      // PWA: register the service worker (offline shell — see sw.js).
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('sw.js').catch(function () {});
+        });
+      }
     });
   </script>
 </body>

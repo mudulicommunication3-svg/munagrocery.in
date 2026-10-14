@@ -1,0 +1,49 @@
+{
+  "name": "ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ - MUNNA MOBILE & GROCERY",
+  "short_name": "MUNNA GROCERY",
+  "description": "ମୋବାଇଲ୍ • ଆକ୍ସେସୋରିଜ୍ • ସଉଦା — MUNNA MOBILE & Grocery online store (Niali, Odisha).",
+  "lang": "or",
+  "dir": "ltr",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f3f6",
+  "theme_color": "#1864ab",
+  "categories": ["shopping", "food"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "ମୋ ଅର୍ଡର (My Orders)",
+      "short_name": "Orders",
+      "url": "/?screen=orders",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "କାର୍ଟ (Cart)",
+      "short_name": "Cart",
+      "url": "/?screen=cart",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
