@@ -836,46 +836,42 @@
     </div>
   </div>
 
-  <!-- ================= WHATSAPP LOGIN MODAL (2-STEP OTP) ================= -->
+  <!-- ================= LOGIN / SIGN-UP MODAL (mobile + password) ================= -->
   <div id="loginModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[65] hidden flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto no-scrollbar">
       <div class="bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2">
-        <i class="ph-fill ph-whatsapp-logo text-lg"></i>
-        <span class="font-extrabold text-sm">WhatsApp ଲଗଇନ୍</span>
+        <i class="ph-fill ph-lock-key text-lg"></i>
+        <span class="font-extrabold text-sm">ଲଗଇନ୍ / Sign Up</span>
         <button onclick="closeLoginModal()" class="ml-auto w-7 h-7 rounded-full bg-white/15 flex items-center justify-center"><i class="ph-bold ph-x"></i></button>
       </div>
 
-      <!-- Stepper -->
+      <!-- Tabs: Login / Sign Up -->
       <div class="flex bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500">
-        <div id="waStepTab1" class="flex-1 py-2.5 text-center border-b-2 border-[#25D366] text-[#128C7E]">① ଫୋନ୍ ନମ୍ବର</div>
-        <div id="waStepTab2" class="flex-1 py-2.5 text-center border-b-2 border-transparent">② OTP ଯାଞ୍ଚ</div>
+        <button id="loginTabPw" onclick="switchLoginTab('pw')" class="flex-1 py-2.5 text-center border-b-2 border-[#1864ab] text-[#1864ab]">ଲଗଇନ୍ (Login)</button>
+        <button id="loginTabSignup" onclick="switchLoginTab('signup')" class="flex-1 py-2.5 text-center border-b-2 border-transparent">Sign Up (Register)</button>
       </div>
 
-      <div class="p-4 space-y-3">
-        <!-- STEP 1: mobile number -->
-        <div id="waStep1" class="space-y-2.5">
-          <input type="text" id="loginName" placeholder="ଆପଣଙ୍କ ନାଁ (ଐଚ୍ଛିକ)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#25D366]">
-          <div class="flex gap-1.5">
-            <input type="tel" id="loginPhone" maxlength="10" inputmode="numeric" placeholder="10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର" class="flex-1 px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#25D366]">
-          </div>
-          <button onclick="sendWhatsAppOtp()" class="w-full py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-extrabold rounded-lg flex items-center justify-center gap-1.5">
-            <i class="ph-fill ph-whatsapp-logo"></i> WhatsApp OTP ପଠାନ୍ତୁ
-          </button>
-          <p id="otpHint" class="hidden text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 font-bold"></p>
+      <div class="p-4 space-y-2.5">
+        <!-- Name (Sign Up only) -->
+        <div id="fName" class="hidden">
+          <input type="text" id="loginName" placeholder="ଆପଣଙ୍କ ନାଁ" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
+        </div>
+        <input type="tel" id="loginPhone" maxlength="10" inputmode="numeric" placeholder="10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
+        <input type="password" id="loginPassword" placeholder="ପାସୱାର୍ଡ (min 6 chars)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
+        <!-- Address (Sign Up only) -->
+        <div id="fAddr" class="hidden">
+          <input type="text" id="loginAddr" placeholder="ଠିକଣା (ଐଚ୍ଛିକ)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
         </div>
 
-        <!-- STEP 2: verify the 4-digit code -->
-        <div id="waStep2" class="hidden space-y-2.5">
-          <p class="text-[11px] text-slate-500 leading-snug">WhatsApp ରେ ଆସିଥିବା 4-ଅଙ୍କ OTP ଏଠାରେ ଲେଖନ୍ତୁ।</p>
-          <div class="flex gap-1.5">
-            <input type="tel" id="loginOtp" maxlength="4" inputmode="numeric" placeholder="4-ଅଙ୍କ OTP" class="flex-1 px-3 py-2.5 text-lg tracking-[0.4em] text-center font-black rounded-lg border border-slate-200 outline-none focus:border-[#25D366]">
-            <button onclick="verifyWhatsAppOtp()" class="px-4 py-2 bg-[#1864ab] hover:bg-blue-800 text-white text-xs font-extrabold rounded-lg flex items-center gap-1"><i class="ph-bold ph-check"></i> ଲଗଇନ୍</button>
-          </div>
-          <button onclick="waResend()" class="text-[11px] font-bold text-[#1864ab] underline">OTP ପୁଣି ପଠାନ୍ତୁ</button>
-          <button onclick="waBackToStep1()" class="text-[11px] font-bold text-slate-400 block">← ନମ୍ବର ବଦଳାନ୍ତୁ</button>
-        </div>
+        <button id="btnLogin" onclick="loginPassword_()" class="w-full py-2.5 bg-[#1864ab] hover:bg-blue-800 text-white text-xs font-extrabold rounded-lg flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-check"></i> ଲଗଇନ୍ କରନ୍ତୁ
+        </button>
+        <button id="btnSignup" onclick="registerUser_()" class="hidden w-full py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-extrabold rounded-lg flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-user-plus"></i> Account ତିଆରି କରନ୍ତୁ
+        </button>
+        <p id="otpHint" class="hidden text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 font-bold"></p>
 
-        <p class="text-[10px] text-slate-400 leading-snug text-center px-2 pb-1">🔒 ଅର୍ଡର ପାଇଁ ଲଗଇନ୍ ବାଧ୍ୟତାମୂଳକ — WhatsApp OTP ଦ୍ୱାରା ଲଗଇନ୍ କରନ୍ତୁ।</p>
+        <p class="text-[10px] text-slate-400 leading-snug text-center px-1 pb-1">🔒 ଅର୍ଡର ପାଇଁ ଲଗଇନ୍ ବାଧ୍ୟତାମୂଳକ — ମୋବାଇଲ୍ ନମ୍ବର + ପାସୱାର୍ଡ ଦେଇ ଲଗଇନ୍ କରନ୍ତୁ।</p>
       </div>
     </div>
   </div>
@@ -3646,37 +3642,46 @@
       else openLoginModal();
     }
 
-    // WhatsApp login modal: reset to Step 1 (phone) on open.
+    // Login modal: reset to the Login (password) tab + clear fields on open.
     function openLoginModal() {
       document.getElementById('loginModal').classList.remove('hidden');
       document.getElementById('loginPhone').value = '';
-      document.getElementById('loginOtp').value = '';
+      document.getElementById('loginPassword').value = '';
+      var nm = document.getElementById('loginName');
+      var ad = document.getElementById('loginAddr');
+      if (nm) nm.value = '';
+      if (ad) ad.value = '';
       var hint = document.getElementById('otpHint');
       if (hint) { hint.classList.add('hidden'); hint.innerText = ''; }
-      waShowStep_(1);
+      switchLoginTab('pw');
       setTimeout(function () { var el = document.getElementById('loginPhone'); if (el) el.focus(); }, 80);
     }
     function closeLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
 
-    // Stepper between Step 1 (phone) and Step 2 (OTP).
-    function waShowStep_(n) {
-      var s1 = document.getElementById('waStep1');
-      var s2 = document.getElementById('waStep2');
-      var t1 = document.getElementById('waStepTab1');
-      var t2 = document.getElementById('waStepTab2');
-      if (s1) s1.classList.toggle('hidden', n !== 1);
-      if (s2) s2.classList.toggle('hidden', n !== 2);
-      if (t1) { t1.className = 'flex-1 py-2.5 text-center border-b-2 ' + (n === 1 ? 'border-[#25D366] text-[#128C7E]' : 'border-transparent'); }
-      if (t2) { t2.className = 'flex-1 py-2.5 text-center border-b-2 ' + (n === 2 ? 'border-[#25D366] text-[#128C7E]' : 'border-transparent'); }
+    // Login modal tabs: 'pw' = Login (phone + password), 'signup' = Register.
+    function switchLoginTab(mode) {
+      var isLogin = (mode !== 'signup');
+      var loginTab = document.getElementById('loginTabPw');
+      var signupTab = document.getElementById('loginTabSignup');
+      var fName = document.getElementById('fName');
+      var fAddr = document.getElementById('fAddr');
+      var btnLogin = document.getElementById('btnLogin');
+      var btnSignup = document.getElementById('btnSignup');
+      if (loginTab) {
+        loginTab.className = isLogin
+          ? 'flex-1 py-2.5 text-center border-b-2 border-[#1864ab] text-[#1864ab]'
+          : 'flex-1 py-2.5 text-center border-b-2 border-transparent';
+      }
+      if (signupTab) {
+        signupTab.className = isLogin
+          ? 'flex-1 py-2.5 text-center border-b-2 border-transparent'
+          : 'flex-1 py-2.5 text-center border-b-2 border-[#25D366] text-[#128C7E]';
+      }
+      if (fName) fName.classList.toggle('hidden', isLogin);
+      if (fAddr) fAddr.classList.toggle('hidden', isLogin);
+      if (btnLogin) btnLogin.classList.toggle('hidden', !isLogin);
+      if (btnSignup) btnSignup.classList.toggle('hidden', isLogin);
     }
-    function waBackToStep1() { waShowStep_(1); }
-    function waResend() { sendWhatsAppOtp(true); }
-
-    // --- WhatsApp OTP: 100% serverless via the Apps Script webhook -------
-    // No localhost / Python server required. The Apps Script stores +
-    // verifies the code in LoginOTPs, calls the optional external WhatsApp
-    // gateway (Config key otp_delivery_url), and returns a demo code when the
-    // gateway is unconfigured — the phone flow works 24/7 on GitHub Pages.
     function validPhone_(ph) { return /^[6-9]\d{9}$/.test(String(ph || '').trim()); }
 
     // Push the profile into the shared "Users" tab (Apps Script SYNC_USER,
@@ -3699,108 +3704,119 @@
       } catch (e) {}
     }
 
-    // STEP 1 -> generate + send OTP over WhatsApp.
-    function sendWhatsAppOtp(isResend) {
+    // Password login: 100% serverless via the Apps Script webhook (LOGIN_PASSWORD).
+    // When NO webhook is configured the flow falls back to a local session so
+    // the page still works offline (no localhost / Python server needed).
+    function pwHook_() {
+      return (localStorage.getItem('munna_sheet_webhook') || '').trim()
+        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+    }
+    // LOGIN button: verify phone + password against the Users store.
+    function loginPassword_() {
       var phone = document.getElementById('loginPhone').value.trim();
+      var password = document.getElementById('loginPassword').value;
       if (!validPhone_(phone)) { alert('ଦୟାକରି ଠିକ୍ 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।'); return; }
+      if (!password || password.length < 6) { alert('❌ ପାସୱାର୍ଡ ଅନ୍ତତଃ 6 ଅକ୍ଷର ହେବା ଉଚିତ୍।'); return; }
       var hint = document.getElementById('otpHint');
-      hint.classList.remove('hidden');
-      hint.innerText = isResend ? '⏳ OTP ପୁଣି ପଠାଯାଉଛି…' : '⏳ WhatsApp ରେ OTP ପଠାଯାଉଛି…';
-      document.getElementById('loginOtp').value = '';
-      // Serverless path: POST straight to the Apps Script webhook (24/7 on
-      // GitHub Pages — NO localhost / Python server required). The Apps
-      // Script stores the code in LoginOTPs and calls the WhatsApp gateway,
-      // or returns the stored code as a demo when the gateway is unconfigured.
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
-        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
-      if (!hook) { waSendDemo_(phone); return; }
-      fetch(hook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'SEND_WHATSAPP_OTP', phone: phone })
-      }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d && d.success) {
-          try { localStorage.setItem('wa_pending_phone', phone); } catch (e) {}
-          if (d.wait_seconds) { hint.innerText = '⏳ ' + d.wait_seconds + ' ସେକେଣ୍ଡ ଅପେକ୍ଷା କରନ୍ତୁ।'; return; }
-          if (d.demo && d.otp) { hint.innerText = '✅ WhatsApp ସର୍ଭର୍ ମିଳିଲା ନାହିଁ — Demo OTP: ' + d.otp + ' (୫ ମିନିଟ୍)'; }
-          else if (d.code_sent) { hint.innerText = '✅ ' + phone + ' କୁ WhatsApp ରେ OTP ପଠାଗଲା — ୫ ମିନିଟ୍ ମଧ୍ୟରେ ଲେଖନ୍ତୁ।'; }
-          else { hint.innerText = '✅ OTP ତିଆରି ହେଲା — WhatsApp ରେ କୋଡ୍ ଆସିବ।'; }
-          waShowStep_(2);
-          document.getElementById('loginOtp').focus();
-        } else {
-          hint.innerText = '❌ ' + ((d && d.error) || 'OTP ପଠାଯାଇପାରିଲା ନାହିଁ — ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।');
-        }
-      }).catch(function () { waSendDemo_(phone); });
-    }
-    function waSendDemo_(phone) {
-      var code = String(Math.floor(1000 + Math.random() * 9000));
-      try { localStorage.setItem('wa_demo_otp', JSON.stringify({ code: code, phone: phone, exp: Date.now() + 5 * 60000 })); } catch (e) {}
-      try { localStorage.setItem('wa_pending_phone', phone); } catch (e2) {}
-      var hint = document.getElementById('otpHint');
-      hint.classList.remove('hidden');
-      hint.innerText = '✅ WhatsApp ସର୍ଭର୍ ମିଳିଲା ନାହିଁ — Demo OTP: ' + code + ' (୫ ମିନିଟ୍)';
-      waShowStep_(2);
-      document.getElementById('loginOtp').focus();
-    }
-    function verifyWhatsAppOtp() {
-      var phone = document.getElementById('loginPhone').value.trim();
-      var typed = document.getElementById('loginOtp').value.trim();
-      if (!/^\d{4}$/.test(typed)) { alert('❌ 4-ଅଙ୍କ OTP ଲେଖନ୍ତୁ।'); return; }
-      // Serverless path: the Apps Script verifies the stored code, burns it
-      // (single-use), and upserts the customer into the Users tab — then we
-      // save 'active_store_user', show name+✓ in the header, and prefill the
-      // checkout form. No localhost needed.
-      var typedName = (document.getElementById('loginName') || {}).value || '';
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
-        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
-      if (!hook) { verifyWaDemo_(phone, typed); return; }
-      fetch(hook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'VERIFY_WHATSAPP_OTP', phone: phone, otp: typed, name: (typedName || '').trim() })
-      }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d && d.success) {
-          try { localStorage.removeItem('wa_demo_otp'); localStorage.removeItem('wa_pending_phone'); } catch (e) {}
-          // Server response carries { phone, name, login_token }; the same
-          // loginDoneWa_ path saves 'active_store_user', shows name+✓ in the
-          // header, and prefills the checkout form.
-          loginDoneWa_(d.phone || phone, { name: d.name || '', phone: d.phone || phone });
-        } else {
-          var left = (d && typeof d.attempts_left !== 'undefined') ? (' (' + d.attempts_left + ' ଥର ବାକି)') : '';
-          var err = (d && d.error) || 'OTP ଯାଞ୍ଚ ବିଫଳ।';
-          if (/Failed to fetch|NetworkError|load failed/i.test(String(err))) { verifyWaDemo_(phone, typed); return; }
-          alert('❌ ' + err + left);
-        }
-      }).catch(function () { verifyWaDemo_(phone, typed); });
-    }
-    function verifyWaDemo_(phone, typed) {
-      var saved = null;
-      try { saved = JSON.parse(localStorage.getItem('wa_demo_otp') || 'null'); } catch (e) {}
-      if (!saved || saved.phone !== phone || Date.now() > (saved.exp || 0)) {
-        alert('❌ ସର୍ଭର୍ ମିଳିଲା ନାହିଁ ଓ Demo OTP ମିଆଦ ସରିଗଲା — ପୁଣି ପଠାନ୍ତୁ।');
+      if (hint) { hint.classList.remove('hidden'); hint.innerText = '⏳ ଲଗଇନ୍ ହେଉଛି…'; }
+      var hook = pwHook_();
+      if (!hook) {
+        // Local (no webhook) demo fallback — session still saves.
+        loginDone_({ name: 'Customer', phone: phone, provider: 'password', login_token: 'local' });
         return;
       }
-      if (typed !== String(saved.code)) { alert('❌ ଭୁଲ୍ OTP — ପୁଣି ଲେଖନ୍ତୁ।'); return; }
-      try { localStorage.removeItem('wa_demo_otp'); localStorage.removeItem('wa_pending_phone'); } catch (e) {}
-      loginDoneWa_(phone, { name: 'Customer', phone: phone });
+      fetch(hook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'LOGIN_PASSWORD', phone: phone, password: password })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d && (d.status === 'success' || d.success)) {
+          loginDone_({ name: d.name || 'Customer', phone: d.phone || phone, address: d.address || '', login_token: d.login_token || '', provider: 'password' });
+        } else {
+          var err = (d && d.error) || 'ଲଗଇନ୍ ବିଫଳ।';
+          if (hint) hint.innerText = '❌ ' + err;
+          alert('❌ ' + err);
+        }
+      }).catch(function () {
+        loginDone_({ name: 'Customer', phone: phone, provider: 'password', login_token: 'local' });
+      });
     }
-    function loginDoneWa_(phone, user) {
-      var typedName = document.getElementById('loginName').value.trim();
+    // SIGN-UP button: create the account (name + phone + password + address).
+    function registerUser_() {
+      var name = document.getElementById('loginName').value.trim();
+      var phone = document.getElementById('loginPhone').value.trim();
+      var password = document.getElementById('loginPassword').value;
+      var addr = document.getElementById('loginAddr').value.trim();
+      if (!name) { alert('ଦୟାକରି ଆପଣଙ୍କ ନାଁ ଲେଖନ୍ତୁ।'); return; }
+      if (!validPhone_(phone)) { alert('ଦୟାକରି ଠିକ୍ 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।'); return; }
+      if (!password || password.length < 6) { alert('❌ ପାସୱାର୍ଡ ଅନ୍ତତଃ 6 ଅକ୍ଷର ହେବା ଉଚିତ୍।'); return; }
+      var hint = document.getElementById('otpHint');
+      if (hint) { hint.classList.remove('hidden'); hint.innerText = '⏳ Account ତିଆରି ହେଉଛି…'; }
+      var hook = pwHook_();
+      if (!hook) {
+        loginDone_({ name: name, phone: phone, address: addr, provider: 'password', login_token: 'local' });
+        return;
+      }
+      fetch(hook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'REGISTER_USER', name: name, phone: phone, password: password, address: addr })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d && (d.status === 'success' || d.success)) {
+          loginDone_({ name: name, phone: d.phone || phone, address: addr, login_token: d.login_token || '', provider: 'password' });
+        } else {
+          var err = (d && d.error) || 'Account ତିଆରି ବିଫଳ।';
+          if (hint) hint.innerText = '❌ ' + err;
+          alert('❌ ' + err);
+        }
+      }).catch(function () {
+        loginDone_({ name: name, phone: phone, address: addr, provider: 'password', login_token: 'local' });
+      });
+    }
+    // Shared success path: build the session user, save it, refresh the UI.
+    function loginDone_(user) {
+      var typedName = ((document.getElementById('loginName') || {}).value || '').trim();
       var known = '';
       try {
-        var m = getAddresses().filter(function (a) { return String(a.phone || '').trim() === phone; })[0];
+        var m = getAddresses().filter(function (a) { return String(a.phone || '').trim() === String(user.phone || '').trim(); })[0];
         if (m && m.name) known = m.name;
       } catch (e) {}
       var tgu = getTgUser();
       var u = {
-        name: typedName || (user && user.name) || known || ((tgu && tgu.first_name) || '') || 'Customer',
-        phone: phone,
+        name: typedName || user.name || known || ((tgu && tgu.first_name) || '') || 'Customer',
+        phone: user.phone,
         tg_id: (tgu && tgu.id) ? String(tgu.id) : '',
-        provider: 'whatsapp'
+        address: user.address || '',
+        login_token: user.login_token || '',
+        provider: user.provider || 'password'
       };
       loginDone(u, '✅ ଲଗଇନ୍ ସଫଳ ହେଲା! ସ୍ୱାଗତ, ' + u.name + '।');
       renderProfile();
     }
+    // ?pw=<password> quick-login helper (replaces the old mob://wx PHP hook).
+    // On localhost it auto-logs-in for fast testing (guarded so a production
+    // URL can never log anyone in from a query string); elsewhere it only opens
+    // the modal with the password pre-filled (never persisted).
+    function demoPwAutoLogin_(pw) {
+      try {
+        var isLocal = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === '');
+        var ph = document.getElementById('loginPhone');
+        var pa = document.getElementById('loginPassword');
+        if (pa) pa.value = pw;
+        if (isLocal) {
+          var s = getSessionUser();
+          if (ph && s && s.phone && validPhone_(s.phone)) {
+            ph.value = s.phone;
+            loginPassword_();
+            return;
+          }
+        }
+        openLoginModal();
+        if (pa) pa.value = pw;
+      } catch (e) {}
+    }
+
+
     // --- Google Sign-In (One-Tap / OAuth via Google Identity Services) ---
     function getGoogleClientId_() {
       var q = '';
@@ -3995,6 +4011,13 @@
           // the LIVE catalog right away instead of the sample products.
           localStorage.setItem('munna_sheet_webhook', DEFAULT_SHEET_WEBHOOK);
         }
+        // ?pw=<password> / ?wppx=<payload> quick-login routing (replaces the
+        // old mob://wx PHP hook). ?pw= pre-fills / (localhost only) auto-logs-in;
+        // ?wppx= is stashed for the WhatsApp deep-link bridge (reserved).
+        var pwQ = sp.get('pw') || '';
+        var wppxQ = sp.get('wppx') || '';
+        if (wppxQ) { try { localStorage.setItem('munna_wppx', wppxQ); } catch (e2) {} }
+        if (pwQ) { demoPwAutoLogin_(pwQ); }
       } catch(e){}
 
       initCarousel();

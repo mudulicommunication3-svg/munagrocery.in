@@ -13,8 +13,8 @@
 // doGet  actions: SEARCH_JIOMART | GET_ORDERS | GET_ADDRESSES | GET_USERS | GET_CONFIG | (catalog)
 // doPost actions: create_order | update_order_status | update_order_bill |
 //                 save_address | SAVE_CONFIG | EDIT_PRODUCT | ADD_PRODUCT |
-//                 REQUEST_OTP | VERIFY_OTP | SEND_WHATSAPP_OTP |
-//                 VERIFY_WHATSAPP_OTP | SYNC_USER | PUT_SEARCH | (legacy)
+//                 REGISTER_USER | LOGIN_PASSWORD | LOGIN_TOKEN |
+//                 VALIDATE_TOKEN | SYNC_USER | PUT_SEARCH | (legacy)
 // =========================================================================
 
 var ORDER_HEADERS = [
@@ -143,6 +143,198 @@ function validLoginPhone_(ph) {
   return /^[6-9]\d{9}$/.test(String(ph || "").trim());
 }
 
+// =========================================================================
+// Password-based user store (dedup by PHONE): Users + Passwords + Tokens.
+// =========================================================================
+
+var PASSWORD_HEADERS = ["Phone", "PasswordHash", "Created At", "Updated At"];
+var TOKEN_HEADERS = ["Token", "Phone", "Expires At", "Created At"];
+
+function passwordSheet_(ss) {
+  return ensureSheet_(ss, "Passwords", PASSWORD_HEADERS);
+}
+
+function tokenSheet_(ss) {
+  return ensureSheet_(ss, "Tokens", TOKEN_HEADERS);
+}
+
+function findPasswordRow_(sh, phone) {
+  var target = String(phone || "").trim();
+  if (!target || sh.getLastRow() < 2) return -1;
+  var n = sh.getLastRow() - 1;
+  var vals = sh.getRange(2, 1, n, 1).getValues();
+  for (var i = n - 1; i >= 0; i--) {
+    if (String(vals[i][0] || "").trim() === target) return i + 2;
+  }
+  return -1;
+}
+
+function findTokenRow_(ss, token) {
+  var target = String(token || "").trim();
+  if (!target) return -1;
+  var sh = tokenSheet_(ss);
+  if (sh.getLastRow() < 2) return -1;
+  var n = sh.getLastRow() - 1;
+  var vals = sh.getRange(2, 1, n, 1).getValues();
+  for (var i = n - 1; i >= 0; i--) {
+    if (String(vals[i][0] || "").trim() === target) return i + 2;
+  }
+  return -1;
+}
+
+function hashPassword_(password) {
+  var data = String(password == null ? "" : password);
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, data)
+    .map(function (b) { return (b < 16 ? "0" : "") + b.toString(16); })
+    .join("");
+}
+
+function generateToken_() {
+  var src = String(Date.now()) + "|" + String(Math.random());
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, src)
+    .map(function (b) { return (b < 16 ? "0" : "") + b.toString(16); })
+    .join("");
+}
+
+function upsertUser_(ss, uid, name, phone, address) {
+  var sh = ensureSheet_(ss, "Users", USERS_HEADERS);
+  var now = nowStamp_();
+  var lastRow = sh.getLastRow();
+  if (lastRow >= 2) {
+    var vals = sh.getRange(2, 1, lastRow - 1, USERS_HEADERS.length).getValues();
+    for (var i = 0; i < vals.length; i++) {
+      var rowPhone = String(vals[i][2] || "").trim();
+      if (rowPhone === phone) {
+        sh.getRange(i + 2, 1, 1, USERS_HEADERS.length).setValues([[
+          uid || String(vals[i][0] || "").trim(),
+          name || String(vals[i][1] || ""),
+          phone,
+          address || String(vals[i][3] || ""),
+          0,
+          now
+        ]]);
+        return { status: "success", type: "user_updated", user_id: uid };
+      }
+    }
+  }
+  sh.appendRow([uid, name, phone, address, 0, now]);
+  return { status: "success", type: "user_created", user_id: uid };
+}
+
+// REGISTER_USER { name, phone, password, address? } -> stores SHA-256 hash.
+function registerUser_(ss, data) {
+  var name = String((data && data.name) || "").trim();
+  var phone = String((data && data.phone) || "").trim();
+  var password = String((data && data.password) || "");
+  var address = String((data && data.address) || "").trim();
+  if (!validLoginPhone_(phone)) {
+    return { status: "error", error: "Valid 10-digit mobile number required" };
+  }
+  if (password.length < 6) {
+    return { status: "error", error: "Password must be at least 6 characters" };
+  }
+  if (!name) {
+    return { status: "error", error: "Name is required" };
+  }
+  var pwHash = hashPassword_(password);
+  var now = nowStamp_();
+  var sh = passwordSheet_(ss);
+  var row = findPasswordRow_(sh, phone);
+  if (row > 0) {
+    sh.getRange(row, 1, 1, PASSWORD_HEADERS.length).setValues([[phone, pwHash, now, now]]);
+  } else {
+    sh.appendRow([phone, pwHash, now, now]);
+  }
+  var uid = String((data && data.user_id) || phone);
+  upsertUser_(ss, uid, name, phone, address);
+  return { status: "success", type: "registered", user_id: uid, phone: phone };
+}
+
+// LOGIN_PASSWORD { phone, password } -> verifies hash + issues session token.
+function loginPassword_(ss, data) {
+  var phone = String((data && data.phone) || "").trim();
+  var password = String((data && data.password) || "");
+  if (!validLoginPhone_(phone)) {
+    return { status: "error", error: "Valid 10-digit mobile number required" };
+  }
+  if (password.length < 6) {
+    return { status: "error", error: "Enter your password" };
+  }
+  var sh = passwordSheet_(ss);
+  var row = findPasswordRow_(sh, phone);
+  if (row < 1) {
+    return { status: "error", error: "No account found for this phone. Please sign up first." };
+  }
+  var savedHash = String(sh.getRange(row, 2).getValue() || "");
+  if (savedHash.length !== 64 || hashPassword_(password) !== savedHash) {
+    return { status: "error", error: "Incorrect password" };
+  }
+  var name = "Customer";
+  var address = "";
+  try {
+    var us = ensureSheet_(ss, "Users", USERS_HEADERS);
+    var uvals = us.getRange(2, 1, us.getLastRow() - 1, USERS_HEADERS.length).getValues();
+    for (var i = 0; i < uvals.length; i++) {
+      if (String(uvals[i][2] || "").trim() === phone) {
+        name = String(uvals[i][1] || "").trim() || "Customer";
+        address = String(uvals[i][3] || "").trim() || "";
+        break;
+      }
+    }
+  } catch (e) {}
+  var token = generateToken_();
+  var expiresAt = String(Date.now() + 30 * 60 * 1000);
+  var ts = nowStamp_();
+  var ts2 = tokenSheet_(ss);
+  var trow = findTokenRow_(ss, token);
+  if (trow > 0) {
+    ts2.getRange(trow, 1, 1, TOKEN_HEADERS.length).setValues([[token, phone, expiresAt, ts]]);
+  } else {
+    ts2.appendRow([token, phone, expiresAt, ts]);
+  }
+  return { status: "success", type: "logged_in", phone: phone, login_token: token, name: name, address: address };
+}
+
+// VALIDATE_TOKEN / LOGIN_TOKEN { token } -> revalidate session (30-min TTL).
+function validateToken_(ss, data) {
+  var token = String((data && data.token) || "").trim();
+  if (!token) return { status: "error", error: "Token required" };
+  var sh = tokenSheet_(ss);
+  if (sh.getLastRow() < 2) return { status: "error", error: "Not logged in" };
+  var tvals = sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues();
+  for (var i = 0; i < tvals.length; i++) {
+    if (String(tvals[i][0] || "").trim() === token) {
+      var expiresAt = Number(tvals[i][2] || "0") || 0;
+      if (Date.now() > expiresAt) {
+        try { sh.deleteRow(i + 2); } catch (e) {}
+        return { status: "error", error: "Token expired" };
+      }
+      var phone = String(tvals[i][1] || "").trim();
+      var name = "Customer";
+      var address = "";
+      try {
+        var us = ensureSheet_(ss, "Users", USERS_HEADERS);
+        var uvals = us.getRange(2, 1, us.getLastRow() - 1, USERS_HEADERS.length).getValues();
+        for (var j = 0; j < uvals.length; j++) {
+          if (String(uvals[j][2] || "").trim() === phone) {
+            name = String(uvals[j][1] || "").trim() || "Customer";
+            address = String(uvals[j][3] || "").trim() || "";
+            break;
+          }
+        }
+      } catch (e) {}
+      return { status: "success", type: "valid", phone: phone, login_token: token, name: name, address: address };
+    }
+  }
+  return { status: "error", error: "Invalid token" };
+}
+
+// AlwaysAllow: demo / no-Sheet fallback so the page still works offline.
+function AlwaysAllow() {
+  return jsonResponse({ ok: true, offline: true, message: "Demo mode — no Sheet configured" });
+}
+
+
 function loginOtpFindRow_(sh, phone) {
   var target = String(phone || "").trim();
   if (!target || sh.getLastRow() < 2) return -1;
@@ -164,23 +356,14 @@ function doPost(e) {
     var prodSheet = ss.getSheetByName("Sheet1");
 
     // ବିକଳ୍ପ A0b: Real web login — server-verified phone OTP.
-    // POST {"action":"REQUEST_OTP","phone"} / {"action":"VERIFY_OTP","phone","code"}
-    if (data.action === "REQUEST_OTP") {
-      return jsonResponse(requestLoginOtp_(ss, data));
-    }
-    if (data.action === "VERIFY_OTP") {
-      return jsonResponse(verifyLoginOtp_(ss, data));
-    }
-
-    // ବିକଳ୍ପ A0c: Serverless WhatsApp OTP login (GitHub Pages — NO local PC /
-    // Python server). The code is stored + verified entirely inside Apps
-    // Script; the WhatsApp gateway is optional (demo code when unconfigured).
-    if (data.action === "SEND_WHATSAPP_OTP") {
-      return jsonResponse(sendWhatsAppOtp_(ss, data));
-    }
-    if (data.action === "VERIFY_WHATSAPP_OTP") {
-      return jsonResponse(verifyWhatsAppOtp_(ss, data));
-    }
+    // Password + mobile login (100% serverless via the Apps Script webhook).
+    //   {"action":"REGISTER_USER","name","phone","password","address"}
+    //   {"action":"LOGIN_PASSWORD","phone","password"}
+    //   {"action":"LOGIN_TOKEN","token"} / {"action":"VALIDATE_TOKEN","token"}
+    if (data.action === "REGISTER_USER") { return jsonResponse(registerUser_(ss, data)); }
+    if (data.action === "LOGIN_PASSWORD") { return jsonResponse(loginPassword_(ss, data)); }
+    if (data.action === "LOGIN_TOKEN") { return jsonResponse(validateToken_(ss, data)); }
+    if (data.action === "VALIDATE_TOKEN") { return jsonResponse(validateToken_(ss, data)); }
 
     // ବିକଳ୍ପ A0: Bot-PC search bus — webapp ଫୋନ୍ ଏଠାରେ request ପକାଏ
     if (data.action === "PUT_SEARCH") {
@@ -416,65 +599,7 @@ function orderRow_(o) {
   ];
 }
 
-function deliverLoginOtp_(ss, phone, code) {
-  var delivered = false;
-  var method = "";
-  try {
-    var cfg = {};
-    try { cfg = readConfig_(ss) || {}; } catch (e) { cfg = {}; }
-    var url = String(cfg.otp_delivery_url || cfg.OTP_DELIVERY_URL || "").trim();
-    if (url) {
-      var resp = UrlFetchApp.fetch(url, {
-        method: "post",
-        contentType: "application/json",
-        payload: JSON.stringify({ phone: phone, code: code, shop: "munagrocery.in" }),
-        muteHttpExceptions: true
-      });
-      var rc = 0;
-      try { rc = resp.getResponseCode(); } catch (e2) { rc = 0; }
-      if (rc >= 200 && rc < 300) { delivered = true; method = "sms"; }
-    }
-  } catch (e3) { delivered = false; }
-  return { delivered: delivered, method: method };
-}
 
-function requestLoginOtp_(ss, data) {
-  var phone = String((data && data.phone) || "").trim();
-  if (!validLoginPhone_(phone)) {
-    return { ok: false, error: "ଠିକ୍ 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।" };
-  }
-  var sh = loginOtpSheet_(ss);
-  var now = Math.floor(Date.now() / 1000);
-  var row = loginOtpFindRow_(sh, phone);
-  if (row > 0) {
-    try {
-      var prev = sh.getRange(row, 1, 1, LOGIN_OTP_HEADERS.length).getValues()[0];
-      var prevTs = Math.floor(new Date(prev[5] || prev[4] || 0).getTime() / 1000);
-      if (prevTs && (now - prevTs) < LOGIN_OTP_RESEND_SECONDS &&
-          String(prev[2] || "") === "pending") {
-        return { ok: true, phone: phone,
-                 wait_seconds: LOGIN_OTP_RESEND_SECONDS - (now - prevTs),
-                 expires_in: LOGIN_OTP_TTL_SECONDS, code_sent: true, reused: true };
-      }
-    } catch (e) {}
-  }
-  var code = String(Math.floor(1000 + Math.random() * 9000));
-  var stamp = nowStamp_();
-  if (row > 0) {
-    sh.getRange(row, 1, 1, LOGIN_OTP_HEADERS.length)
-      .setValues([[phone, code, "pending", 0, stamp, stamp]]);
-  } else {
-    sh.appendRow([phone, code, "pending", 0, stamp, stamp]);
-    try {
-      if (sh.getLastRow() - 1 > 200) sh.deleteRows(2, sh.getLastRow() - 1 - 200);
-    } catch (e2) {}
-  }
-  var dlv = deliverLoginOtp_(ss, phone, code);
-  return { ok: true, phone: phone, expires_in: LOGIN_OTP_TTL_SECONDS,
-           code_sent: dlv.delivered, via: dlv.method || "bot" };
-}
-
-// Write one unified order row (dedupe by order id + deduct stock once).
 function writeNewOrder_(ss, payload) {
   var o = normalizeOrder_(payload);
   var ordersSh = ensureSheet_(ss, "Orders", ORDER_HEADERS);
@@ -496,122 +621,6 @@ function writeNewOrder_(ss, payload) {
   return { status: "success", type: "order_recorded", order_id: o.order_id };
 }
 
-function verifyLoginOtp_(ss, data) {
-  var phone = String((data && data.phone) || "").trim();
-  var typed = String((data && (data.code || data.otp)) || "").trim();
-  if (!validLoginPhone_(phone) || !/^\d{4}$/.test(typed)) {
-    return { ok: false, error: "ଠିକ୍ ନମ୍ବର ଓ 4-ଅଙ୍କ OTP ଦିଅନ୍ତୁ।" };
-  }
-  var sh = loginOtpSheet_(ss);
-  var row = loginOtpFindRow_(sh, phone);
-  if (row < 1) {
-    return { ok: false, error: "ପ୍ରଥମେ “OTP ପଠାନ୍ତୁ” ଚାପନ୍ତୁ।" };
-  }
-  var vals = sh.getRange(row, 1, 1, LOGIN_OTP_HEADERS.length).getValues()[0];
-  var savedCode = String(vals[1] || "").trim();
-  var status = String(vals[2] || "").trim();
-  var attempts = Number(vals[3] || 0) || 0;
-  var createdMs = 0;
-  try { createdMs = new Date(vals[4] || 0).getTime(); } catch (e) { createdMs = 0; }
-  if (!createdMs) {
-    try { createdMs = new Date(vals[5] || 0).getTime(); } catch (e2) { createdMs = 0; }
-  }
-  if (status === "used") {
-    return { ok: false, error: "ଏହି OTP ବ୍ୟବହୃତ ହୋଇସାରିଛି — ପୁଣି ପଠାନ୍ତୁ।" };
-  }
-  if (status === "blocked") {
-    return { ok: false, error: "ବହୁତ ଥର ଭୁଲ୍ ହେଲା — ପୁଣି OTP ପଠାନ୍ତୁ।" };
-  }
-  if (createdMs && (Date.now() - createdMs) > LOGIN_OTP_TTL_SECONDS * 1000) {
-    try { sh.getRange(row, 3).setValue("expired"); sh.getRange(row, 6).setValue(nowStamp_()); } catch (e3) {}
-    return { ok: false, error: "OTP ମିଆଦ ସରିଗଲା — ପୁଣି ପଠାନ୍ତୁ।" };
-  }
-  if (typed !== savedCode) {
-    attempts += 1;
-    try {
-      sh.getRange(row, 4).setValue(attempts);
-      sh.getRange(row, 6).setValue(nowStamp_());
-      if (attempts >= LOGIN_OTP_MAX_ATTEMPTS) sh.getRange(row, 3).setValue("blocked");
-    } catch (e4) {}
-    return { ok: false, error: "ଭୁଲ୍ OTP — ପୁଣି ଲେଖନ୍ତୁ।",
-             attempts_left: Math.max(0, LOGIN_OTP_MAX_ATTEMPTS - attempts) };
-  }
-  try { sh.getRange(row, 3).setValue("used"); sh.getRange(row, 6).setValue(nowStamp_()); } catch (e5) {}
-  var tokenSrc = phone + "|" + savedCode + "|" + String(createdMs) + "|" + Math.random();
-  var token = "";
-  try { token = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, tokenSrc)
-    .map(function (b) { return ("0" + (b & 0xFF).toString(16)).slice(-2); }).join(""); }
-  catch (e6) { token = "t" + String(Date.now()) + String(Math.floor(Math.random() * 1e9)); }
-  return { ok: true, phone: phone, login_token: token, verified_at: nowStamp_() };
-}
-
-// =========================================================================
-// Serverless WhatsApp OTP login (runs 100% in Apps Script -> GitHub Pages
-// needs NO local PC / Python server).  The flow:
-//   SEND_WHATSAPP_OTP  { phone }
-//     -> generate a 4-digit code, store it in LoginOTPs (5-min TTL),
-//        call the external WhatsApp gateway (Config key otp_delivery_url).
-//        If the gateway is NOT configured or fails, the stored code is
-//        returned as a "demo" code so the login still completes end-to-end.
-//   VERIFY_WHATSAPP_OTP { phone, otp, name?, address? }
-//     -> validate + burn the code (single-use), auto-upsert the customer
-//        into the Users tab (dedup by phone), and return a session token.
-// =========================================================================
-function sendWhatsAppOtp_(ss, data) {
-  var phone = String((data && data.phone) || "").trim();
-  if (!validLoginPhone_(phone)) {
-    return { ok: false, success: false, error: "ଠିକ୍ 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।" };
-  }
-  var res = requestLoginOtp_(ss, data); // stores the OTP + fires the gateway
-  if (!res || !res.ok) {
-    return { ok: false, success: false,
-             error: (res && res.error) || "OTP ପଠାଯାଇପାରିଲା ନାହିଁ — ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।" };
-  }
-  if (res.wait_seconds) {
-    // Resend lock still active; tell the client to wait.
-    return { ok: true, success: true, phone: phone, wait_seconds: res.wait_seconds,
-             expires_in: res.expires_in || LOGIN_OTP_TTL_SECONDS, code_sent: true, reused: true };
-  }
-  var out = {
-    ok: true, success: true, phone: phone,
-    expires_in: res.expires_in || LOGIN_OTP_TTL_SECONDS,
-    code_sent: !!res.code_sent,
-    via: res.via || (res.code_sent ? "gateway" : "demo")
-  };
-  if (!res.code_sent) {
-    // Gateway not configured / unreachable -> surface the stored code so the
-    // phone flow works with a demo OTP (serverless fallback).
-    try {
-      var sh = loginOtpSheet_(ss);
-      var row = loginOtpFindRow_(sh, phone);
-      if (row > 0) {
-        var code = String(sh.getRange(row, 2).getValue() || "").trim();
-        if (code) { out.demo = true; out.otp = code; }
-      }
-    } catch (e) {}
-  }
-  return out;
-}
-
-function verifyWhatsAppOtp_(ss, data) {
-  var res = verifyLoginOtp_(ss, data); // validate + burn (single-use)
-  if (!res || !res.ok) {
-    var err = { ok: false, success: false,
-                error: (res && res.error) || "OTP ଯାଞ୍ଚ ବିଫଳ — ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।" };
-    if (res && typeof res.attempts_left !== "undefined") err.attempts_left = res.attempts_left;
-    return err;
-  }
-  var phone = String(res.phone || "").trim();
-  var name = String((data && data.name) || "").trim() || "Customer";
-  var address = String((data && data.address) || "").trim();
-  var uid = String((data && data.user_id) || phone);
-  // Auto-upsert into the Users tab (columns + dedup by phone) — requirement #1.
-  try {
-    syncUser_(ss, { user_id: uid, name: name, phone: phone, address: address });
-  } catch (e) {}
-  return { ok: true, success: true, phone: phone, name: name,
-           login_token: res.login_token || "", verified_at: res.verified_at || "" };
-}
 
 // Deduct stock from Sheet1 by EAN (same rule as db.deduct_stock_by_ean).
 function deductStock_(prodSheet, lines) {
