@@ -63,4 +63,9 @@ jobs:
           pip install -r shopbot/requirements.txt
 
       - name: Run bot until next cycle
-        run: python shopbot/main.py
+        # CRITICAL: run from shopbot/ so the .env relative paths resolve.
+        # GOOGLE_SHEETS_CREDENTIALS_FILE=credentials.json is relative, and
+        # credentials.json is written to shopbot/ - running from the repo root
+        # made the file "not found" and broke the Sheet search bus.
+        working-directory: shopbot
+        run: python main.py
