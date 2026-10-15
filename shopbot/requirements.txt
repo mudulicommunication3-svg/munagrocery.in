@@ -26,3 +26,7 @@ python-dotenv>=1.0.0
 # ai_agent.py routes between Gemini, Grok and Groq via the admin panel toggle
 groq>=0.13.0
 
+
+# WhatsApp OTP login server (whatsapp_otp_server.py)
+flask>=3.0.0
+pywhatkit>=3.1

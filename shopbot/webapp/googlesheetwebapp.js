@@ -256,6 +256,12 @@ function doPost(e) {
       return jsonResponse({ status: "success", type: "address_saved", user_id: uid });
     }
 
+    // ବିକଳ୍ପ 6b: WhatsApp/web login -> dedicated Users tab (dedup by phone).
+    // Fired on every login and on checkout so the admin "Users" tab stays fresh.
+    if (data.action === "SYNC_USER") {
+      return jsonResponse(syncUser_(ss, data));
+    }
+
     // ବିକଳ୍ପ 7 (legacy): flat keys ଥିବା ପୁରୁଣା payload - unified row ରେ ବଦଳାଇ ଲେଖାଯିବ
     var looksLikeOrder = (data.order_id || data.orderId || data.id) &&
       (data.items !== undefined || data.customer !== undefined || data.name !== undefined);
@@ -568,6 +574,53 @@ function upsertAddress_(ss, uid, name, address, phone, location) {
   }
   sh.appendRow([String(uid), name || "", address || "", phone || "", location || "", updated]);
   return true;
+}
+
+// =========================================================================
+// Users tab: one row per CUSTOMER (WhatsApp/web login + every order).
+// Columns: [Telegram/Web User ID, Name, Phone, Default Address,
+//           Total Orders, Last Login/Timestamp].  Deduplicated by PHONE so a
+// returning customer's record is UPDATED (never duplicated).
+// =========================================================================
+var USERS_HEADERS = ["Telegram/Web User ID", "Name", "Phone", "Default Address", "Total Orders", "Last Login/Timestamp"];
+
+function syncUser_(ss, data) {
+  var phone = String(data.phone || "").trim();
+  if (!phone) {
+    return { status: "error", error: "phone required" };
+  }
+  var sh = ensureSheet_(ss, "Users", USERS_HEADERS);
+  var name = String(data.name || "").trim();
+  var uid = String(data.user_id || data.telegram_user_id || phone).trim();
+  var address = String(data.address || data.default_address || "").trim();
+  var orders = Number(data.total_orders || 0) || 0;
+  var now = nowStamp_();
+  var lastRow = sh.getLastRow();
+
+  // Dedup by phone (column C = index 2); update timestamp + keep the best
+  // non-empty name/address/uid/order-count already on the row.
+  if (lastRow >= 2) {
+    var vals = sh.getRange(2, 1, lastRow - 1, USERS_HEADERS.length).getValues();
+    for (var i = 0; i < vals.length; i++) {
+      var rowPhone = String(vals[i][2] || "").trim();
+      if (rowPhone === phone || (String(vals[i][0] || "").trim() === uid && uid)) {
+        var curName = String(vals[i][1] || "").trim();
+        var curAddr = String(vals[i][3] || "").trim();
+        var curOrders = Number(vals[i][4] || 0) || 0;
+        sh.getRange(i + 2, 1, 1, USERS_HEADERS.length).setValues([[
+          uid || String(vals[i][0] || "").trim(),
+          name || curName,
+          phone,
+          address || curAddr,
+          Math.max(curOrders, orders),
+          now
+        ]]);
+        return { status: "success", type: "user_updated", user_id: uid };
+      }
+    }
+  }
+  sh.appendRow([uid, name, phone, address, orders, now]);
+  return { status: "success", type: "user_created", user_id: uid };
 }
 
 // All orders, newest first (webapp shows Telegram + browser orders together).
