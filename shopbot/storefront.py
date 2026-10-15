@@ -888,26 +888,43 @@ def _dashboard_table(lines: List[Dict[str, Any]]) -> str:
 
 
 def _dashboard_body(context, lines: List[Dict[str, Any]]) -> str:
-    """Plain-text cart dashboard: table + totals + delivery info (JM layout).
+    """Plain-text cart dashboard: running "Cart & Bill Calculator" + table
+    + totals + delivery info (JM layout)."""
 
-    Returned without HTML so it can be sent as-is for the "Copy Bill" action
-    (the customer long-presses to copy it in Telegram).
-    """
+    def money(v: Any) -> str:
+        try:
+            n = float(v or 0)
+        except (TypeError, ValueError):
+            n = 0.0
+        return str(int(n)) if n.is_integer() else str(round(n, 2))
+
     total_qty = sum(int(l.get("qty") or 0) for l in lines)
     total = sum(float(l.get("line_total") or 0) for l in lines)
     address = str(context.user_data.get("checkout_address") or "").strip()
     phone = str(context.user_data.get("checkout_phone") or "").strip()
-    dash = "-" * 42
-    body_lines = [
-        f"{'Item Name':<14} {'Qty x Price':>14} {'':>3} {'Total':>9}",
-        dash,
-        _dashboard_table(lines),
-        dash,
-        f"{'Total Items:':<16} {total_qty:>16}",
-        f"{'Total Amount:':<16} Rs.{total:>12.2f}",
-        "",
-        "Delivery Info:",
+
+    # ---- 📟 Cart & Bill Calculator ----
+    calc_lines = [
+        "🧮 କାର୍ଟ ଏଣ୍ଡ ବିଲ୍ କାଲକୁଲେଟର୍",
+        "──────────────────────────────────────",
     ]
+    for l in lines:
+        calc_lines.append(
+            f"  {l.get('name', '?'):<14} Qty {int(l.get('qty') or 0):<4} "
+            f"@ {money(l.get('price'))} = {money(l.get('line_total'))}"
+        )
+    calc_lines += [
+        "──────────────────────────────────────",
+        f"  {'Total Items:':<16} {total_qty:>6}",
+        f"  {'Subtotal:':<16} Rs.{money(total):>10}",
+    ]
+
+    # ---- 📦 Item list ----
+    dash = "-" * 34
+    body_lines = ["📋 ଅର୍ଡର୍ ପୋଇନ୍ଟ୍", dash]
+    body_lines.append(_dashboard_table(lines))
+    body_lines += [dash, ""] + calc_lines + [dash, ""]
+
     if address:
         body_lines.append(f"Home: {address[:60]}")
         if phone:
