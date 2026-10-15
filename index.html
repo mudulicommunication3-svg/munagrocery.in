@@ -1057,6 +1057,36 @@
     function clearCartCache_() {
       try { localStorage.removeItem(uidKey('munna_cart')); } catch (e) {}
     }
+    // --- ACCOUNT-WISE CLOUD CART SYNC (multi-device) ---
+    // setQty() calls scheduleCartSync_() on every change: a 1.2 s debounce then
+    // POSTs SAVE_USER_CART { phone, cart } so the Users-tab CartJSON cell always
+    // mirrors this customer's basket — the next device they log in on restores
+    // it. No-ops when logged out or when no webhook is configured.
+    var _cartSyncTimer = null;
+    function scheduleCartSync_() {
+      var u = null;
+      try { u = getSessionUser(); } catch (e) {}
+      if (!u || !u.phone) return;
+      if (_cartSyncTimer) clearTimeout(_cartSyncTimer);
+      _cartSyncTimer = setTimeout(function () {
+        _cartSyncTimer = null;
+        pushCartToCloud_();
+      }, 1200);
+    }
+    function pushCartToCloud_() {
+      var u = null;
+      try { u = getSessionUser(); } catch (e) {}
+      if (!u || !u.phone) return;
+      var hook = pwHook_();
+      if (!hook) return;
+      try {
+        fetch(hook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'SAVE_USER_CART', phone: u.phone, cart: cart })
+        }).then(function (r) { return r.json(); }).catch(function () {});
+      } catch (e) {}
+    }
     function setQty(ean, qty) {
       qty = Math.max(0, Math.min(99, qty | 0));
       // Stock engine: never allow more than the available stock in the cart.
@@ -1072,6 +1102,7 @@
       }
       if (qty <= 0) delete cart[ean]; else cart[ean] = qty;
       cacheCart_();
+      scheduleCartSync_(); // account-wise cloud cart sync (debounced, logged-in only)
       render();
       renderCartDrawer();
     }
@@ -2977,12 +3008,23 @@
     // (webapp) orders all show up here. The Sheet wins on conflicts because
     // the bot's Admin Panel advances status there.
     async function syncOrdersFromSheet() {
-      var url = sheetHookUrl('action=GET_ORDERS');
+      // Account-wise: query with the logged-in customer's 10-digit phone so a
+      // background refresh pulls THEIR orders on every device (the backend
+      // filters server-side; the client filter below guarantees it anywhere).
+      var su = null;
+      try { su = getSessionUser(); } catch (e) {}
+      var sessPhone = (su && su.phone) ? String(su.phone).replace(/\D/g, '').slice(-10) : '';
+      var url = sheetHookUrl('action=GET_ORDERS' + (sessPhone ? '&phone=' + encodeURIComponent(sessPhone) : ''));
       if (!url) return false;
       try {
         var res = await fetch(url);
         var data = await res.json();
         var remote = (data && Array.isArray(data.orders)) ? data.orders : [];
+        if (sessPhone) {
+          remote = remote.filter(function (r) {
+            return String(r.phone || '').replace(/\D/g, '').slice(-10) === sessPhone;
+          });
+        }
         if (!remote.length) return false;
         var byId = {};
         getMyOrders().forEach(function (o) { byId[o.order_id] = o; });
@@ -3767,6 +3809,7 @@
             phone: d.phone || phone,
             address: d.address || '',
             orders: Array.isArray(d.orders) ? d.orders : [],
+            cart: (d.cart && typeof d.cart === 'object') ? d.cart : null,
             login_token: d.login_token || '',
             provider: 'password'
           });
@@ -3841,6 +3884,12 @@
       if (Array.isArray(user.orders) && user.orders.length) mergeOrdersFromBackend_(user.orders);
       // 2. Persist the backend's saved address into munna_addresses + checkout.
       if (u.address) saveProfileAddress_(u);
+      // 2b. Restore the CLOUD CART (account-wise sync): merge the basket saved
+      //     on another device into the local cart, persist + refresh counter
+      //     and drawer so this device shows the same basket immediately.
+      if (user.cart && typeof user.cart === 'object' && !Array.isArray(user.cart)) {
+        mergeCloudCart_(user.cart);
+      }
       // 3. Session -> 'active_store_user' + 'MUNA_USER_SESSION', header "Name ✓",
       //    close modal, sync Users tab, prefill checkout, success alert.
       loginDone(u, '✅ ଲଗଇନ୍ ସଫଳ ହେଲା! ସ୍ୱାଗତ, ' + u.name + '।');
@@ -3850,6 +3899,26 @@
       if (pi && u.phone) pi.value = u.phone;
       // 5. Land smoothly on the home screen.
       showScreen('home');
+    }
+
+    // Merge the account's cloud cart { ean: qty } into the active cart. Local
+    // wins on conflicts (this device was used last); cloud only fills gaps.
+    // Persists via cacheCart_() and refreshes the badge + drawer.
+    function mergeCloudCart_(cloud) {
+      try {
+        if (!cloud || typeof cloud !== 'object' || Array.isArray(cloud)) return false;
+        Object.keys(cloud).forEach(function (ean) {
+          var q = parseInt(cloud[ean], 10);
+          if (!(q > 0)) return;
+          if (q > 99) q = 99;
+          var local = parseInt(cart[ean], 10);
+          if (!(local > 0)) cart[ean] = q;
+        });
+        cacheCart_();
+        updateCartBadge();
+        renderCartDrawer();
+        return true;
+      } catch (e) { return false; }
     }
 
     // Merge backend order history into MUNA_ALL_ORDERS (dedup by order_id) and

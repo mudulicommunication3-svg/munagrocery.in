@@ -14,7 +14,7 @@
 // doPost actions: create_order | update_order_status | update_order_bill |
 //                 save_address | SAVE_CONFIG | EDIT_PRODUCT | ADD_PRODUCT |
 //                 REGISTER_USER | LOGIN_PASSWORD | LOGIN_TOKEN |
-//                 VALIDATE_TOKEN | SYNC_USER | PUT_SEARCH | (legacy)
+//                 VALIDATE_TOKEN | SYNC_USER | SAVE_USER_CART | PUT_SEARCH
 // =========================================================================
 
 var ORDER_HEADERS = [
@@ -78,7 +78,19 @@ function doGet(e) {
 
   // ବିକଳ୍ପ B: Orders tab -> webapp ରେ Telegram ଓ browser ଦୁଇ ପାଖର order ଦେଖାଇବ
   if (params && params.action === "GET_ORDERS") {
-    return jsonResponse({ status: "success", orders: readAllOrders_(ss) });
+    // Account-wise sync: ?phone=<10-digit> returns only that customer's rows
+    // (keeps multi-device refreshes scoped to the logged-in account). Without
+    // the param the full list is returned (admin panel / bot depend on it).
+    var ordOut = readAllOrders_(ss);
+    var ordPhone = sanitizePhone_(params.phone || "");
+    if (ordPhone) {
+      var ordFilt = [];
+      for (var ordI = 0; ordI < ordOut.length; ordI++) {
+        if (sanitizePhone_(ordOut[ordI].phone) === ordPhone) ordFilt.push(ordOut[ordI]);
+      }
+      ordOut = ordFilt;
+    }
+    return jsonResponse({ status: "success", orders: ordOut });
   }
 
   // ବିକଳ୍ପ C: Addresses tab -> webapp ରେ bot ର ସେଭ୍ କରାଯାଇଥିବା ଠିକଣା ଆସିବ
@@ -244,6 +256,53 @@ function ordersForPhone_(ss, phone) {
   return out;
 }
 
+// Safely parse the CartJSON cell (col H): { ean: qty } or null on bad input.
+function parseUserCart_(raw) {
+  try {
+    var v = JSON.parse(String(raw == null ? "" : raw));
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      var out = {};
+      var keys = Object.keys(v);
+      for (var i = 0; i < keys.length; i++) {
+        var q = Math.max(0, Math.min(99, Number(v[keys[i]]) | 0));
+        if (q > 0) out[String(keys[i])] = q;
+      }
+      return out;
+    }
+  } catch (e) {}
+  return null;
+}
+
+// SAVE_USER_CART { phone, cart } -> overwrite this user's CartJSON cell.
+// The cart travels as { ean: qty }; anything unparseable is stored as "{}".
+function saveUserCart_(ss, data) {
+  var phone = sanitizePhone_(data && data.phone);
+  if (!validLoginPhone_(phone)) {
+    return { ok: false, success: false, error: "phone required" };
+  }
+  var cartObj = data && data.cart;
+  if (typeof cartObj === "string") {
+    try { cartObj = JSON.parse(cartObj); } catch (e) { cartObj = {}; }
+  }
+  if (!cartObj || typeof cartObj !== "object" || Array.isArray(cartObj)) cartObj = {};
+  var clean = {};
+  var keys = Object.keys(cartObj);
+  for (var i = 0; i < keys.length; i++) {
+    var q = Math.max(0, Math.min(99, Number(cartObj[keys[i]]) | 0));
+    if (q > 0) clean[String(keys[i])] = q;
+  }
+  var sh = usersSheet_(ss);
+  var found = findUserRow_(ss, phone);
+  var cartJson = JSON.stringify(clean);
+  if (found) {
+    // Col H holds compact cart JSON ({ ean: qty } serialises small).
+    sh.getRange(found.row, USERS_HEADERS.length).setValue(cartJson);
+    return { ok: true, success: true, status: "success", phone: phone };
+  }
+  sh.appendRow([phone, "", phone, "", "", 0, nowStamp_(), cartJson]);
+  return { ok: true, success: true, status: "success", phone: phone, type: "user_created" };
+}
+
 // Mint a 30-minute session token in the Tokens tab.
 function issueToken_(ss, phone) {
   var token = generateToken_();
@@ -266,15 +325,19 @@ function upsertUser_(ss, uid, name, phone, address) {
           uid || String(vals[i][0] || "").trim(),
           name || String(vals[i][1] || ""),
           phone,
-          address || String(vals[i][3] || ""),
-          0,
-          now
+          String(vals[i][3] || ""),              // PasswordHash — sync must never touch it
+          address || String(vals[i][4] || ""),   // Default Address (col E)
+          Number(vals[i][5] || 0) || 0,          // Total Orders — keep existing count
+          now,                                   // Created At / last-sync stamp
+          String(vals[i][USERS_HEADERS.length - 1] || "")  // CartJSON — keep basket
         ]]);
         return { status: "success", type: "user_updated", user_id: uid };
       }
     }
   }
-  sh.appendRow([uid, name, phone, address, 0, now]);
+  // 8-column Users row: [User ID, Name, Phone, PasswordHash, Default Address,
+  // Total Orders, Created At, CartJSON] — passwordless until they Sign Up.
+  sh.appendRow([uid, name, phone, "", address, 0, now, ""]);
   return { status: "success", type: "user_created", user_id: uid };
 }
 
@@ -312,15 +375,16 @@ function registerUser_(ss, data) {
     // -> repair it in place so this phone can sign up then log in normally.
     var uid = String(found.vals[0] || phone).trim() || phone;
     var keptOrders = Number(found.vals[5] || 0) || 0;
+    var keptCart = String(found.vals[USERS_HEADERS.length - 1] || "");
     sh.getRange(found.row, 1, 1, USERS_HEADERS.length).setValues([[
-      uid, name, phone, pwHash, address, keptOrders, nowStamp_()
+      uid, name, phone, pwHash, address, keptOrders, nowStamp_(), keptCart
     ]]);
     return { ok: true, success: true, status: "success", type: "registered",
              user_id: uid, phone: phone, name: name, address: address };
   }
 
   var newId = String((data && data.user_id) || phone).trim() || phone;
-  sh.appendRow([newId, name, phone, pwHash, address, 0, nowStamp_()]);
+  sh.appendRow([newId, name, phone, pwHash, address, 0, nowStamp_(), ""]);
   return { ok: true, success: true, status: "success", type: "registered",
            user_id: newId, phone: phone, name: name, address: address };
 }
@@ -357,13 +421,15 @@ function loginPassword_(ss, data) {
     return { ok: false, success: false, error: "ଭୁଲ୍ Password! ପୁଣି ଯାଞ୍ଚ କରନ୍ତୁ।" };
   }
 
-  // Match -> profile + this phone's full order history + a 30-minute token.
+  // Match -> profile + this phone's full order history + cloud cart + a 30-min token.
   var orders = ordersForPhone_(ss, phone);
   var token = issueToken_(ss, phone);
+  var cloudCart = null;
+  try { cloudCart = parseUserCart_(found.vals[USERS_HEADERS.length - 1]); } catch (e) { cloudCart = null; }
   return {
     ok: true, success: true, status: "success",
     phone: phone, name: name, address: address,
-    orders: orders, login_token: token
+    orders: orders, login_token: token, cart: cloudCart
   };
 }
 
@@ -392,9 +458,11 @@ function validateToken_(ss, data) {
         address = String(found.vals[4] || "").trim() || "";
       }
       var orders = ordersForPhone_(ss, phone);
+      var cloudCart = null;
+      try { cloudCart = parseUserCart_(found.vals[USERS_HEADERS.length - 1]); } catch (e2) { cloudCart = null; }
       return { ok: true, success: true, status: "success",
                phone: phone, name: name, address: address,
-               orders: orders, login_token: token };
+               orders: orders, login_token: token, cart: cloudCart };
     }
   }
   return { ok: false, success: false, error: "Invalid token" };
@@ -435,6 +503,7 @@ function doPost(e) {
     if (data.action === "LOGIN_PASSWORD") { return jsonResponse(loginPassword_(ss, data)); }
     if (data.action === "LOGIN_TOKEN") { return jsonResponse(validateToken_(ss, data)); }
     if (data.action === "VALIDATE_TOKEN") { return jsonResponse(validateToken_(ss, data)); }
+    if (data.action === "SAVE_USER_CART") { return jsonResponse(saveUserCart_(ss, data)); }
 
     // ବିକଳ୍ପ A0: Bot-PC search bus — webapp ଫୋନ୍ ଏଠାରେ request ପକାଏ
     if (data.action === "PUT_SEARCH") {
@@ -736,12 +805,13 @@ function upsertAddress_(ss, uid, name, address, phone, location) {
 }
 
 // =========================================================================
-// Users tab: one row per CUSTOMER (WhatsApp/web login + every order).
-// Columns: [Telegram/Web User ID, Name, Phone, Default Address,
-//           Total Orders, Last Login/Timestamp].  Deduplicated by PHONE so a
-// returning customer's record is UPDATED (never duplicated).
+// Users tab: one row per CUSTOMER (web login + every order).
+// Columns: [User ID, Name, Phone, PasswordHash, Default Address, Total Orders,
+//           Created At, CartJSON]. Deduplicated by PHONE so a returning
+// customer's record is UPDATED (never duplicated). Column D (PasswordHash)
+// and column H (CartJSON) are NEVER wiped by profile/address syncs.
 // =========================================================================
-var USERS_HEADERS = ["User ID", "Name", "Phone", "PasswordHash", "Default Address", "Total Orders", "Created At"];
+var USERS_HEADERS = ["User ID", "Name", "Phone", "PasswordHash", "Default Address", "Total Orders", "Created At", "CartJSON"];
 
 function syncUser_(ss, data) {
   var phone = sanitizePhone_(data.phone);
@@ -766,6 +836,7 @@ function syncUser_(ss, data) {
     var curAddr = String(v[4] || "").trim();
     var curOrders = Number(v[5] || 0) || 0;
     var curCreated = v[6] || now;
+    var curCart = String(v[USERS_HEADERS.length - 1] === undefined || v[USERS_HEADERS.length - 1] === null ? "" : v[USERS_HEADERS.length - 1]);
     sh.getRange(found.row, 1, 1, USERS_HEADERS.length).setValues([[
       uid || curUid,
       name || curName,
@@ -773,11 +844,12 @@ function syncUser_(ss, data) {
       curHash,
       address || curAddr,
       Math.max(curOrders, orders),
-      curCreated
+      curCreated,
+      curCart
     ]]);
     return { status: "success", type: "user_updated", user_id: uid };
   }
-  sh.appendRow([uid, name, phone, "", address, orders, now]);
+  sh.appendRow([uid, name, phone, "", address, orders, now, ""]);
   return { status: "success", type: "user_created", user_id: uid };
 }
 
