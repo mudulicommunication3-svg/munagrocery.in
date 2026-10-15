@@ -13,7 +13,8 @@
 // doGet  actions: SEARCH_JIOMART | GET_ORDERS | GET_ADDRESSES | GET_USERS | GET_CONFIG | (catalog)
 // doPost actions: create_order | update_order_status | update_order_bill |
 //                 save_address | SAVE_CONFIG | EDIT_PRODUCT | ADD_PRODUCT |
-//                 PUT_SEARCH | (legacy)
+//                 REQUEST_OTP | VERIFY_OTP | SEND_WHATSAPP_OTP |
+//                 VERIFY_WHATSAPP_OTP | SYNC_USER | PUT_SEARCH | (legacy)
 // =========================================================================
 
 var ORDER_HEADERS = [
@@ -169,6 +170,16 @@ function doPost(e) {
     }
     if (data.action === "VERIFY_OTP") {
       return jsonResponse(verifyLoginOtp_(ss, data));
+    }
+
+    // ବିକଳ୍ପ A0c: Serverless WhatsApp OTP login (GitHub Pages — NO local PC /
+    // Python server). The code is stored + verified entirely inside Apps
+    // Script; the WhatsApp gateway is optional (demo code when unconfigured).
+    if (data.action === "SEND_WHATSAPP_OTP") {
+      return jsonResponse(sendWhatsAppOtp_(ss, data));
+    }
+    if (data.action === "VERIFY_WHATSAPP_OTP") {
+      return jsonResponse(verifyWhatsAppOtp_(ss, data));
     }
 
     // ବିକଳ୍ପ A0: Bot-PC search bus — webapp ଫୋନ୍ ଏଠାରେ request ପକାଏ
@@ -532,6 +543,74 @@ function verifyLoginOtp_(ss, data) {
     .map(function (b) { return ("0" + (b & 0xFF).toString(16)).slice(-2); }).join(""); }
   catch (e6) { token = "t" + String(Date.now()) + String(Math.floor(Math.random() * 1e9)); }
   return { ok: true, phone: phone, login_token: token, verified_at: nowStamp_() };
+}
+
+// =========================================================================
+// Serverless WhatsApp OTP login (runs 100% in Apps Script -> GitHub Pages
+// needs NO local PC / Python server).  The flow:
+//   SEND_WHATSAPP_OTP  { phone }
+//     -> generate a 4-digit code, store it in LoginOTPs (5-min TTL),
+//        call the external WhatsApp gateway (Config key otp_delivery_url).
+//        If the gateway is NOT configured or fails, the stored code is
+//        returned as a "demo" code so the login still completes end-to-end.
+//   VERIFY_WHATSAPP_OTP { phone, otp, name?, address? }
+//     -> validate + burn the code (single-use), auto-upsert the customer
+//        into the Users tab (dedup by phone), and return a session token.
+// =========================================================================
+function sendWhatsAppOtp_(ss, data) {
+  var phone = String((data && data.phone) || "").trim();
+  if (!validLoginPhone_(phone)) {
+    return { ok: false, success: false, error: "ଠିକ୍ 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।" };
+  }
+  var res = requestLoginOtp_(ss, data); // stores the OTP + fires the gateway
+  if (!res || !res.ok) {
+    return { ok: false, success: false,
+             error: (res && res.error) || "OTP ପଠାଯାଇପାରିଲା ନାହିଁ — ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।" };
+  }
+  if (res.wait_seconds) {
+    // Resend lock still active; tell the client to wait.
+    return { ok: true, success: true, phone: phone, wait_seconds: res.wait_seconds,
+             expires_in: res.expires_in || LOGIN_OTP_TTL_SECONDS, code_sent: true, reused: true };
+  }
+  var out = {
+    ok: true, success: true, phone: phone,
+    expires_in: res.expires_in || LOGIN_OTP_TTL_SECONDS,
+    code_sent: !!res.code_sent,
+    via: res.via || (res.code_sent ? "gateway" : "demo")
+  };
+  if (!res.code_sent) {
+    // Gateway not configured / unreachable -> surface the stored code so the
+    // phone flow works with a demo OTP (serverless fallback).
+    try {
+      var sh = loginOtpSheet_(ss);
+      var row = loginOtpFindRow_(sh, phone);
+      if (row > 0) {
+        var code = String(sh.getRange(row, 2).getValue() || "").trim();
+        if (code) { out.demo = true; out.otp = code; }
+      }
+    } catch (e) {}
+  }
+  return out;
+}
+
+function verifyWhatsAppOtp_(ss, data) {
+  var res = verifyLoginOtp_(ss, data); // validate + burn (single-use)
+  if (!res || !res.ok) {
+    var err = { ok: false, success: false,
+                error: (res && res.error) || "OTP ଯାଞ୍ଚ ବିଫଳ — ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।" };
+    if (res && typeof res.attempts_left !== "undefined") err.attempts_left = res.attempts_left;
+    return err;
+  }
+  var phone = String(res.phone || "").trim();
+  var name = String((data && data.name) || "").trim() || "Customer";
+  var address = String((data && data.address) || "").trim();
+  var uid = String((data && data.user_id) || phone);
+  // Auto-upsert into the Users tab (columns + dedup by phone) — requirement #1.
+  try {
+    syncUser_(ss, { user_id: uid, name: name, phone: phone, address: address });
+  } catch (e) {}
+  return { ok: true, success: true, phone: phone, name: name,
+           login_token: res.login_token || "", verified_at: res.verified_at || "" };
 }
 
 // Deduct stock from Sheet1 by EAN (same rule as db.deduct_stock_by_ean).

@@ -3672,18 +3672,11 @@
     function waBackToStep1() { waShowStep_(1); }
     function waResend() { sendWhatsAppOtp(true); }
 
-    // --- WhatsApp OTP: calls the local/hosted Python server -------------
-    // Base URL for whatsapp_otp_server.py. Override with the
-    // 'wa_api_base' localStorage key or ?wa=<url> (defaults to localhost:5000).
-    function getWaApiBase_() {
-      var q = '';
-      try { q = new URLSearchParams(window.location.search).get('wa') || ''; } catch (e) {}
-      var saved = '';
-      try { saved = localStorage.getItem('wa_api_base') || ''; } catch (e) {}
-      if (q) { try { localStorage.setItem('wa_api_base', q.trim()); } catch (e2) {} return String(q).trim().replace(/\/+$/, ''); }
-      if (saved) return String(saved).trim().replace(/\/+$/, '');
-      return 'http://localhost:5000';
-    }
+    // --- WhatsApp OTP: 100% serverless via the Apps Script webhook -------
+    // No localhost / Python server required. The Apps Script stores +
+    // verifies the code in LoginOTPs, calls the optional external WhatsApp
+    // gateway (Config key otp_delivery_url), and returns a demo code when the
+    // gateway is unconfigured — the phone flow works 24/7 on GitHub Pages.
     function validPhone_(ph) { return /^[6-9]\d{9}$/.test(String(ph || '').trim()); }
 
     // Push the profile into the shared "Users" tab (Apps Script SYNC_USER,
@@ -3714,11 +3707,17 @@
       hint.classList.remove('hidden');
       hint.innerText = isResend ? '⏳ OTP ପୁଣି ପଠାଯାଉଛି…' : '⏳ WhatsApp ରେ OTP ପଠାଯାଉଛି…';
       document.getElementById('loginOtp').value = '';
-      var base = getWaApiBase_();
-      fetch(base + '/api/send-otp', {
+      // Serverless path: POST straight to the Apps Script webhook (24/7 on
+      // GitHub Pages — NO localhost / Python server required). The Apps
+      // Script stores the code in LoginOTPs and calls the WhatsApp gateway,
+      // or returns the stored code as a demo when the gateway is unconfigured.
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
+        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      if (!hook) { waSendDemo_(phone); return; }
+      fetch(hook, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone })
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'SEND_WHATSAPP_OTP', phone: phone })
       }).then(function (r) { return r.json(); }).then(function (d) {
         if (d && d.success) {
           try { localStorage.setItem('wa_pending_phone', phone); } catch (e) {}
@@ -3747,15 +3746,25 @@
       var phone = document.getElementById('loginPhone').value.trim();
       var typed = document.getElementById('loginOtp').value.trim();
       if (!/^\d{4}$/.test(typed)) { alert('❌ 4-ଅଙ୍କ OTP ଲେଖନ୍ତୁ।'); return; }
-      var base = getWaApiBase_();
-      fetch(base + '/api/verify-otp', {
+      // Serverless path: the Apps Script verifies the stored code, burns it
+      // (single-use), and upserts the customer into the Users tab — then we
+      // save 'active_store_user', show name+✓ in the header, and prefill the
+      // checkout form. No localhost needed.
+      var typedName = (document.getElementById('loginName') || {}).value || '';
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
+        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      if (!hook) { verifyWaDemo_(phone, typed); return; }
+      fetch(hook, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone, otp: typed })
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'VERIFY_WHATSAPP_OTP', phone: phone, otp: typed, name: (typedName || '').trim() })
       }).then(function (r) { return r.json(); }).then(function (d) {
         if (d && d.success) {
           try { localStorage.removeItem('wa_demo_otp'); localStorage.removeItem('wa_pending_phone'); } catch (e) {}
-          loginDoneWa_(phone, d.user || {});
+          // Server response carries { phone, name, login_token }; the same
+          // loginDoneWa_ path saves 'active_store_user', shows name+✓ in the
+          // header, and prefills the checkout form.
+          loginDoneWa_(d.phone || phone, { name: d.name || '', phone: d.phone || phone });
         } else {
           var left = (d && typeof d.attempts_left !== 'undefined') ? (' (' + d.attempts_left + ' ଥର ବାକି)') : '';
           var err = (d && d.error) || 'OTP ଯାଞ୍ଚ ବିଫଳ।';
