@@ -2493,6 +2493,25 @@ async def handle_admin_panel_callback(
         await _edit_to_html(
             query.message, _order_detail_text(order), _order_detail_keyboard(order)
         )
+        # One-shot notice to the seller so the whole cancel -> stock restore
+        # round trip is visible in the panel too.
+        try:
+            import orders as _orders
+
+            _orders.notify_admins(
+                context,
+                "🔔 <b>Order cancelled</b>\n"
+                "🧾 Order: <code>%s</code>\n"
+                "💰 Total: Rs.%s\n"
+                "📦 Shelf stock returned.\n"
+                % (
+                    html.escape(str(order.get("order_id"))),
+                    html.escape(str(order.get("total") or "")),
+                ),
+                None,
+            )
+        except Exception:  # noqa: BLE001 - never break the panel over a notice
+            logger.warning("Cancel notice failed for %s", oid, exc_info=True)
         return
 
     if data.startswith("admin_ord_next_"):

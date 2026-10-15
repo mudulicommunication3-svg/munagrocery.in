@@ -29,6 +29,7 @@ v20+ call them from plain (non-async) handlers or wrap them with
 from __future__ import annotations
 
 import logging
+import re
 import os
 import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -395,7 +396,32 @@ def update_stock_by_ean(
     return update_stock(found, qty_to_add, mrp, selling_price)
 
 
-def deduct_stock_by_ean(ean: Any, qty: Any) -> Dict[str, Any]:
+_OrderItemRE = re.compile(r"^(.*?)\s+x(\d+)\s+@\s*Rs\.?([0-9.]+)\s*$")
+
+
+def _parse_items_bill(items_text: Any) -> List[Dict[str, Any]]:
+    """Parse ``"Name x2 @ Rs.170; Name2 x1 @ Rs.25"`` back into bill lines.
+
+    Returns ``[{name, qty, price, line_total}]``.
+    """
+    lines: List[Dict[str, Any]] = []
+    for chunk in str(items_text or "").split(";"):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        m = _OrderItemRE.match(chunk)
+        if m:
+            qty = int(m.group(2))
+            price = float(m.group(3))
+            lines.append(
+                {
+                    "name": m.group(1).strip(),
+                    "qty": qty,
+                    "price": price,
+                    "line_total": round(price * qty, 2),
+                }
+            )
+    return lines
     """Subtract ``qty`` from a product's Stock Qty (column D).
 
     Used by the checkout path of every ordering channel so shelves stay
@@ -953,7 +979,69 @@ def set_order_status(order_id: Any, status: Any) -> str:
         COL_ORDER_STATUS + 1,
         normalised,
     )
+    # When a seller cancels an order, the shelf quantity the customer took out
+    # must go back. Same rule applies whether the cancel came from the bot
+    # panel, the webapp or the customer notification.
+    if normalised == "cancelled":
+        logger.info("Order %s cancelled - restoring stock.", order_id)
+        restore_order_stock(order_id)
     return normalised
+
+
+def restore_order_stock(order_id: Any) -> Dict[str, Any]:
+    """Put the shelf quantity back that a cancelled order took out.
+
+    The shared Orders tab keeps items as free text (``"Name x2 @ Rs.170;
+    Name2 x1 @ Rs.25"``). This reads that text, matches each product name to
+    the live Sheet1 catalog, and calls :func:`adjust_stock_by_ean` to put the
+    stock back. Best-effort: the shelf stock moves only when a real catalog
+    row can be matched by name.
+
+    Returns a summary dict with ``restored`` (rows adjusted), ``missing``
+    (names that did not match a product) and ``order_id``.
+    """
+    row, order = _order_row_by_id(order_id)
+    if row is None:
+        return {"restored": 0, "missing": [], "order_id": order_id}
+
+    items_text = (order or {}).get("items") or ""
+    if not str(items_text or "").strip():
+        return {"restored": 0, "missing": [], "order_id": order_id}
+
+    lines = _parse_items_bill(items_text)
+    catalog = get_all_products()
+    by_name: Dict[str, List[Dict[str, Any]]] = {}
+    for prod in catalog:
+        name = str(prod.get("product_name") or "").strip().lower()
+        if name:
+            by_name.setdefault(name, []).append(prod)
+
+    restored = 0
+    missing: List[str] = []
+    for line in lines:
+        try:
+            qty = int(line.get("qty") or 0)
+        except (TypeError, ValueError):
+            continue
+        if qty <= 0:
+            continue
+        name = str(line.get("name") or "").strip().lower()
+        prods = by_name.get(name)
+        if not prods:
+            missing.append(name)
+            continue
+        ean = str(prods[0].get("ean") or "").strip()
+        if not ean:
+            missing.append("%s@unknown-ean" % name)
+            continue
+        try:
+            adjust_stock_by_ean(ean, qty)
+            restored += 1
+        except Exception as exc:  # noqa: BLE001 - keep the shelf moving
+            logger.warning("Restore stock for %s failed (%s): %s", ean, name, exc)
+            missing.append("%s@%s" % (name, ean))
+
+    return {"restored": restored, "missing": missing, "order_id": order_id}
 
 
 def set_order_status_msg(order_id: Any, message_id: Any) -> bool:

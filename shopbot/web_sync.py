@@ -274,6 +274,10 @@ async def process_once(
             entry["status"] = status
             changed_state = True
             processed += 1
+            if status == "cancelled":
+                # Seller (or the customer notification) dropped the order --
+                # put the shelf quantity back right now, not at the next skip.
+                db.restore_order_stock(order_id)
             await push_status(context, order, status)
 
     if changed_state:
