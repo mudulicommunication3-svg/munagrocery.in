@@ -820,12 +820,7 @@
           </button>
         </div>
 
-        <div class="flex items-center gap-2 text-[10px] text-slate-400">
-          <span class="flex-1 border-t border-slate-200"></span> କିମ୍ବା <span class="flex-1 border-t border-slate-200"></span>
-        </div>
-        <button onclick="guestCheckout()" class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs flex items-center justify-center gap-1.5">
-          <i class="ph-bold ph-guest"></i> ବିନା ଲଗଇନ୍‌ରେ ଅର୍ଡର କରନ୍ତୁ (Guest)
-        </button>
+        <p class="text-[10px] text-slate-400 leading-snug text-center px-4 pb-1">🔒 ଅର୍ଡର ପାଇଁ ଲଗଇନ୍ ବାଧ୍ୟତାମୂଳକ — OTP / Google / Telegram ରେ ଲଗଇନ୍ କରନ୍ତୁ।</p>
       </div>
     </div>
   </div>
@@ -1303,6 +1298,8 @@
     }
     function goCheckoutAddress() {
       if (!Object.keys(cart).length) { alert("Cart ଖାଲି ଅଛି!"); return; }
+      // Ordering requires a login; browsing/searching above stays open.
+      if (!requireLoginForOrder_()) return;
       prefillOrderForm();
       renderSavedAddressPick();
       setStep('Address');
@@ -1321,6 +1318,8 @@
     function backToAddress() { setStep('Address'); scrollToStep_('stepAddress'); }
 
     function placeMiniOrder() {
+      // Ordering requires a logged-in session (browse stays open without it).
+      if (!requireLoginForOrder_()) return;
       var name = document.getElementById('orderCustName').value.trim() || 'Customer';
       var phone = document.getElementById('orderCustPhone').value.trim();
       var address = document.getElementById('orderCustAddress').value.trim();
@@ -1364,6 +1363,10 @@
       var orders = getMyOrders();
       orders.unshift(orderObj);
       setMyOrders(orders);
+
+      // ✅ Auto-save the address clicked/typed at checkout: next order
+      // pre-fills it (and syncs to the shared Sheet for the bot/admin).
+      autoSaveCheckoutAddress_(name, phone, address);
 
       // ONE path only - never both, or the order would be recorded twice:
       //  * Inside Telegram the BOT places it (stock deduction + the SAME
@@ -2960,6 +2963,34 @@
       document.getElementById('orderCustAddress').value = a.address;
     }
 
+    // ✅ Auto-save the checkout address so it is pre-filled next time.
+    // Called from placeMiniOrder after a successful order. Updates an
+    // existing entry with the same phone, otherwise appends a new one.
+    function autoSaveCheckoutAddress_(name, phone, address) {
+      name = String(name || '').trim();
+      phone = String(phone || '').trim();
+      address = String(address || '').trim();
+      if (!phone || !address) return false;
+      if (!/^[6-9]\d{9}$/.test(phone)) return false;
+      var list = getAddresses();
+      var existing = list.find(function (x) {
+        return String(x.phone || '').trim() === phone;
+      });
+      var saved;
+      if (existing) {
+        existing.name = name || existing.name;
+        existing.address = address;
+        saved = existing;
+      } else {
+        saved = { id: 'A' + Date.now(), name: name || 'Customer', phone: phone, address: address, isDefault: list.length === 0 };
+        list.unshift(saved);
+      }
+      setAddresses(list);
+      // Push to the shared Sheet (bot/admin read the same address book).
+      try { pushAddressToSheet(saved); } catch (e) {}
+      return true;
+    }
+
     function openAddressForm(id) {
       document.getElementById('addressForm').classList.remove('hidden');
       document.getElementById('addrEditId').value = id || '';
@@ -3706,11 +3737,34 @@
       });
     }
 
-    // --- Guest checkout (no mandatory pre-login) ---
+    // --- Guest mode: browse only. Ordering now REQUIRES a login. ---
+    // Keeping the function name so any stale onclick/caller still resolves,
+    // but it no longer opens the cart for checkout — it asks for login.
     function guestCheckout() {
       closeLoginModal();
-      showScreen('cart');
-      alert('👋 ବିନା ଲଗଇନ୍‌ରେ ଅର୍ଡର କରନ୍ତୁ — ନାଁ / ଫୋନ୍ / ଠିକଣା ଲେଖି Checkout କରନ୍ତୁ ।');
+      try {
+        if (getSessionUser()) {
+          // Already logged in (OTP/Google/Telegram) -> proceed to cart.
+          showScreen('cart');
+          return;
+        }
+      } catch (e) {}
+      alert('🔒 ଅର୍ଡର କରିବାକୁ ଲଗଇନ୍ ଆବଶ୍ୟକ। ଦୟାକରି OTP / Google / Telegram ରେ ଲଗଇନ୍ କରନ୍ତୁ।');
+      openLoginModal();
+    }
+
+    // Login gate used at checkout entry + before placing an order.
+    // Browsing/searching stays open; only ORDER actions require a session.
+    function requireLoginForOrder_(nextStep) {
+      try {
+        if (getSessionUser()) {
+          if (typeof nextStep === 'function') nextStep();
+          return true;
+        }
+      } catch (e) {}
+      alert('🔒 ଅର୍ଡର ପାଇଁ ଲଗଇନ୍ ଆବଶ୍ୟକ। ପ୍ରଥମେ OTP / Google / Telegram ରେ ଲଗଇନ୍ କରନ୍ତୁ।');
+      openLoginModal();
+      return false;
     }
 
     // --- INITIALIZATION ---
