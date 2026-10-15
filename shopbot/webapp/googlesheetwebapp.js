@@ -182,18 +182,75 @@ function findTokenRow_(ss, token) {
   return -1;
 }
 
+// SHA-256 -> lowercase 64-char hex. computeDigest returns SIGNED bytes in Apps
+// Script, so each byte MUST be masked to 0..255 first. Without the mask bytes
+// >=128 rendered as "-80" fragments, the hash was never 64 chars long, and the
+// length guard in loginPassword_ rejected EVERY login after a Sign Up.
+function bytesToHex_(bytes) {
+  var out = "";
+  for (var i = 0; i < bytes.length; i++) {
+    var b = bytes[i] & 0xFF;      // signed (-128..127) -> unsigned (0..255)
+    var h = b.toString(16);
+    out += (b < 16 ? "0" : "") + h;
+  }
+  return out;
+}
+
 function hashPassword_(password) {
-  var data = String(password == null ? "" : password);
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, data)
-    .map(function (b) { return (b < 16 ? "0" : "") + b.toString(16); })
-    .join("");
+  var data = String(password == null ? "" : password);   // callers trim first
+  return bytesToHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, data));
 }
 
 function generateToken_() {
   var src = String(Date.now()) + "|" + String(Math.random());
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, src)
-    .map(function (b) { return (b < 16 ? "0" : "") + b.toString(16); })
-    .join("");
+  return bytesToHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, src));
+}
+
+// Keep digits only then take the LAST 10 (handles +91, leading 0, spaces) so
+// Sign Up and Login always hash/compare against the exact same phone key.
+function sanitizePhone_(ph) {
+  var d = String(ph == null ? "" : ph).replace(/\D/g, "");
+  if (d.length > 10) d = d.slice(-10);
+  return d;
+}
+
+// Users tab: [User ID, Name, Phone, PasswordHash, Default Address, Total Orders, Created At]
+function usersSheet_(ss) {
+  return ensureSheet_(ss, "Users", USERS_HEADERS);
+}
+
+// Locate the Users row for a 10-digit phone -> { row, vals, sheet } or null.
+function findUserRow_(ss, phone) {
+  var sh = usersSheet_(ss);
+  if (sh.getLastRow() < 2) return null;
+  var n = sh.getLastRow() - 1;
+  var vals = sh.getRange(2, 1, n, USERS_HEADERS.length).getValues();
+  for (var i = vals.length - 1; i >= 0; i--) {
+    if (sanitizePhone_(vals[i][2]) === phone) {
+      return { row: i + 2, vals: vals[i], sheet: sh };
+    }
+  }
+  return null;
+}
+
+// Every Orders row for this phone (newest first) -> returned by LOGIN_PASSWORD
+// so the Orders tab / Live Stepper can show complete history immediately.
+function ordersForPhone_(ss, phone) {
+  var all = readAllOrders_(ss);
+  var out = [];
+  for (var i = 0; i < all.length; i++) {
+    if (sanitizePhone_(all[i].phone) === phone) out.push(all[i]);
+  }
+  return out;
+}
+
+// Mint a 30-minute session token in the Tokens tab.
+function issueToken_(ss, phone) {
+  var token = generateToken_();
+  try {
+    tokenSheet_(ss).appendRow([token, phone, String(Date.now() + 30 * 60 * 1000), nowStamp_()]);
+  } catch (e) {}
+  return token;
 }
 
 function upsertUser_(ss, uid, name, phone, address) {
@@ -221,112 +278,126 @@ function upsertUser_(ss, uid, name, phone, address) {
   return { status: "success", type: "user_created", user_id: uid };
 }
 
-// REGISTER_USER { name, phone, password, address? } -> stores SHA-256 hash.
+// REGISTER_USER { name, phone, password, address? }
+//  - sanitize the phone to exactly 10 digits, trim + SHA-256 the password
+//  - store the customer in the Users tab (dedup by phone, hash in col D)
+//  - refuse a duplicate sign-up when that phone already has a working password
 function registerUser_(ss, data) {
+  var phone = sanitizePhone_(data && data.phone);
   var name = String((data && data.name) || "").trim();
-  var phone = String((data && data.phone) || "").trim();
-  var password = String((data && data.password) || "");
+  var password = String((data && data.password) || "").trim();
   var address = String((data && data.address) || "").trim();
   if (!validLoginPhone_(phone)) {
-    return { status: "error", error: "Valid 10-digit mobile number required" };
-  }
-  if (password.length < 6) {
-    return { status: "error", error: "Password must be at least 6 characters" };
+    return { ok: false, success: false, error: "ଦୟାକରି 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।" };
   }
   if (!name) {
-    return { status: "error", error: "Name is required" };
-  }
-  var pwHash = hashPassword_(password);
-  var now = nowStamp_();
-  var sh = passwordSheet_(ss);
-  var row = findPasswordRow_(sh, phone);
-  if (row > 0) {
-    sh.getRange(row, 1, 1, PASSWORD_HEADERS.length).setValues([[phone, pwHash, now, now]]);
-  } else {
-    sh.appendRow([phone, pwHash, now, now]);
-  }
-  var uid = String((data && data.user_id) || phone);
-  upsertUser_(ss, uid, name, phone, address);
-  return { status: "success", type: "registered", user_id: uid, phone: phone };
-}
-
-// LOGIN_PASSWORD { phone, password } -> verifies hash + issues session token.
-function loginPassword_(ss, data) {
-  var phone = String((data && data.phone) || "").trim();
-  var password = String((data && data.password) || "");
-  if (!validLoginPhone_(phone)) {
-    return { status: "error", error: "Valid 10-digit mobile number required" };
+    return { ok: false, success: false, error: "ଦୟାକରି ଆପଣଙ୍କ ନାଁ ଲେଖନ୍ତୁ।" };
   }
   if (password.length < 6) {
-    return { status: "error", error: "Enter your password" };
+    return { ok: false, success: false, error: "ପାସୱାର୍ଡ ଅନ୍ତତଃ 6 ଅକ୍ଷର ହେବା ଉଚିତ୍।" };
   }
-  var sh = passwordSheet_(ss);
-  var row = findPasswordRow_(sh, phone);
-  if (row < 1) {
-    return { status: "error", error: "No account found for this phone. Please sign up first." };
-  }
-  var savedHash = String(sh.getRange(row, 2).getValue() || "");
-  if (savedHash.length !== 64 || hashPassword_(password) !== savedHash) {
-    return { status: "error", error: "Incorrect password" };
-  }
-  var name = "Customer";
-  var address = "";
-  try {
-    var us = ensureSheet_(ss, "Users", USERS_HEADERS);
-    var uvals = us.getRange(2, 1, us.getLastRow() - 1, USERS_HEADERS.length).getValues();
-    for (var i = 0; i < uvals.length; i++) {
-      if (String(uvals[i][2] || "").trim() === phone) {
-        name = String(uvals[i][1] || "").trim() || "Customer";
-        address = String(uvals[i][3] || "").trim() || "";
-        break;
-      }
+
+  var sh = usersSheet_(ss);
+  var pwHash = hashPassword_(password);
+  var found = findUserRow_(ss, phone);
+
+  if (found) {
+    var raw = found.vals[3];
+    var existing = String(raw === undefined || raw === null ? "" : raw).trim();
+    if (/^[0-9a-f]{64}$/.test(existing)) {
+      // Phone already has a WORKING password -> block duplicate registration.
+      return { ok: false, success: false, error: "ଏହି ମୋବାଇଲ୍ ନମ୍ବରରେ ପୂର୍ବରୁ Account ଅଛି — ଲଗଇନ୍ କରନ୍ତୁ।" };
     }
-  } catch (e) {}
-  var token = generateToken_();
-  var expiresAt = String(Date.now() + 30 * 60 * 1000);
-  var ts = nowStamp_();
-  var ts2 = tokenSheet_(ss);
-  var trow = findTokenRow_(ss, token);
-  if (trow > 0) {
-    ts2.getRange(trow, 1, 1, TOKEN_HEADERS.length).setValues([[token, phone, expiresAt, ts]]);
-  } else {
-    ts2.appendRow([token, phone, expiresAt, ts]);
+    // Row exists but holds no usable password (legacy layout / SYNC_USER-only)
+    // -> repair it in place so this phone can sign up then log in normally.
+    var uid = String(found.vals[0] || phone).trim() || phone;
+    var keptOrders = Number(found.vals[5] || 0) || 0;
+    sh.getRange(found.row, 1, 1, USERS_HEADERS.length).setValues([[
+      uid, name, phone, pwHash, address, keptOrders, nowStamp_()
+    ]]);
+    return { ok: true, success: true, status: "success", type: "registered",
+             user_id: uid, phone: phone, name: name, address: address };
   }
-  return { status: "success", type: "logged_in", phone: phone, login_token: token, name: name, address: address };
+
+  var newId = String((data && data.user_id) || phone).trim() || phone;
+  sh.appendRow([newId, name, phone, pwHash, address, 0, nowStamp_()]);
+  return { ok: true, success: true, status: "success", type: "registered",
+           user_id: newId, phone: phone, name: name, address: address };
 }
 
-// VALIDATE_TOKEN / LOGIN_TOKEN { token } -> revalidate session (30-min TTL).
+// LOGIN_PASSWORD { phone, password }
+//  - sanitize the phone to exactly 10 digits, trim + SHA-256 the password
+//  - find the Users row by phone and compare PasswordHash (col D)
+//  - on match return { ok, phone, name, address, orders, login_token }
+//  - on mismatch return { ok:false, error:"ଭୁଲ୍ Password! ପୁଣି ଯାଞ୍ଚ କରନ୍ତୁ।" }
+function loginPassword_(ss, data) {
+  var phone = sanitizePhone_(data && data.phone);
+  var password = String((data && data.password) || "").trim();
+  if (!validLoginPhone_(phone)) {
+    return { ok: false, success: false, error: "ଦୟାକରି 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।" };
+  }
+  if (!password) {
+    return { ok: false, success: false, error: "ପାସୱାର୍ଡ ଲେଖନ୍ତୁ।" };
+  }
+
+  var found = findUserRow_(ss, phone);
+  if (!found) {
+    return { ok: false, success: false, error: "ଏହି ନମ୍ବରରେ Account ନାହିଁ — ପ୍ରଥମେ Sign Up କରନ୍ତୁ।" };
+  }
+
+  var name = String(found.vals[1] || "").trim() || "Customer";
+  var address = String(found.vals[4] || "").trim() || "";
+  var raw = found.vals[3];
+  var storedHash = String(raw === undefined || raw === null ? "" : raw).trim();
+
+  if (!storedHash) {
+    return { ok: false, success: false, error: "ଏହି ନମ୍ବରରେ Password ସେଟ୍ ହୋଇନାହିଁ — ପୁଣି Sign Up କରନ୍ତୁ।" };
+  }
+  if (storedHash !== hashPassword_(password)) {
+    return { ok: false, success: false, error: "ଭୁଲ୍ Password! ପୁଣି ଯାଞ୍ଚ କରନ୍ତୁ।" };
+  }
+
+  // Match -> profile + this phone's full order history + a 30-minute token.
+  var orders = ordersForPhone_(ss, phone);
+  var token = issueToken_(ss, phone);
+  return {
+    ok: true, success: true, status: "success",
+    phone: phone, name: name, address: address,
+    orders: orders, login_token: token
+  };
+}
+
+// VALIDATE_TOKEN / LOGIN_TOKEN { token } -> revalidate a session (30-min TTL).
+// Returns the same profile + order-history shape as LOGIN_PASSWORD so a
+// restored session immediately shows the customer's tracking + past orders.
 function validateToken_(ss, data) {
   var token = String((data && data.token) || "").trim();
-  if (!token) return { status: "error", error: "Token required" };
+  if (!token) return { ok: false, success: false, error: "Token required" };
   var sh = tokenSheet_(ss);
-  if (sh.getLastRow() < 2) return { status: "error", error: "Not logged in" };
+  if (sh.getLastRow() < 2) return { ok: false, success: false, error: "Not logged in" };
   var tvals = sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues();
   for (var i = 0; i < tvals.length; i++) {
     if (String(tvals[i][0] || "").trim() === token) {
       var expiresAt = Number(tvals[i][2] || "0") || 0;
       if (Date.now() > expiresAt) {
         try { sh.deleteRow(i + 2); } catch (e) {}
-        return { status: "error", error: "Token expired" };
+        return { ok: false, success: false, error: "Token expired" };
       }
-      var phone = String(tvals[i][1] || "").trim();
+      var phone = sanitizePhone_(tvals[i][1]);
       var name = "Customer";
       var address = "";
-      try {
-        var us = ensureSheet_(ss, "Users", USERS_HEADERS);
-        var uvals = us.getRange(2, 1, us.getLastRow() - 1, USERS_HEADERS.length).getValues();
-        for (var j = 0; j < uvals.length; j++) {
-          if (String(uvals[j][2] || "").trim() === phone) {
-            name = String(uvals[j][1] || "").trim() || "Customer";
-            address = String(uvals[j][3] || "").trim() || "";
-            break;
-          }
-        }
-      } catch (e) {}
-      return { status: "success", type: "valid", phone: phone, login_token: token, name: name, address: address };
+      var found = findUserRow_(ss, phone);
+      if (found) {
+        name = String(found.vals[1] || "").trim() || "Customer";
+        address = String(found.vals[4] || "").trim() || "";
+      }
+      var orders = ordersForPhone_(ss, phone);
+      return { ok: true, success: true, status: "success",
+               phone: phone, name: name, address: address,
+               orders: orders, login_token: token };
     }
   }
-  return { status: "error", error: "Invalid token" };
+  return { ok: false, success: false, error: "Invalid token" };
 }
 
 // AlwaysAllow: demo / no-Sheet fallback so the page still works offline.
@@ -670,44 +741,43 @@ function upsertAddress_(ss, uid, name, address, phone, location) {
 //           Total Orders, Last Login/Timestamp].  Deduplicated by PHONE so a
 // returning customer's record is UPDATED (never duplicated).
 // =========================================================================
-var USERS_HEADERS = ["Telegram/Web User ID", "Name", "Phone", "Default Address", "Total Orders", "Last Login/Timestamp"];
+var USERS_HEADERS = ["User ID", "Name", "Phone", "PasswordHash", "Default Address", "Total Orders", "Created At"];
 
 function syncUser_(ss, data) {
-  var phone = String(data.phone || "").trim();
+  var phone = sanitizePhone_(data.phone);
   if (!phone) {
     return { status: "error", error: "phone required" };
   }
-  var sh = ensureSheet_(ss, "Users", USERS_HEADERS);
+  var sh = usersSheet_(ss);
   var name = String(data.name || "").trim();
   var uid = String(data.user_id || data.telegram_user_id || phone).trim();
   var address = String(data.address || data.default_address || "").trim();
   var orders = Number(data.total_orders || 0) || 0;
   var now = nowStamp_();
-  var lastRow = sh.getLastRow();
 
-  // Dedup by phone (column C = index 2); update timestamp + keep the best
-  // non-empty name/address/uid/order-count already on the row.
-  if (lastRow >= 2) {
-    var vals = sh.getRange(2, 1, lastRow - 1, USERS_HEADERS.length).getValues();
-    for (var i = 0; i < vals.length; i++) {
-      var rowPhone = String(vals[i][2] || "").trim();
-      if (rowPhone === phone || (String(vals[i][0] || "").trim() === uid && uid)) {
-        var curName = String(vals[i][1] || "").trim();
-        var curAddr = String(vals[i][3] || "").trim();
-        var curOrders = Number(vals[i][4] || 0) || 0;
-        sh.getRange(i + 2, 1, 1, USERS_HEADERS.length).setValues([[
-          uid || String(vals[i][0] || "").trim(),
-          name || curName,
-          phone,
-          address || curAddr,
-          Math.max(curOrders, orders),
-          now
-        ]]);
-        return { status: "success", type: "user_updated", user_id: uid };
-      }
-    }
+  // Dedup by PHONE (col C) and NEVER clobber PasswordHash (col D) — wiping it
+  // would break the customer's next LOGIN_PASSWORD.
+  var found = findUserRow_(ss, phone);
+  if (found) {
+    var v = found.vals;
+    var curUid = String(v[0] || "").trim();
+    var curName = String(v[1] || "").trim();
+    var curHash = String(v[3] === undefined || v[3] === null ? "" : v[3]);
+    var curAddr = String(v[4] || "").trim();
+    var curOrders = Number(v[5] || 0) || 0;
+    var curCreated = v[6] || now;
+    sh.getRange(found.row, 1, 1, USERS_HEADERS.length).setValues([[
+      uid || curUid,
+      name || curName,
+      phone,
+      curHash,
+      address || curAddr,
+      Math.max(curOrders, orders),
+      curCreated
+    ]]);
+    return { status: "success", type: "user_updated", user_id: uid };
   }
-  sh.appendRow([uid, name, phone, address, orders, now]);
+  sh.appendRow([uid, name, phone, "", address, orders, now]);
   return { status: "success", type: "user_created", user_id: uid };
 }
 

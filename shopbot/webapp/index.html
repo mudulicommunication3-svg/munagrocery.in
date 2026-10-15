@@ -1614,15 +1614,22 @@
     // --- 5-STAGE LIVE ORDER TRACKING ---
     function renderOrders() {
       var box = document.getElementById('ordersList');
-      // Default filter: logged-in user's own phone (their orders only).
+      // Auto-filter: the logged-in customer's phone always wins so they see
+      // their live 5-stage tracking + past purchases. The manual box is only
+      // used when logged out (tracking someone else's order).
       var sess = getSessionUser();
       var phoneEl = document.getElementById('trackOrderPhoneInput');
-      if (phoneEl && !phoneEl.value.trim() && sess && sess.phone) phoneEl.value = sess.phone;
-      var filterPhone = phoneEl ? phoneEl.value.trim() : '';
+      var filterPhone = '';
+      if (sess && sess.phone) {
+        filterPhone = String(sess.phone).trim();
+        if (phoneEl) phoneEl.value = filterPhone;
+      } else {
+        filterPhone = phoneEl ? phoneEl.value.trim() : '';
+      }
       var orders = getMyOrders();
 
       if (filterPhone) {
-        orders = orders.filter(o => o.phone.includes(filterPhone));
+        orders = orders.filter(o => String(o.phone || '').includes(filterPhone));
       }
 
       if (!orders.length) {
@@ -3264,8 +3271,16 @@
             '</div>'
           : '<button onclick="openLoginModal()" class="w-full py-2.5 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs flex items-center justify-center gap-1.5"><i class="ph-bold ph-user-circle"></i> ଲଗଇନ୍ / ସାଇନ୍-ଅପ୍ କରନ୍ତୁ (Login)</button>';
       }
-      document.getElementById('profOrderCount').innerText = getMyOrders().length;
-      document.getElementById('profAddrCount').innerText = getAddresses().length;
+      var myOrders = getMyOrders();
+      var ocount = (s && s.phone)
+        ? myOrders.filter(function (o) { return String(o.phone || '').indexOf(s.phone) >= 0; }).length
+        : myOrders.length;
+      document.getElementById('profOrderCount').innerText = ocount;
+      var myAddrs = getAddresses();
+      var acount = (s && s.phone)
+        ? myAddrs.filter(function (a) { return String(a.phone || '').trim() === s.phone; }).length
+        : myAddrs.length;
+      document.getElementById('profAddrCount').innerText = acount;
     }
 
     function handleSearch(v) { query = v || ""; document.getElementById('clearSearchBtn').classList.toggle('hidden', !query); render(); }
@@ -3614,8 +3629,20 @@
       return true;
     }
     function logoutUser() {
-      setSessionUser(null);
+      setSessionUser(null);   // clears BOTH session keys + header -> "Login"
+      try {
+        // Reset every cached input so the next visitor inherits nothing.
+        ['trackOrderPhoneInput', 'orderCustName', 'orderCustPhone', 'orderCustAddress',
+         'loginPhone', 'loginPassword', 'loginName', 'loginAddr'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+        var h = document.getElementById('otpHint');
+        if (h) { h.classList.add('hidden'); h.innerText = ''; }
+      } catch (e) {}
       renderProfile();
+      var os = document.getElementById('ordersScreen');
+      if (os && !os.classList.contains('hidden')) renderOrders();
     }
     function sessionFirstName() {
       var s = getSessionUser();
@@ -3712,11 +3739,14 @@
         || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
     }
     // LOGIN button: verify phone + password against the Users store.
+    // LOGIN button: send TRIMMED phone + password to the Apps Script webhook.
+    // LOGIN_PASSWORD returns { ok, phone, name, address, orders, login_token }.
     function loginPassword_() {
-      var phone = document.getElementById('loginPhone').value.trim();
-      var password = document.getElementById('loginPassword').value;
+      var phone = String(document.getElementById('loginPhone').value || '').replace(/\D/g, '').slice(-10);
+      var password = String(document.getElementById('loginPassword').value || '').trim();
       if (!validPhone_(phone)) { alert('ଦୟାକରି ଠିକ୍ 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।'); return; }
       if (!password || password.length < 6) { alert('❌ ପାସୱାର୍ଡ ଅନ୍ତତଃ 6 ଅକ୍ଷର ହେବା ଉଚିତ୍।'); return; }
+      document.getElementById('loginPhone').value = phone;   // reflect sanitised value
       var hint = document.getElementById('otpHint');
       if (hint) { hint.classList.remove('hidden'); hint.innerText = '⏳ ଲଗଇନ୍ ହେଉଛି…'; }
       var hook = pwHook_();
@@ -3730,11 +3760,19 @@
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'LOGIN_PASSWORD', phone: phone, password: password })
       }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d && (d.status === 'success' || d.success)) {
-          loginDone_({ name: d.name || 'Customer', phone: d.phone || phone, address: d.address || '', login_token: d.login_token || '', provider: 'password' });
+        var ok = d && (d.ok === true || d.status === 'success' || d.success === true);
+        if (ok) {
+          loginDone_({
+            name: d.name || 'Customer',
+            phone: d.phone || phone,
+            address: d.address || '',
+            orders: Array.isArray(d.orders) ? d.orders : [],
+            login_token: d.login_token || '',
+            provider: 'password'
+          });
         } else {
           var err = (d && d.error) || 'ଲଗଇନ୍ ବିଫଳ।';
-          if (hint) hint.innerText = '❌ ' + err;
+          if (hint) { hint.classList.remove('hidden'); hint.innerText = '❌ ' + err; }
           alert('❌ ' + err);
         }
       }).catch(function () {
@@ -3742,14 +3780,16 @@
       });
     }
     // SIGN-UP button: create the account (name + phone + password + address).
+    // Sends the TRIMMED/normalised phone + password to REGISTER_USER.
     function registerUser_() {
-      var name = document.getElementById('loginName').value.trim();
-      var phone = document.getElementById('loginPhone').value.trim();
-      var password = document.getElementById('loginPassword').value;
-      var addr = document.getElementById('loginAddr').value.trim();
+      var name = String(document.getElementById('loginName').value || '').trim();
+      var phone = String(document.getElementById('loginPhone').value || '').replace(/\D/g, '').slice(-10);
+      var password = String(document.getElementById('loginPassword').value || '').trim();
+      var addr = String(document.getElementById('loginAddr').value || '').trim();
       if (!name) { alert('ଦୟାକରି ଆପଣଙ୍କ ନାଁ ଲେଖନ୍ତୁ।'); return; }
       if (!validPhone_(phone)) { alert('ଦୟାକରି ଠିକ୍ 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।'); return; }
       if (!password || password.length < 6) { alert('❌ ପାସୱାର୍ଡ ଅନ୍ତତଃ 6 ଅକ୍ଷର ହେବା ଉଚିତ୍।'); return; }
+      document.getElementById('loginPhone').value = phone;
       var hint = document.getElementById('otpHint');
       if (hint) { hint.classList.remove('hidden'); hint.innerText = '⏳ Account ତିଆରି ହେଉଛି…'; }
       var hook = pwHook_();
@@ -3762,18 +3802,24 @@
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'REGISTER_USER', name: name, phone: phone, password: password, address: addr })
       }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d && (d.status === 'success' || d.success)) {
-          loginDone_({ name: name, phone: d.phone || phone, address: addr, login_token: d.login_token || '', provider: 'password' });
+        var ok = d && (d.ok === true || d.status === 'success' || d.success === true);
+        if (ok) {
+          loginDone_({
+            name: name, phone: d.phone || phone, address: addr,
+            orders: Array.isArray(d.orders) ? d.orders : [],
+            login_token: d.login_token || '', provider: 'password'
+          });
         } else {
           var err = (d && d.error) || 'Account ତିଆରି ବିଫଳ।';
-          if (hint) hint.innerText = '❌ ' + err;
+          if (hint) { hint.classList.remove('hidden'); hint.innerText = '❌ ' + err; }
           alert('❌ ' + err);
         }
       }).catch(function () {
         loginDone_({ name: name, phone: phone, address: addr, provider: 'password', login_token: 'local' });
       });
     }
-    // Shared success path: build the session user, save it, refresh the UI.
+    // Shared success path: cache backend order history + saved address, save
+    // the session (header shows "Name ✓"), refresh profile, land on Home.
     function loginDone_(user) {
       var typedName = ((document.getElementById('loginName') || {}).value || '').trim();
       var known = '';
@@ -3784,14 +3830,64 @@
       var tgu = getTgUser();
       var u = {
         name: typedName || user.name || known || ((tgu && tgu.first_name) || '') || 'Customer',
-        phone: user.phone,
+        phone: String(user.phone || '').replace(/\D/g, '').slice(-10),
         tg_id: (tgu && tgu.id) ? String(tgu.id) : '',
         address: user.address || '',
         login_token: user.login_token || '',
         provider: user.provider || 'password'
       };
+      // 1. Merge the customer's past orders (LOGIN_PASSWORD orders[]) into cache
+      //    so the Orders tab + 5-stage stepper show full history immediately.
+      if (Array.isArray(user.orders) && user.orders.length) mergeOrdersFromBackend_(user.orders);
+      // 2. Persist the backend's saved address into munna_addresses + checkout.
+      if (u.address) saveProfileAddress_(u);
+      // 3. Session -> 'active_store_user' + 'MUNA_USER_SESSION', header "Name ✓",
+      //    close modal, sync Users tab, prefill checkout, success alert.
       loginDone(u, '✅ ଲଗଇନ୍ ସଫଳ ହେଲା! ସ୍ୱାଗତ, ' + u.name + '।');
+      // 4. Refresh profile + point the Orders filter at THIS customer.
       renderProfile();
+      var pi = document.getElementById('trackOrderPhoneInput');
+      if (pi && u.phone) pi.value = u.phone;
+      // 5. Land smoothly on the home screen.
+      showScreen('home');
+    }
+
+    // Merge backend order history into MUNA_ALL_ORDERS (dedup by order_id) and
+    // refresh the Orders tab / 5-stage stepper if it is currently visible.
+    function mergeOrdersFromBackend_(remote) {
+      try {
+        if (!Array.isArray(remote) || !remote.length) return false;
+        var byId = {};
+        getMyOrders().forEach(function (o) { byId[o.order_id] = o; });
+        remote.forEach(function (r) {
+          var n = normalizeOrder(r);
+          if (n) byId[n.order_id] = n;
+        });
+        var merged = Object.keys(byId).map(function (k) { return byId[k]; })
+          .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+        setMyOrders(merged);
+        var os = document.getElementById('ordersScreen');
+        if (os && !os.classList.contains('hidden')) renderOrders();
+        return true;
+      } catch (e) { return false; }
+    }
+
+    // Save the backend's Default Address into munna_addresses (as default) so
+    // prefillOrderForm() / checkout show it right after login.
+    function saveProfileAddress_(u) {
+      try {
+        var name = String(u.name || '').trim();
+        var phone = String(u.phone || '').trim();
+        var addr = String(u.address || '').trim();
+        if (!phone || !addr) return false;
+        var list = getAddresses();
+        var hit = list.find(function (x) { return String(x.phone || '').trim() === phone; });
+        if (hit) { hit.name = hit.name || name; hit.address = addr; }
+        else { list.unshift({ id: 'A' + Date.now(), name: name, phone: phone, address: addr }); }
+        list.forEach(function (x) { x.isDefault = (String(x.phone || '').trim() === phone); });
+        setAddresses(list);
+        return true;
+      } catch (e) { return false; }
     }
     // ?pw=<password> quick-login helper (replaces the old mob://wx PHP hook).
     // On localhost it auto-logs-in for fast testing (guarded so a production
