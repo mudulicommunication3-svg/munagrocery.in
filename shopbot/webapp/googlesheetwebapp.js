@@ -125,6 +125,34 @@ function doGet(e) {
   return jsonResponse(products);
 }
 
+// Real web login: server-verified phone OTP (LoginOTPs tab).
+// Demo OTP ବ୍ରାଉଜର୍‌ରେ Math.random() ରୁ ତିଆରି — DevTools ରୁ ପଢ଼ାଯାଏ,
+// ସର୍ଭର୍ କିଛି ଯାଞ୍ଚ କରେ ନାହିଁ। ଏଠାରେ କୋଡ୍ Sheet ରେ ଲେଖାଯାଏ; VERIFY
+// ତାହାକୁ ସର୍ଭର୍ ପାଖରେ ମେଳାଏ + ଏକଥର ବ୍ୟବହାର ପରେ ପୋଡ଼ିଦିଏ (single-use).
+var LOGIN_OTP_HEADERS = ["Phone", "Code", "Status", "Attempts", "Created At", "Updated At"];
+var LOGIN_OTP_TTL_SECONDS = 300;
+var LOGIN_OTP_MAX_ATTEMPTS = 5;
+var LOGIN_OTP_RESEND_SECONDS = 45;
+
+function loginOtpSheet_(ss) {
+  return ensureSheet_(ss, "LoginOTPs", LOGIN_OTP_HEADERS);
+}
+
+function validLoginPhone_(ph) {
+  return /^[6-9]\d{9}$/.test(String(ph || "").trim());
+}
+
+function loginOtpFindRow_(sh, phone) {
+  var target = String(phone || "").trim();
+  if (!target || sh.getLastRow() < 2) return -1;
+  var n = sh.getLastRow() - 1;
+  var vals = sh.getRange(2, 1, n, 1).getValues();
+  for (var i = n - 1; i >= 0; i--) {
+    if (String(vals[i][0] || "").trim() === target) return i + 2;
+  }
+  return -1;
+}
+
 // =========================================================================
 // ଖ. doPost: Orders / Addresses / Products ସମ୍ଭାଳିବା (unified format)
 // =========================================================================
@@ -133,6 +161,15 @@ function doPost(e) {
     var data = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var prodSheet = ss.getSheetByName("Sheet1");
+
+    // ବିକଳ୍ପ A0b: Real web login — server-verified phone OTP.
+    // POST {"action":"REQUEST_OTP","phone"} / {"action":"VERIFY_OTP","phone","code"}
+    if (data.action === "REQUEST_OTP") {
+      return jsonResponse(requestLoginOtp_(ss, data));
+    }
+    if (data.action === "VERIFY_OTP") {
+      return jsonResponse(verifyLoginOtp_(ss, data));
+    }
 
     // ବିକଳ୍ପ A0: Bot-PC search bus — webapp ଫୋନ୍ ଏଠାରେ request ପକାଏ
     if (data.action === "PUT_SEARCH") {
@@ -362,6 +399,64 @@ function orderRow_(o) {
   ];
 }
 
+function deliverLoginOtp_(ss, phone, code) {
+  var delivered = false;
+  var method = "";
+  try {
+    var cfg = {};
+    try { cfg = readConfig_(ss) || {}; } catch (e) { cfg = {}; }
+    var url = String(cfg.otp_delivery_url || cfg.OTP_DELIVERY_URL || "").trim();
+    if (url) {
+      var resp = UrlFetchApp.fetch(url, {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify({ phone: phone, code: code, shop: "munagrocery.in" }),
+        muteHttpExceptions: true
+      });
+      var rc = 0;
+      try { rc = resp.getResponseCode(); } catch (e2) { rc = 0; }
+      if (rc >= 200 && rc < 300) { delivered = true; method = "sms"; }
+    }
+  } catch (e3) { delivered = false; }
+  return { delivered: delivered, method: method };
+}
+
+function requestLoginOtp_(ss, data) {
+  var phone = String((data && data.phone) || "").trim();
+  if (!validLoginPhone_(phone)) {
+    return { ok: false, error: "ଠିକ୍ 10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ।" };
+  }
+  var sh = loginOtpSheet_(ss);
+  var now = Math.floor(Date.now() / 1000);
+  var row = loginOtpFindRow_(sh, phone);
+  if (row > 0) {
+    try {
+      var prev = sh.getRange(row, 1, 1, LOGIN_OTP_HEADERS.length).getValues()[0];
+      var prevTs = Math.floor(new Date(prev[5] || prev[4] || 0).getTime() / 1000);
+      if (prevTs && (now - prevTs) < LOGIN_OTP_RESEND_SECONDS &&
+          String(prev[2] || "") === "pending") {
+        return { ok: true, phone: phone,
+                 wait_seconds: LOGIN_OTP_RESEND_SECONDS - (now - prevTs),
+                 expires_in: LOGIN_OTP_TTL_SECONDS, code_sent: true, reused: true };
+      }
+    } catch (e) {}
+  }
+  var code = String(Math.floor(1000 + Math.random() * 9000));
+  var stamp = nowStamp_();
+  if (row > 0) {
+    sh.getRange(row, 1, 1, LOGIN_OTP_HEADERS.length)
+      .setValues([[phone, code, "pending", 0, stamp, stamp]]);
+  } else {
+    sh.appendRow([phone, code, "pending", 0, stamp, stamp]);
+    try {
+      if (sh.getLastRow() - 1 > 200) sh.deleteRows(2, sh.getLastRow() - 1 - 200);
+    } catch (e2) {}
+  }
+  var dlv = deliverLoginOtp_(ss, phone, code);
+  return { ok: true, phone: phone, expires_in: LOGIN_OTP_TTL_SECONDS,
+           code_sent: dlv.delivered, via: dlv.method || "bot" };
+}
+
 // Write one unified order row (dedupe by order id + deduct stock once).
 function writeNewOrder_(ss, payload) {
   var o = normalizeOrder_(payload);
@@ -382,6 +477,55 @@ function writeNewOrder_(ss, payload) {
     if (uid2) upsertAddress_(ss, uid2, o.customer_name, o.address, o.phone, o.location);
   }
   return { status: "success", type: "order_recorded", order_id: o.order_id };
+}
+
+function verifyLoginOtp_(ss, data) {
+  var phone = String((data && data.phone) || "").trim();
+  var typed = String((data && (data.code || data.otp)) || "").trim();
+  if (!validLoginPhone_(phone) || !/^\d{4}$/.test(typed)) {
+    return { ok: false, error: "ଠିକ୍ ନମ୍ବର ଓ 4-ଅଙ୍କ OTP ଦିଅନ୍ତୁ।" };
+  }
+  var sh = loginOtpSheet_(ss);
+  var row = loginOtpFindRow_(sh, phone);
+  if (row < 1) {
+    return { ok: false, error: "ପ୍ରଥମେ “OTP ପଠାନ୍ତୁ” ଚାପନ୍ତୁ।" };
+  }
+  var vals = sh.getRange(row, 1, 1, LOGIN_OTP_HEADERS.length).getValues()[0];
+  var savedCode = String(vals[1] || "").trim();
+  var status = String(vals[2] || "").trim();
+  var attempts = Number(vals[3] || 0) || 0;
+  var createdMs = 0;
+  try { createdMs = new Date(vals[4] || 0).getTime(); } catch (e) { createdMs = 0; }
+  if (!createdMs) {
+    try { createdMs = new Date(vals[5] || 0).getTime(); } catch (e2) { createdMs = 0; }
+  }
+  if (status === "used") {
+    return { ok: false, error: "ଏହି OTP ବ୍ୟବହୃତ ହୋଇସାରିଛି — ପୁଣି ପଠାନ୍ତୁ।" };
+  }
+  if (status === "blocked") {
+    return { ok: false, error: "ବହୁତ ଥର ଭୁଲ୍ ହେଲା — ପୁଣି OTP ପଠାନ୍ତୁ।" };
+  }
+  if (createdMs && (Date.now() - createdMs) > LOGIN_OTP_TTL_SECONDS * 1000) {
+    try { sh.getRange(row, 3).setValue("expired"); sh.getRange(row, 6).setValue(nowStamp_()); } catch (e3) {}
+    return { ok: false, error: "OTP ମିଆଦ ସରିଗଲା — ପୁଣି ପଠାନ୍ତୁ।" };
+  }
+  if (typed !== savedCode) {
+    attempts += 1;
+    try {
+      sh.getRange(row, 4).setValue(attempts);
+      sh.getRange(row, 6).setValue(nowStamp_());
+      if (attempts >= LOGIN_OTP_MAX_ATTEMPTS) sh.getRange(row, 3).setValue("blocked");
+    } catch (e4) {}
+    return { ok: false, error: "ଭୁଲ୍ OTP — ପୁଣି ଲେଖନ୍ତୁ।",
+             attempts_left: Math.max(0, LOGIN_OTP_MAX_ATTEMPTS - attempts) };
+  }
+  try { sh.getRange(row, 3).setValue("used"); sh.getRange(row, 6).setValue(nowStamp_()); } catch (e5) {}
+  var tokenSrc = phone + "|" + savedCode + "|" + String(createdMs) + "|" + Math.random();
+  var token = "";
+  try { token = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, tokenSrc)
+    .map(function (b) { return ("0" + (b & 0xFF).toString(16)).slice(-2); }).join(""); }
+  catch (e6) { token = "t" + String(Date.now()) + String(Math.floor(Math.random() * 1e9)); }
+  return { ok: true, phone: phone, login_token: token, verified_at: nowStamp_() };
 }
 
 // Deduct stock from Sheet1 by EAN (same rule as db.deduct_stock_by_ean).

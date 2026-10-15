@@ -209,6 +209,15 @@ def main() -> None:
         except Exception:  # noqa: BLE001 - search bus must never break startup
             logger.error("Could not start search bus loop", exc_info=True)
 
+        # Real web login: deliver phone-OTP codes from the LoginOTPs tab to
+        # admins over Telegram (server-verified, single-use). See otp_sync.py.
+        try:
+            import otp_sync
+
+            asyncio.create_task(otp_sync.otp_loop(a))
+        except Exception:  # noqa: BLE001 - OTP relay must never break startup
+            logger.error("Could not start login OTP loop", exc_info=True)
+
     app = Application.builder().token(token).post_init(_post_init).build()
 
     # Order matters: admin flow first, then the storefront (group -1, so its
