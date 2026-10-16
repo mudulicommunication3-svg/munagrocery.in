@@ -2948,8 +2948,24 @@
 
     function deleteAdminProduct(idx) {
       if (confirm("ଡିଲିଟ୍ କରିବାକୁ ଚାହାନ୍ତି କି?")) {
+        // ଡିଲିଟ୍ ହେବା ଆଗରୁ EAN ରଖ — Sheet କୁ DELETE_PRODUCT ପଠାଇବା ପାଇଁ ଦରକାର
+        var gone = (window.STORE_CATALOG || [])[idx];
+        var goneEan = gone ? String(gone.ean || '') : '';
         window.STORE_CATALOG.splice(idx, 1);
         localStorage.setItem('munna_store_catalog', JSON.stringify(window.STORE_CATALOG));
+        // Sheet ରୁ ମଧ୍ୟ ଡିଲିଟ୍ କର — ନହେଲେ ରିଫ୍ରେସ ହେଲେ syncFromGoogleSheet()
+        // ପୁରୁଣା ଡାଟା ଆଣି ଡିଲିଟ୍ ଆଇଟମ୍ ଫେରାଇ ଦେବ (ଏହା ହିଁ ମୂଳ ବଗ୍ ଥିଲା)
+        var hook = localStorage.getItem('munna_sheet_webhook');
+        if (hook && goneEan) {
+          try {
+            fetch(hook, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: "DELETE_PRODUCT", ean: goneEan })
+            });
+          } catch(err){}
+        }
         renderAdminList();
         render();
       }

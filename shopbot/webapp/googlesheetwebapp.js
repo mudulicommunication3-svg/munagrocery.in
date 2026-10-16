@@ -532,6 +532,20 @@ function doPost(e) {
       }
     }
 
+    // ବିକଳ୍ପ 1.5: ପ୍ରଡକ୍ଟ DELETE — admin panel Delete ବଟନରୁ ଆସେ
+    if (data.action === "DELETE_PRODUCT") {
+      var drows = prodSheet.getDataRange().getValues();
+      var dTarget = -1;
+      for (var d = 1; d < drows.length; d++) {
+        if (String(drows[d][4]).trim() === String(data.ean).trim()) { dTarget = d + 1; break; }
+      }
+      if (dTarget !== -1) {
+        prodSheet.deleteRow(dTarget);
+        return jsonResponse({ status: "success", type: "product_deleted" });
+      }
+      return jsonResponse({ status: "not_found", type: "product_deleted" });
+    }
+
     // ବିକଳ୍ପ 2: ପ୍ରଡକ୍ଟ ADD
     if (data.action === "ADD_PRODUCT" || (data.mrp !== undefined && data.sellingPrice !== undefined)) {
       if (!prodSheet) prodSheet = ss.insertSheet("Sheet1");
