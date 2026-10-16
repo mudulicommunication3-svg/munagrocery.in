@@ -21,6 +21,7 @@ import android.webkit.WebViewClient;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
@@ -88,6 +89,12 @@ public class MainActivity extends Activity {
 
         webView = new WebView(this);
         setContentView(webView);
+
+        // NATIVE SHARE BRIDGE: exposes window.MunnaShare.postImage(base64, name,
+        // text) to the page so the Share button opens the OFFICIAL Android
+        // share sheet (WhatsApp, Facebook, Gmail...) WITH the product photo
+        // attached — even though plain WebView has no navigator.share/files.
+        webView.addJavascriptInterface(new ShareBridge(), "MunnaShare");
 
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
@@ -246,6 +253,41 @@ public class MainActivity extends Activity {
             }
             filePathCallback.onReceiveValue(results);
             filePathCallback = null;
+        }
+    }
+
+    // Bridge: JS ଫଟୋ base64 ପଠାଇଲେ ଅଫିସିଆଲ୍ ACTION_SEND ସିଟ୍ ଖୋଲେ —
+    // ପ୍ରୋଡକ୍ଟ ଫଟୋ + ଟେକ୍ସଟ୍ + ଲିଙ୍କ୍ ସହ (WhatsApp ରେ ରିଚ୍ ପ୍ରିଭ୍ୟୁ ଆସେ)।
+    class ShareBridge {
+        @android.webkit.JavascriptInterface
+        public void postImage(final String base64Data, final String fileName, final String shareText) {
+            runOnUiThread(() -> {
+                try {
+                    byte[] imgBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT);
+                    java.io.File cacheDir = new java.io.File(getCacheDir(), "share");
+                    if (!cacheDir.exists()) cacheDir.mkdirs();
+                    String safe = (fileName == null || fileName.isEmpty()) ? "product.jpg" : fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+                    java.io.File outFile = new java.io.File(cacheDir, safe);
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(outFile);
+                    fos.write(imgBytes);
+                    fos.close();
+                    Uri contentUri = FileProvider.getUriForFile(MainActivity.this, getPackageName() + ".fileprovider", outFile);
+                    Intent send = new Intent(Intent.ACTION_SEND);
+                    send.setType("image/jpeg");
+                    send.putExtra(Intent.EXTRA_STREAM, contentUri);
+                    send.putExtra(Intent.EXTRA_TEXT, shareText == null ? "" : shareText);
+                    send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(Intent.createChooser(send, "Share via"));
+                } catch (Exception e) {
+                    // Fallback: ଫଟୋ ବିନା ଖାଲି ଟେକ୍ସଟ୍ ସେୟାର କର
+                    try {
+                        Intent send = new Intent(Intent.ACTION_SEND);
+                        send.setType("text/plain");
+                        send.putExtra(Intent.EXTRA_TEXT, shareText == null ? "" : shareText);
+                        startActivity(Intent.createChooser(send, "Share via"));
+                    } catch (Exception ignored) { }
+                }
+            });
         }
     }
 

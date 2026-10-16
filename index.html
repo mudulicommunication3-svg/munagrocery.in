@@ -1732,29 +1732,70 @@
     function shareCurrentProduct() {
       if (!currentItem || !currentItem.ean) return;
       var link = 'https://munagrocery.in/?item=' + currentItem.ean;
-      var imgLine = currentItem.image_url ? ('\n🖼️ ' + currentItem.image_url) : '';
+      // ଫଟୋ ବିନା CDN ଲିଙ୍କ୍ — ନେଟିଭ୍ ଆପ୍ ଫଟୋ ସିଧା ପଠାଇବ, WhatsApp ନିଜେ og:image କାର୍ଡ ଦେଖାଇବ
+      var shareText = '🛒 Check out *' + currentItem.product_name + '* at Rs.' + money(currentItem.selling_price) + ' on MUNNA GROCERY:\n' + link;
       var shareData = {
         title: currentItem.product_name + ' - MUNNA GROCERY',
-        text: '🛒 Check out *' + currentItem.product_name + '* at Rs.' + money(currentItem.selling_price) + ' on MUNNA GROCERY:\n' + imgLine,
+        text: shareText,
         url: link
       };
+      // (1) ନେଟିଭ୍ ଆପ୍ ଭିତରେ: MunnaShare ବ୍ରିଜ୍ ଦେଇ ଫଟୋ ସହ ଅଫିସିଆଲ୍ ସିଟ୍ ଖୋଲେ
+      try {
+        if (window.MunnaShare && typeof window.MunnaShare.postImage === 'function') {
+          shareViaNativeBridge_(shareText);
+          return;
+        }
+      } catch (e) {}
+      // (2) ବ୍ରାଉଜର: ଷ୍ଟାଣ୍ଡାର୍ଡ Web Share API (WhatsApp, Facebook, Gmail...)
       if (navigator.share) {
         navigator.share(shareData).catch(function (err) {
           if (err && err.name !== 'AbortError') console.error('Share error:', err);
         });
-      } else {
-        // Fallback: Copy product link to clipboard instead of redirecting only to WhatsApp
-        var full = shareData.text + '\n' + shareData.url;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(full).then(function () {
-            showToast('ଲିଙ୍କ୍ କପି ହୋଇଗଲା (Link Copied)!');
-          }).catch(function () {
-            showToast('Share not supported on this device.');
-          });
-        } else {
-          showToast('Share not supported on this device.');
-        }
+        return;
       }
+      // (3) ଶେଷ ଉପାୟ: ଲିଙ୍କ୍ କ୍ଲିପବୋର୍ଡରେ କପି କର (WhatsApp-ଶୁଦ୍ଧା ରିଡାଇରେକ୍ଟ ନାହିଁ)
+      var full = shareData.text + '\n' + shareData.url;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(full).then(function () {
+          showToast('ଲିଙ୍କ୍ କପି ହୋଇଗଲା (Link Copied)!');
+        }).catch(function () {
+          showToast('Share not supported on this device.');
+        });
+      } else {
+        showToast('Share not supported on this device.');
+      }
+    }
+
+    // ନେଟିଭ୍ ବ୍ରିଜ୍ ସେୟାର: ପ୍ରୋଡକ୍ଟ ଫଟୋ fetch କରି base64 କରି Java କୁ ଦିଏ —
+    // Java ତାକୁ FileProvider URI କରି ACTION_SEND ସିଟ୍ ଖୋଲେ (ଫଟୋ ପ୍ରିଭ୍ୟୁ ସହ)।
+    // 10 ସେକେଣ୍ଡ ଭିତରେ ଫଟୋ ନଆସିଲେ ଖାଲି ଟେକ୍ସଟ୍ ପଠାଏ।
+    function shareViaNativeBridge_(shareText) {
+      var done = false;
+      var finishTextOnly = function () {
+        if (done) return; done = true;
+        try { window.MunnaShare.postImage('', 'product.jpg', shareText); } catch (e) {}
+      };
+      var timer = setTimeout(finishTextOnly, 10000);
+      try {
+        var imgUrl = (currentItem && currentItem.image_url) || '';
+        if (!imgUrl) { clearTimeout(timer); finishTextOnly(); return; }
+        fetch(imgUrl, { mode: 'cors' }).then(function (r) {
+          if (!r.ok) throw new Error('img ' + r.status);
+          return r.blob();
+        }).then(function (blob) {
+          var rd = new FileReader();
+          rd.onloadend = function () {
+            if (done) return; done = true; clearTimeout(timer);
+            try {
+              var b64 = String(rd.result || '').split(',')[1] || '';
+              var nm = String((currentItem && currentItem.ean) || 'product') + '.jpg';
+              window.MunnaShare.postImage(b64, nm, shareText);
+            } catch (e) { finishTextOnly(); }
+          };
+          rd.onerror = function () { clearTimeout(timer); finishTextOnly(); };
+          rd.readAsDataURL(blob);
+        }).catch(function () { clearTimeout(timer); finishTextOnly(); });
+      } catch (e) { clearTimeout(timer); finishTextOnly(); }
     }
 
     // Similar Products ସ୍ଲାଇଡର୍ — ସମାନ କ୍ୟାଟେଗୋରୀ ପ୍ରଥମେ, ତାପରେ ଅନ୍ୟ କ୍ୟାଟେଗୋରୀ;
