@@ -1,8 +1,10 @@
 package in.munagrocery.app;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -17,6 +19,9 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 /**
  * Standalone native WebView shell for MUNNA GROCERY.
  *
@@ -24,14 +29,32 @@ import android.webkit.WebViewClient;
  * inside a plain android.webkit.WebView so the app owns the full window (no
  * URL bar, no "Running in Chrome" banner) and the hardware Back button routes
  * through a single, robust navigation handler.
+ *
+ * Camera + GPS are requested via the standard Android OS runtime permission
+ * dialogs (API 23+) so the html5-qrcode scanner and the 3 KM Leaflet map work
+ * without the user having to enable anything manually in Settings.
  */
 public class MainActivity extends Activity {
 
     private static final String HOME_URL = "https://munagrocery.in";
     private static final int FILE_CHOOSER_REQUEST = 1001;
 
+    // Runtime permissions requested up-front in onCreate().
+    private static final int PERMISSION_REQ_CODE = 101;
+    private static final String[] REQUIRED_PERMISSIONS = {
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.CAMERA
+    };
+
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
+
+    // WebView permission prompts that arrived BEFORE the native dialog result:
+    // they are re-invoked from onRequestPermissionsResult once the user answers.
+    private GeolocationPermissions.Callback pendingGeoCallback;
+    private String pendingGeoOrigin;
+    private PermissionRequest pendingWebPermissionRequest;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -67,6 +90,10 @@ public class MainActivity extends Activity {
         // 3 KM Leaflet map tiles + Google Fonts / CDNs load over https.
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
 
+        // Android OS runtime permission dialogs (Camera + GPS) up-front so the
+        // WebView's geolocation / getUserMedia prompts can be granted instantly.
+        ensureRuntimePermissions();
+
         // Keep every navigation strictly inside this WebView (no Chrome/Tab).
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -90,12 +117,36 @@ public class MainActivity extends Activity {
             @Override
             public void onGeolocationPermissionsShowPrompt(String origin,
                                                            GeolocationPermissions.Callback callback) {
-                callback.invoke(origin, true, false);
+                // GPS: only grant once the OS has FINE_LOCATION. If it is not
+                // granted yet, show the system dialog and remember the callback
+                // so it can be resolved in onRequestPermissionsResult.
+                if (hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                    callback.invoke(origin, true, false);
+                } else {
+                    pendingGeoOrigin = origin;
+                    pendingGeoCallback = callback;
+                    ActivityCompat.requestPermissions(MainActivity.this,
+                            new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION},
+                            PERMISSION_REQ_CODE);
+                }
             }
 
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
-                runOnUiThread(() -> request.grant(request.getResources()));
+                // Camera (html5-qrcode video stream): auto-grant when the OS
+                // permission is present, otherwise raise the system dialog and
+                // resolve the WebView request from onRequestPermissionsResult.
+                runOnUiThread(() -> {
+                    if (hasPermission(Manifest.permission.CAMERA)) {
+                        request.grant(request.getResources());
+                    } else {
+                        pendingWebPermissionRequest = request;
+                        ActivityCompat.requestPermissions(MainActivity.this,
+                                new String[]{Manifest.permission.CAMERA},
+                                PERMISSION_REQ_CODE);
+                    }
+                });
             }
 
             @Override
@@ -122,6 +173,52 @@ public class MainActivity extends Activity {
             webView.restoreState(savedInstanceState);
         } else {
             webView.loadUrl(HOME_URL);
+        }
+    }
+
+    /** True when the given runtime permission is already granted by the OS. */
+    private boolean hasPermission(String perm) {
+        return ContextCompat.checkSelfPermission(this, perm)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /** Show the Android OS permission dialogs for Camera + GPS if needed. */
+    private void ensureRuntimePermissions() {
+        boolean missing = false;
+        for (String p : REQUIRED_PERMISSIONS) {
+            if (!hasPermission(p)) { missing = true; break; }
+        }
+        if (missing) {
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSION_REQ_CODE);
+        }
+    }
+
+    /**
+     * Resolve the WebView prompts that were held while the native dialog was
+     * showing: grant what the user allowed, deny what they refused.
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != PERMISSION_REQ_CODE) return;
+
+        // GPS: resolve the pending geolocation prompt.
+        if (pendingGeoCallback != null) {
+            boolean granted = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION);
+            pendingGeoCallback.invoke(pendingGeoOrigin, granted, false);
+            pendingGeoCallback = null;
+            pendingGeoOrigin = null;
+        }
+
+        // Camera: grant the WebView's getUserMedia request if allowed.
+        if (pendingWebPermissionRequest != null) {
+            if (hasPermission(Manifest.permission.CAMERA)) {
+                pendingWebPermissionRequest.grant(pendingWebPermissionRequest.getResources());
+            } else {
+                pendingWebPermissionRequest.deny();
+            }
+            pendingWebPermissionRequest = null;
         }
     }
 
