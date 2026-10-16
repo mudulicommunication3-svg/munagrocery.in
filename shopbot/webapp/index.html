@@ -210,6 +210,9 @@
     <div class="sticky top-0 z-10 bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2 shadow-sm">
       <button onclick="closeProductDetail()" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
       <h3 class="font-extrabold text-sm">ପ୍ରୋଡକ୍ଟ ବିବରଣୀ (Product Details)</h3>
+      <button onclick="shareCurrentProduct()" class="ml-auto flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white text-[11px] font-extrabold px-2.5 py-1.5 rounded-lg active:scale-95 transition-all">
+        <i class="ph-bold ph-share-network"></i> Share
+      </button>
     </div>
 
     <!-- Full-width hero image -->
@@ -1500,6 +1503,7 @@
 
     // ================= ONE PRODUCT ONE PAGE (Product Detail) =================
     var detailState = { ean: '', qty: 1 };
+    var currentItem = null; // product object of the open detail screen (Share)
 
     function openProductDetail(ean) {
       var p = window.STORE_CATALOG.find(function (x) { return String(x.ean) === String(ean); });
@@ -1507,6 +1511,7 @@
       // Preserve the home grid scroll position for the Back button.
       window._homeScrollY = window.scrollY || window.pageYOffset || 0;
       detailState = { ean: String(p.ean), qty: Math.max(1, parseInt(cart[p.ean], 10) || 1) };
+      currentItem = p; // exposed for shareCurrentProduct()
 
       var mrpVal = parseFloat(p.mrp) || 0;
       var spVal = parseFloat(p.selling_price) || 0;
@@ -1555,14 +1560,44 @@
       document.getElementById('pdQty').innerText = detailState.qty;
       document.getElementById('productDetailScreen').classList.remove('hidden');
       document.getElementById('productDetailScreen').scrollTop = 0;
+
+      // Push a dedicated history state so the mobile hardware Back button
+      // lands here first (closing this screen) instead of exiting the app.
+      var detailUrl = '?item=' + encodeURIComponent(String(p.ean));
+      var alreadyPushed = history.state && history.state.screen === 'product_detail' &&
+        String(history.state.ean) === String(p.ean) &&
+        window.location.search === detailUrl;
+      if (!alreadyPushed) {
+        history.pushState({ screen: 'product_detail', ean: String(p.ean) }, '', detailUrl);
+      }
     }
 
-    function closeProductDetail() {
-      document.getElementById('productDetailScreen').classList.add('hidden');
+    // syncHistory: pass false when called from the popstate handler — the
+    // browser has ALREADY navigated one entry back, so calling
+    // history.back() again would pop a second time (and could exit the app).
+    // Called with no argument (UI back arrow / detailBuyNow), it also keeps
+    // the URL + history stack in sync by stepping back over our pushed state.
+    function closeProductDetail(syncHistory) {
+      var pd = document.getElementById('productDetailScreen');
+      if (!pd || pd.classList.contains('hidden')) return;
+      pd.classList.add('hidden');
       // Restore the exact scroll position on the home grid.
       var y = window._homeScrollY || 0;
       window.scrollTo({ top: y, behavior: 'auto' });
+      if (syncHistory !== false && history.state && history.state.screen === 'product_detail') {
+        history.back(); // popstate then fires on an already-hidden screen -> no-op
+      }
     }
+
+    // Mobile hardware Back / browser Back: while the Product Detail screen is
+    // open, consume the navigation — close it and return to the home catalog
+    // at the exact scroll position instead of letting the app/browser exit.
+    window.addEventListener('popstate', function () {
+      var pd = document.getElementById('productDetailScreen');
+      if (pd && !pd.classList.contains('hidden')) {
+        closeProductDetail(false); // do NOT call history.back() again here
+      }
+    });
 
     function detailQtyChange(delta) {
       var p = window.STORE_CATALOG.find(function (x) { return String(x.ean) === String(detailState.ean); });
@@ -1585,6 +1620,23 @@
       showScreen('cart');
       renderCartDrawer();
       goCheckoutAddress();
+    }
+
+    // Direct share of the open product: native share sheet when available,
+    // WhatsApp (Web / app) deep link as the universal fallback.
+    function shareCurrentProduct() {
+      if (!currentItem || !currentItem.ean) return;
+      var link = 'https://munagrocery.in/?item=' + currentItem.ean;
+      if (navigator.share) {
+        navigator.share({
+          title: currentItem.product_name + ' — MUNNA GROCERY',
+          text: '🛒 ' + currentItem.product_name + ' at Rs.' + currentItem.selling_price + ' on MUNNA GROCERY',
+          url: link
+        }).catch(function () {}); // user dismissed the share sheet
+      } else {
+        var msg = '🛒 *Check out ' + currentItem.product_name + ' at Rs.' + currentItem.selling_price + '* on MUNNA GROCERY:\n' + link;
+        window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(msg), '_blank');
+      }
     }
 
     // Deep-link: /?item=<ean> opens that product's detail page once the
