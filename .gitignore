@@ -1,0 +1,12 @@
+# Android / bubblewrap build outputs & cache
+.gradle/
+build/
+app/build/
+
+# Signing secret - never commit
+*.keystore
+
+# Intermediate release artifacts (keep only munagrocery.apk)
+*.aab
+*.idsig
+app-release-*.apk

@@ -1,0 +1,43 @@
+{
+  "packageId": "in.munagrocery.app",
+  "host": "munagrocery.in",
+  "name": "MUNNA GROCERY",
+  "launcherName": "MUNNA GROCERY",
+  "display": "standalone",
+  "themeColor": "#1864AB",
+  "themeColorDark": "#1864AB",
+  "navigationColor": "#1864AB",
+  "navigationColorDark": "#1864AB",
+  "navigationDividerColor": "#FFFFFF",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#F1F3F6",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://munagrocery.in/icon-512.png",
+  "maskableIconUrl": "https://munagrocery.in/icon-512.png",
+  "appVersionName": "1.0.0",
+  "appVersionCode": "11",
+  "signingKey": {
+    "path": "d:\\munagrocery.in\\munagrocery.keystore",
+    "alias": "munagrocery"
+  },
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://munagrocery.in/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://munagrocery.in/",
+  "minSdkVersion": 21,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "displayOverride": [],
+  "appVersion": "1.0.0"
+}
