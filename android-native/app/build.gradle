@@ -1,0 +1,48 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'in.munagrocery.app'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'in.munagrocery.app'
+        minSdkVersion 24
+        targetSdkVersion 36
+        versionCode 12
+        versionName '1.1.0'
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('../../munagrocery.keystore')
+            storePassword 'storepassword123'
+            keyAlias 'munagrocery'
+            keyPassword 'storepassword123'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
+
+dependencies {
+}

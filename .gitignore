@@ -2,11 +2,15 @@
 .gradle/
 build/
 app/build/
+android-native/.gradle/
+android-native/build/
+android-native/app/build/
 
 # Signing secret - never commit
 *.keystore
 
-# Intermediate release artifacts (keep only munagrocery.apk)
+# Intermediate release artifacts (keep only munagrocery.apk / munagrocery-native.apk)
 *.aab
 *.idsig
 app-release-*.apk
+android-native/app/release-*.apk

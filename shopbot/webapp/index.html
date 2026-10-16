@@ -1589,14 +1589,42 @@
       }
     }
 
-    // Mobile hardware Back / browser Back: while the Product Detail screen is
-    // open, consume the navigation — close it and return to the home catalog
-    // at the exact scroll position instead of letting the app/browser exit.
+    // ---- Universal hardware/browser Back navigation --------------------
+    // One popstate handler unwinds whatever top-most layer is open, in a
+    // fixed priority order (innermost first). Each branch closes its layer
+    // and stops — it does NOT call history.back() again (the browser already
+    // navigated one entry). This keeps the app alive on Back instead of
+    // exiting, and preserves the home-catalog scroll position.
+    var _backNavGuard = false;
     window.addEventListener('popstate', function () {
+      // (1) Scanner modal
+      var scanner = document.getElementById('scannerModal');
+      if (scanner && !scanner.classList.contains('hidden')) { closeScanner(); return; }
+      // (2) Admin PIN modal
+      var pin = document.getElementById('adminPinModal');
+      if (pin && !pin.classList.contains('hidden')) { closeAdminPinModal(); return; }
+      // (3) Admin dashboard
+      var dash = document.getElementById('adminDashboard');
+      if (dash && !dash.classList.contains('hidden')) { closeAdminDashboard(); return; }
+      // (4) Login modal (+ optional WhatsApp-login modal if present)
+      var login = document.getElementById('loginModal');
+      if (login && !login.classList.contains('hidden')) { closeLoginModal(); return; }
+      var waLogin = document.getElementById('waLoginModal');
+      if (waLogin && !waLogin.classList.contains('hidden') && typeof closeWaLoginModal === 'function') { closeWaLoginModal(); return; }
+      // (5) Product Detail screen -> back to home catalog (scroll preserved)
       var pd = document.getElementById('productDetailScreen');
-      if (pd && !pd.classList.contains('hidden')) {
-        closeProductDetail(false); // do NOT call history.back() again here
+      if (pd && !pd.classList.contains('hidden')) { closeProductDetail(false); return; }
+      // (6) Cart / Orders / Address / Profile -> home
+      var anyScreen = ['cart', 'orders', 'address', 'profile'].some(function (s) {
+        var el = document.getElementById(s + 'Screen');
+        return el && !el.classList.contains('hidden');
+      });
+      if (anyScreen) {
+        _backNavGuard = true; // suppress showScreen('home') pushing a new entry
+        try { showScreen('home'); } finally { _backNavGuard = false; }
+        return;
       }
+      // Nothing left open — let the browser/WebView handle it (exit/parent nav).
     });
 
     function detailQtyChange(delta) {
@@ -1664,6 +1692,14 @@
         var el = document.getElementById(s + 'Screen');
         if (el) el.classList.toggle('hidden', s !== name);
       });
+      // Push a history state for secondary screens so the hardware/browser
+      // Back button can unwind them one-by-one instead of exiting the app.
+      // (No push when arriving at 'home' from popstate — already synced.)
+      if (name !== 'home' && !_backNavGuard) {
+        if (!(history.state && history.state.screen === name)) {
+          history.pushState({ screen: name }, '', '#' + name);
+        }
+      }
       document.querySelectorAll('.nav-btn').forEach(b => {
         var on = b.dataset.nav === name;
         b.classList.toggle('text-[#1864ab]', on);
@@ -1767,6 +1803,7 @@
       document.getElementById('adminPinModal').classList.remove('hidden');
       document.getElementById('adminPinInput').value = '';
       document.getElementById('adminPinInput').focus();
+      if (!(history.state && history.state.modal === 'admin_pin')) history.pushState({ modal: 'admin_pin' }, '', window.location.href);
     }
     function closeAdminPinModal() { document.getElementById('adminPinModal').classList.add('hidden'); }
     function verifyAdminPin() {
@@ -1796,6 +1833,7 @@
     }
     function openAdminDashboard_() {
       document.getElementById('adminDashboard').classList.remove('hidden');
+      if (!(history.state && history.state.modal === 'admin_dash')) history.pushState({ modal: 'admin_dash' }, '', window.location.href);
       renderAdminOrders();
       renderAdminList();
       renderAdminBanners();
@@ -3399,6 +3437,7 @@
     function openScanner(ctx) {
       scannerCtx = ctx || 'customer';
       document.getElementById('scannerModal').classList.remove('hidden');
+      if (!(history.state && history.state.modal === 'scanner')) history.pushState({ modal: 'scanner' }, '', window.location.href);
       document.getElementById('scanResultBanner').classList.add('hidden');
       document.getElementById('quickBillBox').classList.toggle('hidden', scannerCtx !== 'quickbill');
       document.getElementById('scanManualInput').value = '';
@@ -3766,6 +3805,7 @@
     // Login modal: reset to the Login (password) tab + clear fields on open.
     function openLoginModal() {
       document.getElementById('loginModal').classList.remove('hidden');
+      if (!(history.state && history.state.modal === 'login')) history.pushState({ modal: 'login' }, '', window.location.href);
       document.getElementById('loginPhone').value = '';
       document.getElementById('loginPassword').value = '';
       var nm = document.getElementById('loginName');
