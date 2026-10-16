@@ -1710,26 +1710,50 @@
       goCheckoutAddress();
     }
 
-    // Direct share of the open product: NATIVE system share sheet first
-    // (WhatsApp, Facebook, Gmail, Messages, Copy Link... ସବୁ ଆପ୍ ଆସିବ),
-    // WhatsApp direct link only when Web Share API is unavailable.
-    // ନୋଟ୍: WhatsApp ରିଚ୍ ଲିଙ୍କ୍ କାର୍ଡ ପାଇଁ ଲିଙ୍କ୍ ସହ ଆଇଟମ୍ ଫଟୋ ଟେକ୍ସଟ୍ ରେ ଯାଏ
-    // (og:image ଟ୍ୟାଗ୍ ଷ୍ଟୋର୍ ଲୋଗୋ ଦେଖାଏ)।
+    // Share: ଅଫିସିଆଲ୍ ସିଷ୍ଟମ୍ ସେୟାର ସିଟ୍ ପ୍ରଥମେ (WhatsApp, Facebook,
+    // Gmail, Messages, Copy Link... ସବୁ ଆପ୍ ଆସିବ)। କୌଣସି WhatsApp-ଶୁଦ୍ଧା
+    // ଡାଇରେକ୍ଟ ଲିଙ୍କ୍ ନାହିଁ — ସପୋର୍ଟ ନଥିଲେ ଲିଙ୍କ୍ କ୍ଲିପବୋର୍ଡରେ କପି ହେବ।
+    function showToast(msg) {
+      try {
+        var old = document.getElementById('mgToast');
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+        var t = document.createElement('div');
+        t.id = 'mgToast';
+        t.innerText = msg;
+        t.style.cssText = 'position:fixed;left:50%;bottom:96px;transform:translateX(-50%);' +
+          'background:#0f172a;color:#fff;font-size:12px;font-weight:700;' +
+          'padding:10px 16px;border-radius:12px;z-index:9999;' +
+          'box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:88vw;text-align:center;';
+        document.body.appendChild(t);
+        setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2200);
+      } catch (e) { try { alert(msg); } catch (e2) {} }
+    }
+
     function shareCurrentProduct() {
       if (!currentItem || !currentItem.ean) return;
       var link = 'https://munagrocery.in/?item=' + currentItem.ean;
       var imgLine = currentItem.image_url ? ('\n🖼️ ' + currentItem.image_url) : '';
       var shareData = {
         title: currentItem.product_name + ' - MUNNA GROCERY',
-        text: '🛒 Check out ' + currentItem.product_name + ' at Rs.' + money(currentItem.selling_price) + ' on MUNNA GROCERY:\n' + imgLine,
+        text: '🛒 Check out *' + currentItem.product_name + '* at Rs.' + money(currentItem.selling_price) + ' on MUNNA GROCERY:\n' + imgLine,
         url: link
       };
       if (navigator.share) {
-        navigator.share(shareData).catch(function (err) { console.log('Share canceled or failed', err); });
+        navigator.share(shareData).catch(function (err) {
+          if (err && err.name !== 'AbortError') console.error('Share error:', err);
+        });
       } else {
-        // Fallback to WhatsApp if Web Share API is not supported
-        var msg = '🛒 *Check out ' + currentItem.product_name + ' at Rs.' + currentItem.selling_price + '* on MUNNA GROCERY:\n' + link + imgLine;
-        window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(msg), '_blank');
+        // Fallback: Copy product link to clipboard instead of redirecting only to WhatsApp
+        var full = shareData.text + '\n' + shareData.url;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(full).then(function () {
+            showToast('ଲିଙ୍କ୍ କପି ହୋଇଗଲା (Link Copied)!');
+          }).catch(function () {
+            showToast('Share not supported on this device.');
+          });
+        } else {
+          showToast('Share not supported on this device.');
+        }
       }
     }
 
