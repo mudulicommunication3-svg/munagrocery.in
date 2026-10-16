@@ -14,6 +14,22 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="MUNNA GROCERY">
 
+<!-- WhatsApp Rich Link Image Preview (Open Graph + Twitter Card) — absolute
+     public HTTPS image so WhatsApp/Facebook show the store logo card -->
+<meta property="og:title" content="MUNNA MOBILE & GROCERY - Niali">
+<meta property="og:description" content="ଅର୍ଡର କରନ୍ତୁ ଗ୍ରୋସରୀ ଏବଂ ମୋବାଇଲ୍ ସାମଗ୍ରୀ ସୁଲଭ ମୂଲ୍ୟରେ">
+<meta property="og:image" content="https://munagrocery.in/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:image:type" content="image/png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://munagrocery.in/">
+<meta property="og:site_name" content="MUNNA GROCERY">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MUNNA MOBILE & GROCERY - Niali">
+<meta name="twitter:description" content="ଅର୍ଡର କରନ୍ତୁ ଗ୍ରୋସରୀ ଏବଂ ମୋବାଇଲ୍ ସାମଗ୍ରୀ ସୁଲଭ ମୂଲ୍ୟରେ">
+<meta name="twitter:image" content="https://munagrocery.in/icon-512.png">
+
 <!-- Telegram WebApp SDK -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -272,6 +288,11 @@
       <div class="bg-white rounded-2xl border border-slate-200 p-3.5">
         <h4 class="text-xs font-extrabold text-slate-800 mb-1">ବିବରଣୀ (Description)</h4>
         <p id="pdDesc" class="text-xs text-slate-600 leading-relaxed"></p>
+      </div>
+      <!-- Similar Products (ଏହିପରି ଅନ୍ୟ ସାମଗ୍ରୀ) — ସମାନ କ୍ୟାଟେଗୋରୀର ଅନ୍ୟ ଆଇଟମ୍, ଭୂମିକା ସ୍ଲାଇଡର୍ -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5">
+        <h4 class="text-xs font-extrabold text-slate-800 mb-2">Similar Products (ଏହିପରି ଅନ୍ୟ ସାମଗ୍ରୀ)</h4>
+        <div id="pdSimilarRow" class="flex overflow-x-auto gap-3 py-1 no-scrollbar"></div>
       </div>
       <!-- Flipkart ଷ୍ଟାଇଲ୍ ତଳ ନାଭିଗେସନ ପାଇଁ ଖାଲି ଜାଗା — ଏହା ନଥିଲେ ବିବରଣୀ ଲେଖା ତଳ ବାର ପଛରେ ଲୁଚିଯିବ -->
       <div style="height: 64px;" aria-hidden="true"></div>
@@ -1593,6 +1614,9 @@
         (mrpVal > spVal ? ('ଏବେ ' + off + '% ରିହାତିରେ ମିଳୁଛି। ') : '') +
         '3 KM ମଧ୍ୟରେ ମାଗଣା ଡେଲିଭରୀ।';
 
+      // ସମାନ କ୍ୟାଟେଗୋରୀର ଅନ୍ୟ ଆଇଟମ୍ (ନିଜକୁ ଛାଡ଼ି) — ଖାଲି ଥିଲେ ଅନ୍ୟ କ୍ୟାଟେଗୋରୀରୁ ଭର୍ତ୍ତି
+      renderSimilarProducts_(p);
+
       document.getElementById('pdQty').innerText = detailState.qty;
       document.getElementById('productDetailScreen').classList.remove('hidden');
       document.getElementById('productDetailScreen').scrollTop = 0;
@@ -1686,20 +1710,62 @@
       goCheckoutAddress();
     }
 
-    // Direct share of the open product: native share sheet when available,
-    // WhatsApp (Web / app) deep link as the universal fallback.
+    // Direct share of the open product: NATIVE system share sheet first
+    // (WhatsApp, Facebook, Gmail, Messages, Copy Link... ସବୁ ଆପ୍ ଆସିବ),
+    // WhatsApp direct link only when Web Share API is unavailable.
+    // ନୋଟ୍: WhatsApp ରିଚ୍ ଲିଙ୍କ୍ କାର୍ଡ ପାଇଁ ଲିଙ୍କ୍ ସହ ଆଇଟମ୍ ଫଟୋ ଟେକ୍ସଟ୍ ରେ ଯାଏ
+    // (og:image ଟ୍ୟାଗ୍ ଷ୍ଟୋର୍ ଲୋଗୋ ଦେଖାଏ)।
     function shareCurrentProduct() {
       if (!currentItem || !currentItem.ean) return;
       var link = 'https://munagrocery.in/?item=' + currentItem.ean;
+      var imgLine = currentItem.image_url ? ('\n🖼️ ' + currentItem.image_url) : '';
+      var shareData = {
+        title: currentItem.product_name + ' - MUNNA GROCERY',
+        text: '🛒 Check out ' + currentItem.product_name + ' at Rs.' + money(currentItem.selling_price) + ' on MUNNA GROCERY:\n' + imgLine,
+        url: link
+      };
       if (navigator.share) {
-        navigator.share({
-          title: currentItem.product_name + ' — MUNNA GROCERY',
-          text: '🛒 ' + currentItem.product_name + ' at Rs.' + currentItem.selling_price + ' on MUNNA GROCERY',
-          url: link
-        }).catch(function () {}); // user dismissed the share sheet
+        navigator.share(shareData).catch(function (err) { console.log('Share canceled or failed', err); });
       } else {
-        var msg = '🛒 *Check out ' + currentItem.product_name + ' at Rs.' + currentItem.selling_price + '* on MUNNA GROCERY:\n' + link;
+        // Fallback to WhatsApp if Web Share API is not supported
+        var msg = '🛒 *Check out ' + currentItem.product_name + ' at Rs.' + currentItem.selling_price + '* on MUNNA GROCERY:\n' + link + imgLine;
         window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(msg), '_blank');
+      }
+    }
+
+    // Similar Products ସ୍ଲାଇଡର୍ — ସମାନ କ୍ୟାଟେଗୋରୀ ପ୍ରଥମେ, ତାପରେ ଅନ୍ୟ କ୍ୟାଟେଗୋରୀ;
+    // ନିଜ ଆଇଟମ୍ ବାଦ୍, ସର୍ବାଧିକ ୬ଟି; ହୋମ୍ କାର୍ଡ ଷ୍ଟାଇଲ୍ ସହ ତୁରନ୍ତ Add/View ବଟନ୍
+    function renderSimilarProducts_(p) {
+      var box = document.getElementById('pdSimilarRow');
+      if (!box) return;
+      try {
+        var all = (window.STORE_CATALOG || []).filter(function (x) {
+          return String(x.ean) !== String(p.ean);
+        });
+        var cat = catOf(p);
+        var same = all.filter(function (x) { return catOf(x) === cat; });
+        var rest = all.filter(function (x) { return catOf(x) !== cat; });
+        var list = same.concat(rest).slice(0, 6);
+        if (!list.length) {
+          box.innerHTML = '<p class="text-[11px] text-slate-400 py-2">ଆଉ ସାମଗ୍ରୀ ନାହିଁ।</p>';
+          return;
+        }
+        var fallback = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300';
+        box.innerHTML = list.map(function (s) {
+          var mrp = parseFloat(s.mrp) || 0, sp = parseFloat(s.selling_price) || 0;
+          var off = mrp > sp ? Math.round(((mrp - sp) / mrp) * 100) : 0;
+          return '<div class="shrink-0 w-32 bg-white rounded-2xl border border-slate-200 shadow-xs p-2 flex flex-col">' +
+            '<div class="relative w-full h-20 rounded-xl bg-slate-50 overflow-hidden cursor-pointer" onclick="openProductDetail(\'' + String(s.ean).replace(/'/g, '') + '\')">' +
+              '<img src="' + (s.image_url || fallback) + '" alt="" class="w-full h-full object-contain" onerror="this.src=\'' + fallback + '\'">' +
+              (off > 0 ? '<span class="absolute top-1 left-1 bg-orange-600 text-white text-[9px] font-black px-1 py-0.5 rounded">' + off + '% OFF</span>' : '') +
+            '</div>' +
+            '<div class="mt-1.5 text-[10px] font-bold text-slate-800 leading-tight" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:26px;">' + String(s.product_name || '') + '</div>' +
+            '<div class="mt-0.5 text-xs font-black text-slate-900">Rs.' + money(s.selling_price) + '</div>' +
+            '<button onclick="openProductDetail(\'' + String(s.ean).replace(/'/g, '') + '\')" class="mt-1.5 w-full py-1 rounded-lg bg-blue-50 text-[#1864ab] hover:bg-[#1864ab] hover:text-white border border-blue-200 text-[10px] font-bold">ଦେଖନ୍ତୁ</button>' +
+          '</div>';
+        }).join('');
+      } catch (e) {
+        box.innerHTML = '';
       }
     }
 
