@@ -61,16 +61,17 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Full edge-to-edge immersion: no title/action bars, full-screen.
+        // Flipkart-style: keep the OS status bar (network / battery / Wi-Fi /
+        // clock) naturally visible at the top — NO fullscreen / immersive flags.
+        // Brand-blue status bar with light (white) icons for contrast.
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setStatusBarColor(0xFF1864AB);
         getWindow().setNavigationBarColor(0xFFF1F3F6);
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Clear any fullscreen flags so the status bar stays visible and
+            // keep dark-on-light OFF (white icons on the dark brand-blue bar).
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        }
 
         webView = new WebView(this);
         setContentView(webView);
