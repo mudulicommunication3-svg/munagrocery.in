@@ -6,11 +6,8 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
 import android.view.Window;
-import android.view.WindowManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
@@ -21,6 +18,11 @@ import android.webkit.WebViewClient;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 /**
  * Standalone native WebView shell for MUNNA GROCERY.
@@ -61,17 +63,30 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Flipkart-style: keep the OS status bar (network / battery / Wi-Fi /
-        // clock) naturally visible at the top — NO fullscreen / immersive flags.
-        // Brand-blue status bar with light (white) icons for contrast.
+        // Standard Android window: NOT fullscreen, NOT immersive — the window
+        // decor FITS the system bars so the status bar (network / battery /
+        // Wi-Fi / clock) and the bottom navigation bar are always visible and
+        // never clip the WebView content.
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setStatusBarColor(0xFF1864AB);
+        getWindow().setStatusBarColor(0xFF1864AB); // Brand Blue
         getWindow().setNavigationBarColor(0xFFF1F3F6);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Clear any fullscreen flags so the status bar stays visible and
-            // keep dark-on-light OFF (white icons on the dark brand-blue bar).
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+        WindowInsetsControllerCompat controller =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (controller != null) {
+            controller.show(WindowInsetsCompat.Type.systemBars());
+            controller.setAppearanceLightStatusBars(false); // White icons on brand blue
         }
+
+        // Bottom system navigation bar: pad the content view by the nav-bar
+        // inset so the bottom nav + cart bar never sit under / get clipped by
+        // the OS navigation bar (gesture or 3-button).
+        ViewCompat.setOnApplyWindowInsetsListener(
+                findViewById(android.R.id.content), (view, insets) -> {
+                    Insets navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+                    view.setPadding(0, 0, 0, navBarInsets.bottom);
+                    return insets;
+                });
 
         webView = new WebView(this);
         setContentView(webView);
