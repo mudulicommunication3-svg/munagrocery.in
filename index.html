@@ -57,7 +57,7 @@
   .step-item.active .step-dot { background: #1864ab; box-shadow: 0 0 0 3px rgba(24,100,171,0.25); }
 </style>
 </head>
-<body class="pb-32 antialiased">
+<body class="pb-36 antialiased">
 
   <!-- ================= TOP HEADER ================= -->
   <header class="bg-[#1864ab] text-white px-4 pt-3 pb-3 sticky top-0 z-40 shadow-sm">
@@ -163,7 +163,7 @@
   </main>
 
   <!-- ================= FLOATING CART BAR ================= -->
-  <div id="floatingCartBar" class="fixed bottom-[58px] left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-xl">
+  <div id="floatingCartBar" class="fixed bottom-[62px] left-0 right-0 z-[45] bg-white border-t border-slate-200 shadow-xl">
     <div class="max-w-md mx-auto px-4 py-2 flex items-center justify-between">
       <div onclick="openCartDrawer()" class="cursor-pointer flex items-center gap-2.5">
         <div class="relative w-9 h-9 rounded-xl bg-[#1864ab] text-white flex items-center justify-center">
@@ -183,7 +183,7 @@
   </div>
 
   <!-- ================= FLIPKART STYLE BOTTOM NAV ================= -->
-  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-2xl">
+  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 h-[60px] bg-white border-t border-slate-200 shadow-2xl">
     <div class="max-w-md mx-auto grid grid-cols-5 text-[9px] font-bold text-slate-500">
       <button onclick="showScreen('home')" data-nav="home" class="nav-btn flex flex-col items-center py-2 gap-0.5 text-[#1864ab]">
         <i class="ph-bold ph-house text-lg"></i><span>Home</span>
@@ -3773,7 +3773,21 @@
         var h = document.getElementById('otpHint');
         if (h) { h.classList.add('hidden'); h.innerText = ''; }
       } catch (e) {}
+      // Clear the account cart (memory + per-user localStorage) and refresh
+      // the floating bar / badge so no basket leaks to the next visitor.
+      try {
+        cart = {};
+        appliedCoupon = '';
+        clearCartCache_();
+        updateCartBadge();
+        renderBar();
+        renderCartDrawer();
+      } catch (e) {}
+      // Wipe the cached order history so only the next login's orders show.
+      try { setMyOrders([]); } catch (e) {}
       renderProfile();
+      // Return to Home cleanly (floating bar shows only on home).
+      showScreen('home');
       var os = document.getElementById('ordersScreen');
       if (os && !os.classList.contains('hidden')) renderOrders();
     }
@@ -3972,15 +3986,21 @@
         provider: user.provider || 'password'
       };
       // 1. Merge the customer's past orders (LOGIN_PASSWORD orders[]) into cache
-      //    so the Orders tab + 5-stage stepper show full history immediately.
+      //    so the Orders tab + 5-stage stepper show full history immediately on
+      //    ANY device (renderOrders() is called right away, not only if visible).
       if (Array.isArray(user.orders) && user.orders.length) mergeOrdersFromBackend_(user.orders);
       // 2. Persist the backend's saved address into munna_addresses + checkout.
       if (u.address) saveProfileAddress_(u);
       // 2b. Restore the CLOUD CART (account-wise sync): merge the basket saved
-      //     on another device into the local cart, persist + refresh counter
-      //     and drawer so this device shows the same basket immediately.
+      //     on another device into the local cart, persist + refresh badge,
+      //     floating bar, render() and drawer so this device shows the same
+      //     basket immediately.
       if (user.cart && typeof user.cart === 'object' && !Array.isArray(user.cart)) {
         mergeCloudCart_(user.cart);
+        render();
+        renderBar();
+        updateCartBadge();
+        renderCartDrawer();
       }
       // 3. Session -> 'active_store_user' + 'MUNA_USER_SESSION', header "Name ✓",
       //    close modal, sync Users tab, prefill checkout, success alert.
@@ -4027,8 +4047,7 @@
         var merged = Object.keys(byId).map(function (k) { return byId[k]; })
           .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
         setMyOrders(merged);
-        var os = document.getElementById('ordersScreen');
-        if (os && !os.classList.contains('hidden')) renderOrders();
+        renderOrders(); // refresh the Orders tab immediately on any device
         return true;
       } catch (e) { return false; }
     }
