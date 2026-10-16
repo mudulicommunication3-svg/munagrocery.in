@@ -21,10 +21,7 @@ import android.webkit.WebViewClient;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 /**
@@ -85,17 +82,9 @@ public class MainActivity extends Activity {
             controller.setAppearanceLightStatusBars(false);   // White text/icons on blue header
             controller.setAppearanceLightNavigationBars(true); // Dark icons on light nav
         }
-
-        // Apply window insets as padding so content never hides behind the
-        // notch / status bar (top) or the system gesture/nav bar (bottom),
-        // even while drawing edge-to-edge behind the transparent bars.
-        ViewCompat.setOnApplyWindowInsetsListener(
-                findViewById(android.R.id.content), (view, insets) -> {
-                    Insets statusBar = insets.getInsets(WindowInsetsCompat.Type.statusBars());
-                    Insets navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
-                    view.setPadding(0, statusBar.top, 0, navBar.bottom);
-                    return insets;
-                });
+        // ZERO padding on the content view / WebView — the web app fills 100%
+        // of the physical screen height edge-to-edge. Do NOT add window
+        // insets as padding; the page handles its own safe-area padding.
 
         webView = new WebView(this);
         setContentView(webView);

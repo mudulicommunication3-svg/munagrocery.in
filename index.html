@@ -67,8 +67,10 @@
   /* Standardized screen header — same brand-blue bar + back button on all screens */
   .screen-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px; background: #1864ab; color: #fff; padding: 10px 16px; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
   /* Display cutout / notch support: keep the brand header + action buttons
-     safely below the notch (safe-area-inset-top) on every screen. */
-  header { padding-top: calc(env(safe-area-inset-top, 0px) + 10px) !important; }
+     safely below the notch (safe-area-inset-top) on every screen while the
+     brand-blue background extends all the way to the top edge. */
+  header { padding-top: calc(env(safe-area-inset-top, 24px) + 6px) !important; }
+  .screen-header { padding-top: calc(env(safe-area-inset-top, 24px) + 6px) !important; }
 </style>
 </head>
 <body class="pb-20 antialiased">
@@ -182,7 +184,7 @@
   </main>
 
   <!-- ================= FLOATING CART BAR (JioMart-style, only when items) ================= -->
-  <div id="floatingCartBar" class="hidden fixed left-0 right-0 z-[45] mx-3 bg-[#0c5273] shadow-xl" style="bottom: calc(62px + env(safe-area-inset-bottom, 0px)); border-radius: 16px;">
+  <div id="floatingCartBar" class="hidden fixed left-0 right-0 z-[45] mx-3 bg-[#0c5273] shadow-xl" style="bottom: calc(58px + env(safe-area-inset-bottom, 0px)); border-radius: 16px;">
     <div class="max-w-md mx-auto px-4 py-2.5 flex items-center justify-between">
       <div onclick="openCartDrawer()" class="cursor-pointer flex items-center gap-2.5">
         <div class="relative w-9 h-9 rounded-xl bg-white/15 text-white flex items-center justify-center">
@@ -202,8 +204,8 @@
   </div>
 
   <!-- ================= FLIPKART STYLE BOTTOM NAV ================= -->
-  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-2xl" style="height: calc(56px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);">
-    <div class="max-w-md mx-auto grid grid-cols-5 text-[10px] font-bold text-slate-500 h-[56px]">
+  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-2xl" style="height: calc(54px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);">
+    <div class="max-w-md mx-auto grid grid-cols-5 text-[10px] font-bold text-slate-500 h-[54px]">
       <button onclick="showScreen('home')" data-nav="home" class="nav-btn flex flex-col items-center justify-center gap-0.5 text-[#1864ab]">
         <i class="ph-bold ph-house text-[12px]"></i><span>Home</span>
       </button>
@@ -1233,7 +1235,7 @@
       var fbar = document.getElementById('floatingCartBar');
       if (fbar) fbar.classList.toggle('hidden', !hasItems);
       document.body.classList.toggle('pb-32', hasItems); // 128px: bar sits above nav
-      document.body.classList.toggle('pb-20', !hasItems); // 80px: just the 56px nav
+      document.body.classList.toggle('pb-20', !hasItems); // 80px: just the 54px nav
     }
 
     function updateCartBadge() {
