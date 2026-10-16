@@ -6,8 +6,11 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.view.Window;
+import android.view.WindowManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
@@ -18,7 +21,10 @@ import android.webkit.WebViewClient;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 /**
@@ -67,12 +73,29 @@ public class MainActivity extends Activity {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
         getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+        // Extend the layout into the display cutout (notch / punch-hole) on
+        // API 28+ so the WebView fills the FULL physical screen edge-to-edge.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
         WindowInsetsControllerCompat controller =
                 WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (controller != null) {
             controller.setAppearanceLightStatusBars(false);   // White text/icons on blue header
             controller.setAppearanceLightNavigationBars(true); // Dark icons on light nav
         }
+
+        // Apply window insets as padding so content never hides behind the
+        // notch / status bar (top) or the system gesture/nav bar (bottom),
+        // even while drawing edge-to-edge behind the transparent bars.
+        ViewCompat.setOnApplyWindowInsetsListener(
+                findViewById(android.R.id.content), (view, insets) -> {
+                    Insets statusBar = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+                    Insets navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+                    view.setPadding(0, statusBar.top, 0, navBar.bottom);
+                    return insets;
+                });
 
         webView = new WebView(this);
         setContentView(webView);
