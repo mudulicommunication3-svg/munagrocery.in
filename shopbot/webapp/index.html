@@ -203,35 +203,37 @@
     </div>
   </div>
 
-  <!-- ================= FLIPKART STYLE BOTTOM NAV ================= -->
-  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-2xl" style="height: calc(54px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);">
+    <!-- ================= FLIPKART STYLE BOTTOM NAV — ସବୁ ପେଜରେ ସ୍ଥିର ତଳ ବଟନ (Home / Orders / Cart / Address / Profile) ================= -->
+    <!-- କାହିଁକି z-[70]? କାରଣ Product Detail ସ୍କ୍ରିନ z-[60] ଅଟେ — ଏହା ନଥିଲେ ତଳ ବଟନ ପ୍ରୋଡକ୍ଟ ପେଜ ଭିତରେ ଲୁଚିଯିବ -->
+    <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-[70] bg-white border-t border-[#e2e8f0] shadow-2xl" style="height: calc(54px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);">
     <div class="max-w-md mx-auto grid grid-cols-5 text-[10px] font-bold text-slate-500 h-[54px]">
-      <button onclick="showScreen('home')" data-nav="home" class="nav-btn flex flex-col items-center justify-center gap-0.5 text-[#1864ab]">
-        <i class="ph-bold ph-house text-[12px]"></i><span>Home</span>
+      <button onclick="closeProductDetail();showScreen('home')" data-nav="home" class="nav-btn flex flex-col items-center justify-center gap-0.5 text-[#1864ab]">
+        <i class="ph-bold ph-house text-[12px]"></i><span>ହୋମ୍ (Home)</span>
       </button>
-      <button onclick="showScreen('orders')" data-nav="orders" class="nav-btn flex flex-col items-center justify-center gap-0.5">
-        <i class="ph-bold ph-receipt text-[12px]"></i><span>Orders</span>
+      <button onclick="closeProductDetail();showScreen('orders')" data-nav="orders" class="nav-btn flex flex-col items-center justify-center gap-0.5">
+        <i class="ph-bold ph-receipt text-[12px]"></i><span>ଅର୍ଡର (Orders)</span>
       </button>
-      <button onclick="openCartDrawer()" data-nav="cart" class="nav-btn flex flex-col items-center justify-center gap-0.5 relative">
+      <button onclick="closeProductDetail();openCartDrawer()" data-nav="cart" class="nav-btn flex flex-col items-center justify-center gap-0.5 relative">
         <span class="relative">
           <i class="ph-bold ph-shopping-cart text-[12px]"></i>
           <span id="navCartBadge" class="hidden absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[8px] font-black flex items-center justify-center border border-white">0</span>
         </span>
-        <span>Cart</span>
+        <span>କାର୍ଟ (Cart)</span>
       </button>
-      <button onclick="showScreen('address')" data-nav="address" class="nav-btn flex flex-col items-center justify-center gap-0.5">
-        <i class="ph-bold ph-map-pin text-[12px]"></i><span>Address</span>
+      <button onclick="closeProductDetail();showScreen('address')" data-nav="address" class="nav-btn flex flex-col items-center justify-center gap-0.5">
+        <i class="ph-bold ph-map-pin text-[12px]"></i><span>ଠିକଣା (Address)</span>
       </button>
-      <button onclick="showScreen('profile')" data-nav="profile" class="nav-btn flex flex-col items-center justify-center gap-0.5">
-        <i class="ph-bold ph-user-circle text-[12px]"></i><span>Profile</span>
+      <button onclick="closeProductDetail();showScreen('profile')" data-nav="profile" class="nav-btn flex flex-col items-center justify-center gap-0.5">
+        <i class="ph-bold ph-user-circle text-[12px]"></i><span>ପ୍ରୋଫାଇଲ୍ (Profile)</span>
       </button>
     </div>
   </nav>
 
   <!-- ================= PRODUCT DETAIL SCREEN (One Product One Page) ================= -->
   <div id="productDetailScreen" class="screen fixed inset-0 z-[60] bg-[#f1f3f6] hidden overflow-y-auto">
-    <!-- Sticky top header with Back -->
-    <div class="sticky top-0 z-10 bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2 shadow-sm">
+    <!-- Sticky top header with Back — safe-area top padding so the title +
+         Share button sit BELOW the notch/status bar, never under it -->
+    <div class="sticky top-0 z-10 bg-[#1864ab] text-white px-4 pb-3 flex items-center gap-2 shadow-sm" style="padding-top: calc(env(safe-area-inset-top, 0px) + 10px);">
       <button onclick="closeProductDetail()" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
       <h3 class="font-extrabold text-sm">ପ୍ରୋଡକ୍ଟ ବିବରଣୀ (Product Details)</h3>
       <button onclick="shareCurrentProduct()" class="ml-auto flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white text-[11px] font-extrabold px-2.5 py-1.5 rounded-lg active:scale-95 transition-all">
@@ -271,10 +273,12 @@
         <h4 class="text-xs font-extrabold text-slate-800 mb-1">ବିବରଣୀ (Description)</h4>
         <p id="pdDesc" class="text-xs text-slate-600 leading-relaxed"></p>
       </div>
+      <!-- Flipkart ଷ୍ଟାଇଲ୍ ତଳ ନାଭିଗେସନ ପାଇଁ ଖାଲି ଜାଗା — ଏହା ନଥିଲେ ବିବରଣୀ ଲେଖା ତଳ ବାର ପଛରେ ଲୁଚିଯିବ -->
+      <div style="height: 64px;" aria-hidden="true"></div>
     </div>
 
-    <!-- Sticky bottom action bar -->
-    <div class="fixed bottom-0 left-0 right-0 z-10 bg-white border-t border-slate-200 shadow-2xl">
+    <!-- Flipkart ପରି ସ୍ଥିର ତଳ ଆକ୍ସନ ବାର — ସିଷ୍ଟମ ଜେସ୍ଚର ବାର ଉପରେ ଭାସେ -->
+    <div class="fixed left-0 right-0 z-10 bg-white border-t border-slate-200 shadow-2xl" style="bottom: calc(54px + env(safe-area-inset-bottom, 0px));">
       <div class="max-w-md mx-auto px-3.5 py-2.5 flex items-center gap-2">
         <!-- Qty stepper -->
         <div class="flex items-center gap-1.5 bg-slate-900 text-white rounded-xl px-1.5 py-1.5 shrink-0">
@@ -1724,6 +1728,9 @@
         var el = document.getElementById(s + 'Screen');
         if (el) el.classList.toggle('hidden', s !== name);
       });
+      // ସବୁ ସେକେଣ୍ଡାରୀ ସ୍କ୍ରିନ (cart/orders/address/profile) ବନ୍ଦ ହେଲେ productDetail
+      // ମଧ୍ୟ ବନ୍ଦ କର — ଯେପରି ତଳ ବଟନ ଦବାଇଲେ ହୋମ୍ କାଟାଲଗ୍ ଦେଖାଯାଏ (Flipkart ପରି)
+      closeProductDetail(false);
       // Push a history state for secondary screens so the hardware/browser
       // Back button can unwind them one-by-one instead of exiting the app.
       // (No push when arriving at 'home' from popstate — already synced.)
