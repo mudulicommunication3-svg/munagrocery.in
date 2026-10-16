@@ -59,34 +59,39 @@
 </head>
 <body class="pb-20 antialiased">
 
-  <!-- ================= TOP HEADER ================= -->
-  <header class="bg-[#1864ab] text-white px-4 pt-3 pb-3 sticky top-0 z-40 shadow-sm">
+  <!-- ================= TOP HEADER (Flipkart-style, professional) ================= -->
+  <header class="bg-[#1864ab] text-white px-4 pt-2 pb-3 sticky top-0 z-40 shadow-sm">
     <div class="max-w-md mx-auto flex items-center justify-between gap-2">
-      <!-- Click Brand -> Go Home -->
-      <div onclick="showScreen('home')" class="flex items-center gap-2 cursor-pointer select-none">
-        <div class="w-10 h-10 rounded-xl bg-[#ffd43b] text-slate-950 font-black text-2xl flex items-center justify-center shadow-xs">
+      <!-- Left: Clean rounded logo + store name -->
+      <div onclick="showScreen('home')" class="flex items-center gap-2.5 cursor-pointer select-none min-w-0">
+        <div class="w-10 h-10 rounded-xl bg-[#ffd43b] text-slate-950 font-black text-2xl flex items-center justify-center shadow-xs shrink-0">
           M
         </div>
-        <div>
-          <h1 id="lblStoreName" class="font-extrabold text-sm leading-tight">ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ</h1>
+        <div class="min-w-0">
+          <h1 id="lblStoreName" class="font-extrabold text-sm leading-tight truncate">ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ</h1>
           <p id="lblStoreSub" class="text-[10px] text-blue-100 flex items-center gap-1 font-medium">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span>ମୋବାଇଲ୍ • ଆକ୍ସେସୋରିଜ୍ • ସଉଦା</span>
+            <span>Niali, 754004 • ମୋବାଇଲ୍ • ସଉଦା</span>
           </p>
         </div>
       </div>
-      <div class="flex items-center gap-1.5">
-        <button onclick="toggleLang()" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold flex items-center gap-1">
-          <i class="ph-bold ph-translate"></i>
-          <span id="langBtnText">English</span>
+      <!-- Right: sleek icon chips (globe / profile pill / lock) -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <!-- Language: compact globe chip -->
+        <button onclick="toggleLang()" title="ଭାଷା ବଦଳାନ୍ତୁ (Language)" class="h-8 px-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold flex items-center gap-1">
+          <i class="ph-bold ph-globe-hemisphere-west text-sm"></i>
+          <span id="langBtnText">OD</span>
         </button>
-        <button id="headerAuthBtn" onclick="onHeaderAuth()" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold flex items-center gap-1">
-          <i id="headerAuthIcon" class="ph-fill ph-whatsapp-logo"></i>
-          <span id="headerAuthText">Login</span>
+        <!-- Profile: sleek circular pill with first name + check -->
+        <button id="headerAuthBtn" onclick="onHeaderAuth()" class="h-8 max-w-[92px] pl-1.5 pr-2.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold flex items-center gap-1">
+          <span class="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center shrink-0">
+            <i id="headerAuthIcon" class="ph-fill ph-user text-[11px]"></i>
+          </span>
+          <span id="headerAuthText" class="truncate">Login</span>
         </button>
-        <button onclick="openAdminModal()" class="px-2.5 py-1 rounded-lg bg-[#ffd43b] text-slate-950 text-xs font-black flex items-center gap-1 shadow-xs hover:bg-yellow-400">
-          <i class="ph-bold ph-lock-key"></i>
-          <span>Admin</span>
+        <!-- Admin: elegant small lock chip -->
+        <button onclick="openAdminModal()" title="Admin" class="w-8 h-8 rounded-full bg-[#ffd43b] text-slate-950 flex items-center justify-center shadow-xs hover:bg-yellow-400">
+          <i class="ph-bold ph-lock-key text-sm"></i>
         </button>
       </div>
     </div>
@@ -162,20 +167,20 @@
     </div>
   </main>
 
-  <!-- ================= FLOATING CART BAR (only when cart has items) ================= -->
-  <div id="floatingCartBar" class="hidden fixed left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-xl" style="bottom: calc(64px + env(safe-area-inset-bottom, 0px));">
-    <div class="max-w-md mx-auto px-4 py-2 flex items-center justify-between">
+  <!-- ================= FLOATING CART BAR (JioMart-style, only when items) ================= -->
+  <div id="floatingCartBar" class="hidden fixed left-0 right-0 z-[45] mx-3 bg-[#0c5273] shadow-xl" style="bottom: calc(68px + env(safe-area-inset-bottom, 0px)); border-radius: 16px;">
+    <div class="max-w-md mx-auto px-4 py-2.5 flex items-center justify-between">
       <div onclick="openCartDrawer()" class="cursor-pointer flex items-center gap-2.5">
-        <div class="relative w-9 h-9 rounded-xl bg-[#1864ab] text-white flex items-center justify-center">
+        <div class="relative w-9 h-9 rounded-xl bg-white/15 text-white flex items-center justify-center">
           <i class="ph-bold ph-shopping-bag text-lg"></i>
-          <span id="floatingCartBadge" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#f59f00] text-slate-950 text-[10px] font-black flex items-center justify-center border-2 border-white">0</span>
+          <span id="floatingCartBadge" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#f59f00] text-slate-950 text-[10px] font-black flex items-center justify-center border-2 border-[#0c5273]">0</span>
         </div>
         <div>
-          <span class="text-[10px] text-slate-400 font-bold block leading-none">ମୋଟ ମୂଲ୍ୟ</span>
-          <span id="floatingCartTotal" class="text-sm font-black text-slate-900 mt-0.5">Rs.0</span>
+          <span class="text-[10px] text-blue-200 font-bold block leading-none">ମୋଟ ମୂଲ୍ୟ</span>
+          <span id="floatingCartTotal" class="text-sm font-black text-white mt-0.5">Rs.0</span>
         </div>
       </div>
-      <button onclick="openCartDrawer()" class="px-4 py-2 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs shadow-md shadow-blue-600/30 active:scale-95 transition-all flex items-center gap-1.5">
+      <button onclick="openCartDrawer()" class="px-4 py-2 rounded-xl bg-[#ffd43b] hover:bg-yellow-400 text-slate-950 font-extrabold text-xs shadow-md active:scale-95 transition-all flex items-center gap-1.5">
         <span>କାର୍ଟ ଦେଖନ୍ତୁ / Checkout</span>
         <i class="ph-bold ph-arrow-right"></i>
       </button>
@@ -183,23 +188,26 @@
   </div>
 
   <!-- ================= FLIPKART STYLE BOTTOM NAV ================= -->
-  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-2xl" style="height: calc(64px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);">
-    <div class="max-w-md mx-auto grid grid-cols-5 text-[9px] font-bold text-slate-500 h-[64px]">
-      <button onclick="showScreen('home')" data-nav="home" class="nav-btn flex flex-col items-center py-2 gap-0.5 text-[#1864ab]">
-        <i class="ph-bold ph-house text-lg"></i><span>Home</span>
+  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-2xl" style="height: calc(60px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);">
+    <div class="max-w-md mx-auto grid grid-cols-5 text-[10px] font-bold text-slate-500 h-[60px]">
+      <button onclick="showScreen('home')" data-nav="home" class="nav-btn flex flex-col items-center justify-center gap-0.5 text-[#1864ab]">
+        <i class="ph-bold ph-house text-[12px]"></i><span>Home</span>
       </button>
-      <button onclick="showScreen('orders')" data-nav="orders" class="nav-btn flex flex-col items-center py-2 gap-0.5">
-        <i class="ph-bold ph-receipt text-lg"></i><span>Orders</span>
+      <button onclick="showScreen('orders')" data-nav="orders" class="nav-btn flex flex-col items-center justify-center gap-0.5">
+        <i class="ph-bold ph-receipt text-[12px]"></i><span>Orders</span>
       </button>
-      <button onclick="openCartDrawer()" data-nav="cart" class="nav-btn flex flex-col items-center py-2 gap-0.5 relative">
-        <i class="ph-bold ph-shopping-cart text-lg"></i><span>Cart</span>
-        <span id="navCartBadge" class="hidden absolute top-0.5 right-4 min-w-4 h-4 px-1 rounded-full bg-rose-600 text-white text-[8px] flex items-center justify-center">0</span>
+      <button onclick="openCartDrawer()" data-nav="cart" class="nav-btn flex flex-col items-center justify-center gap-0.5 relative">
+        <span class="relative">
+          <i class="ph-bold ph-shopping-cart text-[12px]"></i>
+          <span id="navCartBadge" class="hidden absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[8px] font-black flex items-center justify-center border border-white">0</span>
+        </span>
+        <span>Cart</span>
       </button>
-      <button onclick="showScreen('address')" data-nav="address" class="nav-btn flex flex-col items-center py-2 gap-0.5">
-        <i class="ph-bold ph-map-pin text-lg"></i><span>Address</span>
+      <button onclick="showScreen('address')" data-nav="address" class="nav-btn flex flex-col items-center justify-center gap-0.5">
+        <i class="ph-bold ph-map-pin text-[12px]"></i><span>Address</span>
       </button>
-      <button onclick="showScreen('profile')" data-nav="profile" class="nav-btn flex flex-col items-center py-2 gap-0.5">
-        <i class="ph-bold ph-user-circle text-lg"></i><span>Profile</span>
+      <button onclick="showScreen('profile')" data-nav="profile" class="nav-btn flex flex-col items-center justify-center gap-0.5">
+        <i class="ph-bold ph-user-circle text-[12px]"></i><span>Profile</span>
       </button>
     </div>
   </nav>
@@ -1210,7 +1218,7 @@
       var hasItems = n > 0;
       var fbar = document.getElementById('floatingCartBar');
       if (fbar) fbar.classList.toggle('hidden', !hasItems);
-      document.body.classList.toggle('pb-36', hasItems); // 144px: bar sits above nav
+      document.body.classList.toggle('pb-40', hasItems); // 160px: bar sits above nav
       document.body.classList.toggle('pb-20', !hasItems); // 80px: just the 60px nav
     }
 
@@ -1718,10 +1726,10 @@
       // padding). On other screens it is hidden and padding shrinks to nav-only.
       var fbar = document.getElementById('floatingCartBar');
       if (name === 'home') {
-        renderBar(); // toggles bar visibility + pb-36/pb-20 by item count
+        renderBar(); // toggles bar visibility + pb-40/pb-20 by item count
       } else if (fbar) {
         fbar.classList.add('hidden');
-        document.body.classList.remove('pb-36');
+        document.body.classList.remove('pb-40');
         document.body.classList.add('pb-20');
       }
       if (name === 'cart') {
@@ -3810,7 +3818,7 @@
       return n || (s && s.phone ? '👤' : '');
     }
 
-    // Header button: "Login" + WhatsApp icon (logged out) / name + ✓ (logged in).
+    // Header profile chip: avatar + first name + ✓ (logged in) / "Login" (out).
     function updateHeaderAuth() {
       var s = getSessionUser();
       var t = document.getElementById('headerAuthText');
@@ -3821,7 +3829,7 @@
         if (ic) { ic.className = 'ph-fill ph-check-circle'; }
       } else {
         t.innerText = 'Login';
-        if (ic) { ic.className = 'ph-fill ph-whatsapp-logo'; }
+        if (ic) { ic.className = 'ph-fill ph-user'; }
       }
     }
     function onHeaderAuth() {

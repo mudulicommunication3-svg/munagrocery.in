@@ -78,13 +78,14 @@ public class MainActivity extends Activity {
             controller.setAppearanceLightStatusBars(false); // White icons on brand blue
         }
 
-        // Bottom system navigation bar: pad the content view by the nav-bar
-        // inset so the bottom nav + cart bar never sit under / get clipped by
-        // the OS navigation bar (gesture or 3-button).
+        // Apply window insets as padding so the WebView never overlaps the
+        // top status bar or the bottom system navigation bar (gesture or
+        // 3-button) — content stays fully inside the visible window.
         ViewCompat.setOnApplyWindowInsetsListener(
                 findViewById(android.R.id.content), (view, insets) -> {
-                    Insets navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
-                    view.setPadding(0, 0, 0, navBarInsets.bottom);
+                    Insets statusBar = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+                    Insets navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+                    view.setPadding(0, statusBar.top, 0, navBar.bottom);
                     return insets;
                 });
 
