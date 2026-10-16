@@ -60,7 +60,7 @@
 <body class="pb-20 antialiased">
 
   <!-- ================= TOP HEADER (Flipkart-style, professional) ================= -->
-  <header class="bg-[#1864ab] text-white px-4 pt-2 pb-3 sticky top-0 z-40 shadow-sm">
+  <header class="bg-[#1864ab] text-white px-4 sticky top-0 z-40 shadow-sm" style="padding-top: calc(env(safe-area-inset-top, 0px) + 8px); padding-bottom: 12px;">
     <div class="max-w-md mx-auto flex items-center justify-between gap-2">
       <!-- Left: Clean rounded logo + store name -->
       <div onclick="showScreen('home')" class="flex items-center gap-2.5 cursor-pointer select-none min-w-0">
@@ -168,7 +168,7 @@
   </main>
 
   <!-- ================= FLOATING CART BAR (JioMart-style, only when items) ================= -->
-  <div id="floatingCartBar" class="hidden fixed left-0 right-0 z-[45] mx-3 bg-[#0c5273] shadow-xl" style="bottom: calc(68px + env(safe-area-inset-bottom, 0px)); border-radius: 16px;">
+  <div id="floatingCartBar" class="hidden fixed left-0 right-0 z-[45] mx-3 bg-[#0c5273] shadow-xl" style="bottom: calc(62px + env(safe-area-inset-bottom, 0px)); border-radius: 16px;">
     <div class="max-w-md mx-auto px-4 py-2.5 flex items-center justify-between">
       <div onclick="openCartDrawer()" class="cursor-pointer flex items-center gap-2.5">
         <div class="relative w-9 h-9 rounded-xl bg-white/15 text-white flex items-center justify-center">
@@ -188,8 +188,8 @@
   </div>
 
   <!-- ================= FLIPKART STYLE BOTTOM NAV ================= -->
-  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-2xl" style="height: calc(60px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);">
-    <div class="max-w-md mx-auto grid grid-cols-5 text-[10px] font-bold text-slate-500 h-[60px]">
+  <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e2e8f0] shadow-2xl" style="height: calc(56px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);">
+    <div class="max-w-md mx-auto grid grid-cols-5 text-[10px] font-bold text-slate-500 h-[56px]">
       <button onclick="showScreen('home')" data-nav="home" class="nav-btn flex flex-col items-center justify-center gap-0.5 text-[#1864ab]">
         <i class="ph-bold ph-house text-[12px]"></i><span>Home</span>
       </button>
@@ -1218,8 +1218,8 @@
       var hasItems = n > 0;
       var fbar = document.getElementById('floatingCartBar');
       if (fbar) fbar.classList.toggle('hidden', !hasItems);
-      document.body.classList.toggle('pb-40', hasItems); // 160px: bar sits above nav
-      document.body.classList.toggle('pb-20', !hasItems); // 80px: just the 60px nav
+      document.body.classList.toggle('pb-32', hasItems); // 128px: bar sits above nav
+      document.body.classList.toggle('pb-20', !hasItems); // 80px: just the 56px nav
     }
 
     function updateCartBadge() {
@@ -1726,10 +1726,10 @@
       // padding). On other screens it is hidden and padding shrinks to nav-only.
       var fbar = document.getElementById('floatingCartBar');
       if (name === 'home') {
-        renderBar(); // toggles bar visibility + pb-40/pb-20 by item count
+        renderBar(); // toggles bar visibility + pb-32/pb-20 by item count
       } else if (fbar) {
         fbar.classList.add('hidden');
-        document.body.classList.remove('pb-40');
+        document.body.classList.remove('pb-32');
         document.body.classList.add('pb-20');
       }
       if (name === 'cart') {

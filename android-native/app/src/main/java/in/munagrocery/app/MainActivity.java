@@ -18,10 +18,7 @@ import android.webkit.WebViewClient;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 /**
@@ -63,31 +60,19 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Standard Android window: NOT fullscreen, NOT immersive — the window
-        // decor FITS the system bars so the status bar (network / battery /
-        // Wi-Fi / clock) and the bottom navigation bar are always visible and
-        // never clip the WebView content.
+        // TRUE edge-to-edge: draw BEHIND the transparent system bars so the
+        // WebView stretches 100% full height from the very top edge to the
+        // very bottom edge — no artificial gray/white gaps anywhere.
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setStatusBarColor(0xFF1864AB); // Brand Blue
-        getWindow().setNavigationBarColor(0xFFF1F3F6);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
         WindowInsetsControllerCompat controller =
                 WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (controller != null) {
-            controller.show(WindowInsetsCompat.Type.systemBars());
-            controller.setAppearanceLightStatusBars(false); // White icons on brand blue
+            controller.setAppearanceLightStatusBars(false);   // White text/icons on blue header
+            controller.setAppearanceLightNavigationBars(true); // Dark icons on light nav
         }
-
-        // Apply window insets as padding so the WebView never overlaps the
-        // top status bar or the bottom system navigation bar (gesture or
-        // 3-button) — content stays fully inside the visible window.
-        ViewCompat.setOnApplyWindowInsetsListener(
-                findViewById(android.R.id.content), (view, insets) -> {
-                    Insets statusBar = insets.getInsets(WindowInsetsCompat.Type.statusBars());
-                    Insets navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
-                    view.setPadding(0, statusBar.top, 0, navBar.bottom);
-                    return insets;
-                });
 
         webView = new WebView(this);
         setContentView(webView);

@@ -1,14 +1,16 @@
 <resources>
-    <!-- Standard NoActionBar theme — NOT fullscreen. The window fits the
-         system bars so the status bar + bottom navigation bar stay visible. -->
+    <!-- True edge-to-edge: the window draws BEHIND the transparent system
+         bars so the WebView fills the entire physical screen. -->
     <style name="Theme.MunnaGrocery" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowFullscreen">false</item>
-        <item name="android:fitsSystemWindows">true</item>
         <item name="android:windowContentOverlay">@null</item>
-        <item name="android:statusBarColor">#1864ab</item>
-        <item name="android:navigationBarColor">@color/bg_light</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
         <item name="android:windowBackground">@color/bg_light</item>
         <item name="android:windowLightNavigationBar">true</item>
     </style>
