@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "in.munagrocery.app",
+      "sha256_cert_fingerprints": [
+        "297d1e1228d5ca6174618cf8176c52e2a459b95f264ed95c5582b29c234b48ac"
+      ]
+    }
+  }
+]
