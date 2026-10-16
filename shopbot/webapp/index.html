@@ -55,6 +55,17 @@
   .step-dot { position: absolute; left: -24px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #cbd5e1; border: 2px solid #fff; }
   .step-item.done .step-dot { background: #16a34a; }
   .step-item.active .step-dot { background: #1864ab; box-shadow: 0 0 0 3px rgba(24,100,171,0.25); }
+
+  /* STANDARDIZED SCREEN LAYOUT TEMPLATE — reusable across EVERY screen
+     (Cart, Orders, Address, Profile, and any future page). Gives every
+     screen the exact same margins, safe-area padding, and spacing as the
+     Home page so cards never clip under the header or bottom nav.
+     Usage: <div class="screen-body ...screen-specific extras">
+     Inside, wrap content blocks in: bg-white rounded-2xl border border-slate-200
+     (matching the Home product cards). */
+  .screen-body { max-width: 28rem; margin-left: auto; margin-right: auto; padding-left: 14px; padding-right: 14px; padding-top: 12px; padding-bottom: 128px; display: flex; flex-direction: column; gap: 12px; }
+  /* Standardized screen header — same brand-blue bar + back button on all screens */
+  .screen-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px; background: #1864ab; color: #fff; padding: 10px 16px; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
 </style>
 </head>
 <body class="pb-20 antialiased">
@@ -280,7 +291,7 @@
 
   <!-- ================= CART PAGE (SEPARATE SCREEN WITH FULL CHECKOUT FLOW) ================= -->
   <div id="cartScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
-    <div class="sticky top-0 bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2 z-10 shadow-sm">
+    <div class="screen-header z-10">
       <button onclick="closeScreen('cart')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
       <h3 class="font-extrabold text-sm flex items-center gap-1.5">
         <i class="ph-bold ph-shopping-cart"></i>
@@ -289,12 +300,12 @@
       <button onclick="renderCartDrawer()" class="ml-auto text-[11px] font-bold flex items-center gap-1"><i class="ph-bold ph-arrows-clockwise"></i> Refresh</button>
     </div>
 
-    <div class="p-3 max-w-md mx-auto pb-28 space-y-3">
-      <div class="bg-white p-3 rounded-2xl border border-slate-200">
+    <div class="screen-body">
+      <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
         <div id="cartItemsContainer" class="space-y-2.5"></div>
       </div>
 
-      <div id="cartFooterView" class="bg-white p-3 rounded-2xl border border-slate-200 space-y-3">
+      <div id="cartFooterView" class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         <div class="space-y-1 text-xs font-semibold text-slate-600 pb-2 border-b border-slate-200">
         <div class="flex justify-between">
           <span>ସର୍ବମୋଟ ସାମଗ୍ରୀ (Subtotal):</span>
@@ -404,12 +415,12 @@
 
   <!-- ================= ORDERS SCREEN (WITH 5-STAGE STEPPER) ================= -->
   <div id="ordersScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
-    <div class="sticky top-0 bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2">
+    <div class="screen-header">
       <button onclick="closeScreen('orders')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
       <h3 class="font-extrabold text-sm">My Orders & Live Tracking</h3>
     </div>
-    <div class="p-3 max-w-md mx-auto pb-28 space-y-3">
-      <div class="bg-white p-3 rounded-2xl border border-slate-200 flex gap-2">
+    <div class="screen-body">
+      <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex gap-2">
         <input type="tel" id="trackOrderPhoneInput" placeholder="10-digit mobile number" class="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 outline-none">
         <button onclick="renderOrders()" class="px-3 py-1.5 bg-[#1864ab] text-white text-xs font-bold rounded-lg">ଖୋଜନ୍ତୁ</button>
       </div>
@@ -419,13 +430,13 @@
 
   <!-- ================= ADDRESS SCREEN ================= -->
   <div id="addressScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
-    <div class="sticky top-0 bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2">
+    <div class="screen-header">
       <button onclick="closeScreen('address')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
       <h3 class="font-extrabold text-sm">My Addresses (ମୋ ଠିକଣା)</h3>
       <button onclick="openAddressForm()" class="ml-auto px-3 py-1.5 rounded-lg bg-[#ffd43b] text-slate-900 text-xs font-black">+ Add</button>
     </div>
-    <div class="p-3 max-w-md mx-auto pb-28">
-      <div id="addressForm" class="hidden bg-white p-3 rounded-2xl border border-slate-200 mb-3 space-y-2">
+    <div class="screen-body">
+      <div id="addressForm" class="hidden bg-white p-3 rounded-2xl border border-slate-200 shadow-xs mb-3 space-y-2">
         <input type="hidden" id="addrEditId">
         <input type="text" id="addrName" placeholder="Name (ନାମ)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200">
         <input type="tel" id="addrPhone" placeholder="Phone (ଫୋନ୍)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200">
@@ -442,12 +453,12 @@
 
   <!-- ================= PROFILE SCREEN ================= -->
   <div id="profileScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
-    <div class="sticky top-0 bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2">
+    <div class="screen-header">
       <button onclick="closeScreen('profile')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
       <h3 class="font-extrabold text-sm">Profile (ପ୍ରୋଫାଇଲ୍)</h3>
     </div>
-    <div class="p-3 max-w-md mx-auto pb-28 space-y-3">
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-3">
+    <div class="screen-body">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
         <div id="profAvatar" class="w-14 h-14 rounded-full bg-[#ffd43b] text-slate-900 font-black text-2xl flex items-center justify-center">M</div>
         <div>
           <h4 id="profName" class="font-black text-slate-800">Customer</h4>
@@ -455,13 +466,13 @@
           <p id="profId" class="text-[10px] text-slate-400"></p>
         </div>
       </div>
-      <div class="bg-white rounded-2xl border border-slate-200 p-3.5" id="authRowCard"></div>
-      <div class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5" id="authRowCard"></div>
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-100">
         <button onclick="showScreen('orders')" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-receipt text-[#1864ab] text-lg"></i> My Orders (ମୋ ଅର୍ଡର)</button>
         <button onclick="showScreen('address')" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-map-pin text-[#1864ab] text-lg"></i> Saved Addresses (ଠିକଣା)</button>
         <button onclick="openAdminModal()" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-shield-check text-[#1864ab] text-lg"></i> Admin Panel (ଆଡମିନ୍)</button>
       </div>
-      <div class="bg-white rounded-2xl border border-slate-200 p-3.5 text-[11px] text-slate-500 space-y-1">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 text-[11px] text-slate-500 space-y-1">
         <div class="flex justify-between"><span>Total Orders</span><span id="profOrderCount" class="font-black text-slate-800">0</span></div>
         <div class="flex justify-between"><span>Saved Addresses</span><span id="profAddrCount" class="font-black text-slate-800">0</span></div>
       </div>
@@ -1797,7 +1808,7 @@
           `).join('') + `</div>`;
 
         return `
-          <div class="bg-white p-3.5 rounded-2xl border border-slate-200">
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
             <div class="flex items-center justify-between">
               <span class="font-black text-slate-800 text-xs">#${o.id}</span>
               <span class="text-[9px] bg-blue-100 text-blue-800 font-extrabold px-2 py-0.5 rounded-full">Stage ${stNum}/5</span>
@@ -3354,7 +3365,7 @@
       var list = getAddresses();
       if (!list.length) { box.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">କୌଣସି ଠିକଣା ସେଭ୍ ହୋଇନାହିଁ।</p>'; return; }
       box.innerHTML = list.map(a => `
-        <div class="bg-white p-3 rounded-2xl border ${a.isDefault ? 'border-emerald-400 ring-1 ring-emerald-200' : 'border-slate-200'}">
+        <div class="bg-white p-3 rounded-2xl border shadow-xs ${a.isDefault ? 'border-emerald-400 ring-1 ring-emerald-200' : 'border-slate-200'}">
           <div class="flex items-center justify-between gap-2">
             <div class="font-bold text-xs min-w-0">${a.name} · ${a.phone}</div>
             ${a.isDefault ? '<span class="text-[9px] bg-emerald-50 text-emerald-700 font-black px-1.5 py-0.5 rounded shrink-0">✓ DEFAULT</span>' : ''}
