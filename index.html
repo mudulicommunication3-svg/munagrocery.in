@@ -1846,6 +1846,7 @@
         pickup_slot: pickupSlot,
         pickup_expiry_time: pickupExpiry,
         stock_restored: '',
+        admin_alert_status: 'Unseen',
         lines: lines
       };
 
@@ -1889,14 +1890,18 @@
         total: total,
         order: orderObj
       });
-      // New order also rings the same device immediately, so a browser order
-      // never waits for the bot's Telegram sync before the admin hears it.
-      // Telegram orders keep their existing bot alert as a second channel.
+      // Browser/admin webapp orders: write the Sheet row directly. Telegram
+      // Mini App orders are handled by the bot through sendData above.
       if (!sentToBot) {
         postToSheet({ action: 'create_order', order: orderObj });
-        _seenAlertIds[orderObj.order_id] = 1;
-        _knownOrderIds[orderObj.order_id] = 1;
-        if (isAdmin_()) showNewOrderAlert_(orderObj);
+      }
+      // Alert THIS admin device immediately, then refresh the full admin
+      // panel so the new order is present even before the next poll.
+      _seenAlertIds[orderObj.order_id] = 1;
+      _knownOrderIds[orderObj.order_id] = 1;
+      if (isAdmin_()) {
+        showNewOrderAlert_(orderObj);
+        try { syncOrdersFromSheet(true); } catch (e) {}
       }
 
       // FULL payable bill (items + delivery − coupon) on the success screen.
@@ -2812,7 +2817,6 @@
     // resumes instantly when the tab/app becomes visible again.
     function startAdminOrderPolling_() {
       if (!isAdmin_()) return;
-      if (!isAdmin_()) return;
       if (_adminPollTimer) return; // already running
       var tick = async function () {
         if (!isAdmin_()) { stopAdminOrderPolling_(); return; }
@@ -2868,8 +2872,16 @@
           _adminPollBusy = false;
         }
       };
+      // Live admin panel refresh: GET_ORDERS also returns reviewed/older orders,
+      // not only the pending alert rows. Always request the full store list for
+      // admins so customer webapp orders appear immediately in the Orders tab.
+      var syncOrdersTick = function () {
+        if (!isAdmin_() || document.hidden) return;
+        try { syncOrdersFromSheet(true); } catch (e) {}
+      };
       tick();
-      _adminPollTimer = setInterval(tick, RING_POLL_MS);
+      syncOrdersTick();
+      _adminPollTimer = setInterval(function () { tick(); syncOrdersTick(); }, RING_POLL_MS);
       // Mobile browsers pause background polling. When the tab/app comes back
       // to the foreground, poll immediately so an order placed meanwhile rings
       // without waiting for the next interval.
@@ -2877,7 +2889,7 @@
         if (!isAdmin_()) { stopAdminOrderPolling_(); return; }
         if (!document.hidden) {
           if (_ringVisibilityTimer) clearTimeout(_ringVisibilityTimer);
-          _ringVisibilityTimer = setTimeout(function () { tick(); }, 300);
+          _ringVisibilityTimer = setTimeout(function () { tick(); syncOrdersTick(); }, 300);
         }
       });
     }
@@ -4240,17 +4252,24 @@
     // Pull orders from the shared Sheet: Telegram (chat/miniapp/ai) + browser
     // (webapp) orders all show up here. The Sheet wins on conflicts because
     // the bot's Admin Panel advances status there.
-    async function syncOrdersFromSheet() {
+    async function syncOrdersFromSheet(forceAdminSync) {
       // Account-wise: query with the logged-in customer's 10-digit phone so a
       // background refresh pulls THEIR orders on every device (the backend
       // filters server-side; the client filter below guarantees it anywhere).
+      // Admin devices always fetch the FULL shared store order list so a
+      // customer's new order appears in the admin panel immediately.
+      var adminSync = forceAdminSync === true || isAdmin_();
       var su = null;
       try { su = getSessionUser(); } catch (e) {}
-      var sessPhone = (su && su.phone) ? String(su.phone).replace(/\D/g, '').slice(-10) : '';
-      var url = sheetHookUrl('action=GET_ORDERS' + (sessPhone ? '&phone=' + encodeURIComponent(sessPhone) : ''));
+      var sessPhone = (!adminSync && su && su.phone)
+        ? String(su.phone).replace(/\D/g, '').slice(-10) : '';
+      var url = sheetHookUrl('action=GET_ORDERS' + (sessPhone ? '&phone=' + encodeURIComponent(sessPhone) : '') + '&_=' + Date.now());
       if (!url) return false;
       try {
-        var res = await fetch(url);
+        var ctrl = new AbortController();
+        var to = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000);
+        var res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(to);
         var data = await res.json();
         var remote = (data && Array.isArray(data.orders)) ? data.orders : [];
         if (sessPhone) {
