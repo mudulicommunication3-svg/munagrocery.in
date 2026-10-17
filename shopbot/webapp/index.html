@@ -1919,7 +1919,24 @@
       // Browser/admin webapp orders: write the Sheet row directly. Telegram
       // Mini App orders are handled by the bot through sendData above.
       if (!sentToBot) {
-        postToSheet({ action: 'create_order', order: orderObj });
+        // Readable POST + server-side row verification: no-cors POSTs can fail
+        // silently after a Sheet setup/redeploy, leaving orders only local.
+        try {
+          postToSheet({ action: 'repair_orders_sheet' });
+          postToSheet({ action: 'create_order', order: orderObj }).then(function (r) {
+            if (r && r.ok && r.json && (r.json.status === 'success' || r.json.type === 'order_recorded')) {
+              try {
+                syncOrdersFromSheet(true).then(function () {
+                  renderAdminSyncStatus_('Order saved to Google Sheet', true);
+                });
+              } catch (e) {}
+            } else {
+              renderAdminSyncStatus_('Sheet order save failed', false);
+            }
+          });
+        } catch (e) {
+          renderAdminSyncStatus_('Sheet order save failed', false);
+        }
       }
       // Alert THIS admin device immediately, then refresh the full admin
       // panel so the new order is present even before the next poll.
@@ -2450,8 +2467,8 @@
       renderProfile(); // toggles the Admin Panel tile + portal buttons
     }
 
-    // A REAL (readable) POST — postToSheet() uses no-cors (opaque), which
-    // cannot return the {ok:true} body we need for auth / password change.
+    // A REAL (readable) POST — postToSheet() now uses the readable path too,
+    // but this helper remains for auth calls that need the same JSON shape.
     // Falls back to a no-cors fire-and-forget only if the readable fetch fails.
     async function adminFetchJson_(payload) {
       var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
@@ -4301,15 +4318,20 @@
     function postToSheet(payload) {
       var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
         || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
-      if (!hook) return;
+      if (!hook) return Promise.resolve({ ok: false, status: 0, url: '', json: null });
       try {
-        fetch(hook, {
+        return fetch(hook, {
           method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
+        }).then(function (res) {
+          return res.json().catch(function () { return { ok: res.ok, status: res.status, url: hook, json: null }; });
+        }).catch(function (e) {
+          return { ok: false, status: 0, url: hook, json: null, error: String((e && e.message) || e) };
         });
-      } catch (e) {}
+      } catch (e) {
+        return Promise.resolve({ ok: false, status: 0, url: hook, json: null, error: String(e && e.message || e) });
+      }
     }
     // Status change (webapp admin) -> shared Sheet -> bot edits the customer's
     // live Telegram status message.
