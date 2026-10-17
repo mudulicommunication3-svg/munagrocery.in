@@ -845,10 +845,20 @@ function ensureSheet_(ss, name, headers) {
   var needHeader = sh.getLastRow() < 1;
   if (!needHeader) {
     var cur = sh.getRange(1, 1, 1, headers.length).getValues()[0];
+    var horizontalMatch = true;
     for (var i = 0; i < headers.length; i++) {
       var val = cur[i] === undefined ? "" : String(cur[i]).trim();
-      if (val !== headers[i]) { needHeader = true; break; }
+      if (val !== headers[i]) { horizontalMatch = false; break; }
     }
+    // Reject vertical headers (same keys stacked in column A) — must be horizontal across Row 1.
+    if (horizontalMatch && sh.getLastRow() > 1) {
+      var colA = sh.getRange(1, 1, sh.getLastRow(), 1).getValues().flat();
+      var nonEmptyA = colA.filter(function (v) { return String(v).trim() !== ""; });
+      if (nonEmptyA.length > 1 && String(nonEmptyA[0]).trim() === headers[0]) {
+        horizontalMatch = false;
+      }
+    }
+    needHeader = !horizontalMatch;
   }
   if (needHeader) {
     sh.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -976,7 +986,7 @@ function orderRow_(o) {
     o.location, o.payment,
     o.delivery_type || "", o.pickup_slot || "", o.pickup_expiry_time || "",
     o.stock_restored || "",
-    o.admin_alert_status || ""
+    o.admin_alert_status || "Unseen"
   ];
 }
 

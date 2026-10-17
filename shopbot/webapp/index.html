@@ -1910,7 +1910,6 @@
         // Readable POST + server-side row verification: no-cors POSTs can fail
         // silently after a Sheet setup/redeploy, leaving orders only local.
         try {
-          postToSheet({ action: 'repair_orders_sheet' });
           postToSheet({ action: 'create_order', order: orderObj }).then(function (r) {
             if (r && r.ok && r.json && (r.json.status === 'success' || r.json.type === 'order_recorded')) {
               try {

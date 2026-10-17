@@ -1911,9 +1911,7 @@
         // style writes can leave orders only in local cache.
         renderAdminSyncStatus_('Saving order to Google Sheet...', true);
         try {
-          var repairP = postToSheet({ action: 'repair_orders_sheet' });
-          var saveP = (repairP && repairP.then ? repairP : Promise.resolve(repairP))
-            .then(function () { return postToSheet({ action: 'create_order', order: orderObj }); })
+          var saveP = postToSheet({ action: 'create_order', order: orderObj })
             .then(function (r) {
               var body = (r && r.json) || {};
               if (r && r.ok && (body.status === 'success' || body.type === 'order_recorded')) {
