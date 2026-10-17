@@ -390,10 +390,10 @@
       <div id="stepPayment" class="hidden">
         <span class="text-xs font-black text-slate-700 block mt-2 mb-1.5">🛍️ ଡେଲିଭରୀ ମାଧ୍ୟମ (Delivery Method)</span>
         <div class="space-y-1.5">
-          <!-- Option 1: Home Delivery (COD / Prepaid) -->
+          <!-- Option 1: Home Delivery (Cash on Delivery only) -->
           <div id="optHomeDelivery" class="rounded-xl border border-slate-200 bg-white p-2.5">
             <div class="text-[11px] font-black text-slate-600 mb-1.5 flex items-center gap-1">
-              <i class="ph-bold ph-house"></i> Home Delivery (Cash on Delivery / Prepaid)
+              <i class="ph-bold ph-house"></i> Home Delivery (Cash on Delivery)
             </div>
             <div class="space-y-1.5" id="payMethodBox">
               <label id="codOptionLabel" class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer">
@@ -405,11 +405,7 @@
               <div id="codNoticeBar" class="hidden text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
                 <i class="ph-bold ph-info"></i> <span id="codNoticeText">Coming Soon</span>
               </div>
-              <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer">
-                <input type="radio" name="payMethod" value="UPI" class="accent-emerald-600">
-                <i class="ph-bold ph-currency-inr text-[#1864ab]"></i>
-                <div><span class="text-xs font-bold block">UPI (pay on delivery)</span><span class="text-[10px] text-slate-500">UPI ଦ୍ୱାରା ପୈଠ</span></div>
-              </label>
+              <!-- UPI option removed — Home Delivery = Cash on Delivery only -->
             </div>
           </div>
 
@@ -1668,21 +1664,19 @@
         var cn = document.getElementById('codNoticeText');
         if (cn) cn.textContent = checkoutPickupCfg.codNotice || 'Coming Soon';
       }
-      // If COD went off while it was selected -> fall back to UPI.
-      var checked = document.querySelector('input[name="payMethod"]:checked');
-      if (!codOn && checked && checked.value === 'COD') {
-        var upi = document.querySelector('input[name="payMethod"][value="UPI"]');
-        if (upi) { upi.checked = true; checked = upi; }
-      }
+      // NOTE: UPI option removed — when COD is OFF there is NO selectable
+      // Home Delivery method: the COD radio simply stays disabled (opacity-50
+      // + cursor-not-allowed) with the admin notice shown, and the customer
+      // can still choose Store Pickup if it's active.
       // Store Pickup visibility + note badge.
       var pkOpt = document.getElementById('optStorePickup');
       if (pkOpt) pkOpt.classList.toggle('hidden', !checkoutPickupCfg.pickupActive);
       var pkBadge = document.getElementById('pickupNoteBadge');
       if (pkBadge) pkBadge.textContent = checkoutPickupCfg.pickupNote || 'Free Pickup';
-      // Pickup OFF while selected -> go back to Home Delivery.
+      // Pickup OFF while selected -> go back to Home Delivery (COD radio).
       var checked2 = document.querySelector('input[name="payMethod"]:checked');
       if (!checkoutPickupCfg.pickupActive && checked2 && checked2.value === 'STORE_PICKUP') {
-        var home = document.getElementById('payCodRadio') || document.querySelector('input[name="payMethod"][value="UPI"]');
+        var home = document.getElementById('payCodRadio');
         if (home && !home.disabled) { home.checked = true; checked2 = home; }
         selectedDeliveryType = 'home';
       }
