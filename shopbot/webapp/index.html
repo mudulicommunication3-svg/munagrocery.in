@@ -1044,6 +1044,10 @@
               <label class="text-[11px] font-bold text-slate-700">New Password (10 digits)</label>
               <input type="password" id="admNewPass" maxlength="10" inputmode="numeric" placeholder="New Password" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
             </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">New Username (10 digits, optional — ଛାଡ଼ିଲେ ପୁରୁଣା ରହିବ)</label>
+              <input type="password" id="admNewUser" maxlength="10" inputmode="numeric" placeholder="New Username (optional)" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            </div>
             <p id="admPassHint" class="hidden text-[11px] font-bold text-rose-600"></p>
             <button onclick="changeAdminPassword()" class="w-full py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1">
               <i class="ph-bold ph-key"></i> Change Admin Password
@@ -1316,21 +1320,104 @@
       });
     }
 
+    // =========================================================================
+    // CART — IN-MEMORY ONLY (no localStorage persistence).
+    // The basket lives in the `cart` variable and is the single source of
+    // truth for this page session. Persistence is delegated to the server:
+    //   * every change -> debounced SAVE_USER_CART POST (see below)
+    //   * every login/app-boot -> hydrateCartFromCloud_() pulls the saved
+    //     basket from the Users sheet (CartJSON column) and REPLACES `cart`.
+    // The legacy localStorage 'munna_cart' key is no longer read or written;
+    // the first load after this change migrates it to the server once and
+    // then purges it so it can never be trusted again.
+    // =========================================================================
     function cacheCart_() {
-      try { localStorage.setItem(uidKey('munna_cart'), JSON.stringify({ items: cart, coupon: appliedCoupon || '' })); } catch (e) {}
+      // No-op kept so existing callers don't break. Cart is not persisted
+      // locally anymore — server sync happens in setQty() / applyCoupon().
+      try { localStorage.removeItem(uidKey('munna_cart')); } catch (e) {}
     }
     function loadCart_() {
+      // One-time migration: if a legacy local basket exists, push it to the
+      // server (so it survives the switch) and then purge the local copy.
       try {
-        var c = JSON.parse(localStorage.getItem(uidKey('munna_cart')) || 'null');
-        if (c) {
-          if (c.items && typeof c.items === 'object') cart = c.items;
-          else if (typeof c === 'object' && !Array.isArray(c)) cart = c; // legacy plain {ean:qty}
-          if (typeof c.coupon === 'string') appliedCoupon = c.coupon;
+        var legacy = JSON.parse(localStorage.getItem(uidKey('munna_cart')) || 'null');
+        if (legacy) {
+          var migrated = (legacy.items && typeof legacy.items === 'object') ? legacy.items : legacy;
+          if (typeof migrated === 'object' && !Array.isArray(migrated)) {
+            Object.keys(migrated).forEach(function (ean) {
+              var q = parseInt(migrated[ean], 10);
+              if (q > 0 && q <= 99) cart[ean] = q;
+            });
+            if (typeof legacy.coupon === 'string') appliedCoupon = legacy.coupon;
+            localStorage.removeItem(uidKey('munna_cart'));
+            scheduleCartSync_(); // push migrated basket to the server
+          }
         }
       } catch (e) {}
+      // Always hydrate from the cloud (logged-in users only; see below).
+      hydrateCartFromCloud_();
     }
     function clearCartCache_() {
       try { localStorage.removeItem(uidKey('munna_cart')); } catch (e) {}
+      cart = {};
+      appliedCoupon = '';
+    }
+    // Replace the in-memory cart with the server's saved basket (source of
+    // truth). Used on login and on app boot when a session already exists.
+    function applyCloudCart_(cloud) {
+      try {
+        if (!cloud || typeof cloud !== 'object' || Array.isArray(cloud)) return false;
+        cart = {};
+        Object.keys(cloud).forEach(function (ean) {
+          var q = parseInt(cloud[ean], 10);
+          if (q > 0) cart[ean] = Math.min(99, q);
+        });
+        updateCartBadge();
+        renderBar();
+        renderCartDrawer();
+        render();
+        return true;
+      } catch (e) { return false; }
+    }
+    // Fetch the logged-in customer's cloud cart (Users-tab CartJSON) and
+    // hydrate the in-memory basket. Uses LOGIN_TOKEN/VALIDATE_TOKEN which
+    // already returns { cart, orders, ... }. Fire-and-forget: a failure here
+    // just means the basket starts empty for this session.
+    var _cartHydrating = false;
+    function hydrateCartFromCloud_() {
+      if (_cartHydrating) return;
+      var s = null;
+      try { s = getSessionUser(); } catch (e) {}
+      if (!s || !s.phone) return;
+      var hook = pwHook_();
+      if (!hook) return;
+      // Prefer token revalidation (returns cart + orders in one round-trip).
+      var body = null;
+      if (s.login_token && s.login_token !== 'local') {
+        body = { action: 'VALIDATE_TOKEN', token: s.login_token };
+      } else {
+        // No token — fall back to GET_ORDERS?phone= which now also returns
+        // the user's cloud cart (see googlesheetwebapp.js GET_ORDERS).
+        var url = sheetHookUrl('action=GET_ORDERS&phone=' + encodeURIComponent(s.phone) + '&_=' + Date.now());
+        if (!url) return;
+        _cartHydrating = true;
+        fetch(url, { cache: 'no-store' })
+          .then(function (r) { return r.json(); })
+          .then(function (d) { if (d && d.cart) applyCloudCart_(d.cart); })
+          .catch(function () {})
+          .then(function () { _cartHydrating = false; });
+        return;
+      }
+      _cartHydrating = true;
+      fetch(hook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(body)
+      }).then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.ok && d.cart) applyCloudCart_(d.cart);
+        }).catch(function () {})
+        .then(function () { _cartHydrating = false; });
     }
     // --- ACCOUNT-WISE CLOUD CART SYNC (multi-device) ---
     // setQty() calls scheduleCartSync_() on every change: a 1.2 s debounce then
@@ -1640,7 +1727,7 @@
         return;
       }
       appliedCoupon = code;
-      cacheCart_();
+      scheduleCartSync_(); // keep server CartJSON consistent (coupon only lives in-memory)
       renderCartDrawer();
       alert('✅ Coupon ଲାଗିଗଲା! Rs.' + money(cartBilling().discount) + ' ଛାଡ଼ ମିଳିଲା।');
     }
@@ -2457,6 +2544,12 @@
     // A REAL (readable) POST — postToSheet() now uses the readable path too,
     // but this helper remains for auth calls that need the same JSON shape.
     // Falls back to a no-cors fire-and-forget only if the readable fetch fails.
+    // adminFetchHasHook_() tells callers whether a webhook URL is even saved,
+    // so the panel can offer the local default login on a blank browser.
+    function adminFetchHasHook_() {
+      try { return ((localStorage.getItem('munna_sheet_webhook') || '').trim() !== ''); }
+      catch (e) { return false; }
+    }
     async function adminFetchJson_(payload) {
       var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
       if (!hook) return null;
@@ -2484,7 +2577,10 @@
     }
     function closeAdminPinModal() { document.getElementById('adminPinModal').classList.add('hidden'); }
 
-    // Verify 10-digit username + password against the Sheet (check_admin_auth).
+    // Verify 10-digit username + password.
+    // Priority 1: local default 1111111111/1111111111 — works EVEN WITH NO
+    // webhook (blank browser, no Google Sheet link, no Python, no PC).
+    // Priority 2: Sheet webhook check_admin_auth (when webhook IS configured).
     async function verifyAdminPin() {
       var uEl = document.getElementById('adminPinInput');
       var pEl = document.getElementById('adminPassInput');
@@ -2495,6 +2591,7 @@
         if (hint) { hint.classList.remove('hidden'); hint.innerText = '❌ ' + msg; }
       }
       if (u.length !== 10 || p.length !== 10) { fail('Username ଓ Password ଦୁଇଟି 10-ଅଙ୍କ ହେବା ଉଚିତ୍।'); return; }
+      // --- Step 1: try the webhook (Sheet) when a webhook URL is saved ---
       var d = await adminFetchJson_({ action: 'check_admin_auth', username: u, password: p });
       var ok = d && (d.ok === true || d.status === 'success');
       if (ok) {
@@ -2502,25 +2599,53 @@
         closeAdminPinModal();
         openAdminDashboard_();
         startAdminOrderPolling_();
-      } else {
-        fail((d && d.error) || 'ଭୁଲ୍ Username / Password! (Sheet webhook ଯାଞ୍ଚ କରନ୍ତୁ)');
+        return;
       }
+      // Webhook OK but rejected? Then the Sheet says NO — respect it.
+      if (d !== null) {
+        fail((d && d.error) || 'ଭୁଲ୍ Username / Password!');
+        return;
+      }
+      // --- Step 2: NO webhook configured -> local default check only ---
+      // d is null = no webhook URL saved in this browser. Accept the built-in
+      // default so the admin can get INSIDE and paste the webhook in Sheets tab.
+      if (u === '1111111111' && p === '1111111111') {
+        setAdminSession_(true);
+        closeAdminPinModal();
+        openAdminDashboard_();
+        setTimeout(function () {
+          try { alert('✅ Default login (1111111111)। ଏବେ Admin → Sheets ଟ୍ୟାବ୍ ରେ Webhook URL ଲଗାନ୍ତୁ, ତା\'ପରେ Sync ଚାପନ୍ତୁ।'); } catch (e) {}
+        }, 400);
+        return;
+      }
+      fail('ଭୁଲ୍ Username / Password! (Default: 1111111111 / 1111111111, କିମ୍ବା Sheet webhook ଲଗାନ୍ତୁ)');
     }
 
     // Change Admin Password (Sheet: update_admin_password).
+    // Pure Apps Script save — no Python, no .env, no PC file needed.
+    // A blank "new username" keeps the old one.
     async function changeAdminPassword() {
       var cur = String(((document.getElementById('admCurPass') || {}).value) || '').replace(/\D/g, '');
       var nw = String(((document.getElementById('admNewPass') || {}).value) || '').replace(/\D/g, '');
+      var nu = String(((document.getElementById('admNewUser') || {}).value) || '').replace(/\D/g, '');
       var hint = document.getElementById('admPassHint');
-      function fail(msg) { if (hint) { hint.classList.remove('hidden'); hint.innerText = '❌ ' + msg; } }
+      function fail(msg) { if (hint) { hint.classList.remove('hidden'); hint.style.color = ''; hint.innerText = '❌ ' + msg; } }
       function okMsg(msg) { if (hint) { hint.classList.remove('hidden'); hint.style.color = '#059669'; hint.innerText = '✅ ' + msg; } }
       if (hint) hint.style.color = '';
       if (cur.length !== 10 || nw.length !== 10) { fail('Current ଓ New ଦୁଇଟି 10-ଅଙ୍କ ହେବା ଉଚିତ୍।'); return; }
-      var d = await adminFetchJson_({ action: 'update_admin_password', currentPassword: cur, newPassword: nw });
+      if (nu.length !== 0 && nu.length !== 10) { fail('New Username (ଦେଲେ) 10-ଅଙ୍କ ହେବା ଉଚିତ୍।'); return; }
+      var payload = { action: 'update_admin_password', currentPassword: cur, newPassword: nw };
+      if (nu.length === 10) payload.newUsername = nu;
+      if (!adminFetchHasHook_()) {
+        fail('ପ୍ରଥମେ Admin → Sheets ଟ୍ୟାବ୍ ରେ Webhook URL ଲଗାନ୍ତୁ (କିମ୍ବା 1111111111 default ରେ login କରନ୍ତୁ)।');
+        return;
+      }
+      var d = await adminFetchJson_(payload);
       if (d && (d.ok === true || d.status === 'success')) {
         okMsg('Password ବଦଳିଗଲା!');
         var c1 = document.getElementById('admCurPass'); if (c1) c1.value = '';
         var c2 = document.getElementById('admNewPass'); if (c2) c2.value = '';
+        var c3 = document.getElementById('admNewUser'); if (c3) c3.value = '';
       } else {
         fail((d && d.error) || 'Password ବଦଳିଲା ନାହିଁ।');
       }
@@ -4172,8 +4297,27 @@
     // --- LOCAL STORAGE HELPERS ---
     function getTgUser() { try { return (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null; } catch (e) { return null; } }
     function uidKey(base) { var u = getTgUser(); return base + '_' + (u && u.id ? u.id : 'anon'); }
-    function getAddresses() { try { return JSON.parse(localStorage.getItem(uidKey('munna_addresses')) || '[]'); } catch(e){ return []; } }
-    function setAddresses(a) { try { localStorage.setItem(uidKey('munna_addresses'), JSON.stringify(a)); } catch(e){} }
+    // =========================================================================
+    // ADDRESSES — IN-MEMORY ONLY (no localStorage persistence).
+    // `_addresses` is populated by syncAddressesFromSheet() (GET_ADDRESSES on
+    // the Apps Script backend). The legacy localStorage 'munna_addresses' key
+    // is migrated once on first read, then purged, so it is never trusted
+    // after that.
+    // =========================================================================
+    var _addresses = [];
+    var _addressesMigrated = false;
+    function getAddresses() {
+      if (!_addressesMigrated) {
+        _addressesMigrated = true;
+        try {
+          var legacy = JSON.parse(localStorage.getItem(uidKey('munna_addresses')) || '[]') || [];
+          if (legacy.length) _addresses = legacy;
+        } catch (e) {}
+        try { localStorage.removeItem(uidKey('munna_addresses')); } catch (e2) {}
+      }
+      return _addresses;
+    }
+    function setAddresses(a) { _addresses = a || []; }
     // --- UNIFIED ORDER MODEL (same format as the Telegram bot's Google Sheet) ---
     // Orders tab: Timestamp | Order ID | Customer Name | Phone | Address |
     // Items | Total | Channel | Telegram User ID | Status | Status Msg ID |
@@ -4275,13 +4419,36 @@
         status_msg_id: o.status_msg_id || ''
       };
     }
+    // =========================================================================
+    // ORDERS — IN-MEMORY ONLY (no localStorage persistence).
+    // `getMyOrders()` always returns a fresh normalized list from the
+    // in-memory `_allOrders` array, which is populated exclusively by
+    // syncOrdersFromSheet() (GET_ORDERS on the Apps Script backend) and by
+    // LOGIN_PASSWORD / VALIDATE_TOKEN responses (mergeOrdersFromBackend_).
+    // The legacy localStorage 'MUNA_ALL_ORDERS' cache is no longer trusted:
+    // the first load after this change migrates it to memory once, then the
+    // very next successful server sync overwrites it and purges the key.
+    // =========================================================================
+    var _allOrders = [];
+    var _ordersMigrated = false;
     function getMyOrders() {
-      try {
-        return (JSON.parse(localStorage.getItem('MUNA_ALL_ORDERS') || '[]') || [])
-          .map(normalizeOrder).filter(Boolean);
-      } catch (e) { return []; }
+      // One-time migration from the legacy localStorage cache so an existing
+      // user's history is not blank for the split-second before the first
+      // GET_ORDERS response lands. It is never re-read after this.
+      if (!_ordersMigrated) {
+        _ordersMigrated = true;
+        try {
+          var legacy = JSON.parse(localStorage.getItem('MUNA_ALL_ORDERS') || '[]') || [];
+          if (legacy.length) _allOrders = legacy.map(normalizeOrder).filter(Boolean);
+        } catch (e) {}
+        // Purge the key so it can never be trusted again on this device.
+        try { localStorage.removeItem('MUNA_ALL_ORDERS'); } catch (e2) {}
+      }
+      return _allOrders.map(normalizeOrder).filter(Boolean);
     }
-    function setMyOrders(o) { try { localStorage.setItem('MUNA_ALL_ORDERS', JSON.stringify(o)); } catch(e){} }
+    function setMyOrders(o) {
+      _allOrders = (o || []).map(normalizeOrder).filter(Boolean);
+    }
 
 
     function sendToBot(payload) {
@@ -4396,19 +4563,23 @@
           }
         }
         if (!remote.length) return false;
-        var byId = {};
-        getMyOrders().forEach(function (o) { byId[o.order_id] = o; });
-        remote.forEach(function (r) {
-          var n = normalizeOrder(r);
-          if (n) byId[n.order_id] = n;
-        });
-        var merged = Object.keys(byId).map(function (k) { return byId[k]; })
-          .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
-        setMyOrders(merged);
+        var normalized = remote.map(normalizeOrder).filter(Boolean);
         if (adminSync) {
+          // Admin: MERGE into the current list so the panel keeps any
+          // not-yet-persisted local edits (reject/qty changes) across polls.
+          var byId = {};
+          getMyOrders().forEach(function (o) { byId[o.order_id] = o; });
+          normalized.forEach(function (n) { byId[n.order_id] = n; });
+          setMyOrders(Object.keys(byId).map(function (k) { return byId[k]; })
+            .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }));
           _lastSyncReason = '';
           _lastServerSyncOkAt = Date.now();
           renderAdminSyncStatus_('Live orders synced', true);
+        } else {
+          // Customer: REPLACE the in-memory list with the server result.
+          // The sheet is the single source of truth — no local cache merge,
+          // so a stale list can never mask a newer server status.
+          setMyOrders(normalized);
         }
         var os = document.getElementById('ordersScreen');
         if (os && !os.classList.contains('hidden')) renderOrders();
@@ -4506,32 +4677,39 @@
       return pushConfigToSheet('banners', JSON.stringify(banners.slice(0, 5))) !== false;
     }
 
-    // Pull the customer's saved address from the bot (bot checkout / SAVE_ADDRESS).
+    // Pull the customer's saved addresses from the Sheet (Addresses tab).
+    // Works for BOTH Telegram users (user_id) and phone-only web sessions
+    // (phone param). The server result REPLACES the in-memory list so the
+    // sheet stays the single source of truth (see getAddresses/setAddresses).
     async function syncAddressesFromSheet() {
       var u = getTgUser();
-      if (!u || !u.id) return false;
-      var url = sheetHookUrl('action=GET_ADDRESSES&user_id=' + encodeURIComponent(u.id));
+      var s = null;
+      try { s = getSessionUser(); } catch (e) {}
+      var userId = (u && u.id) ? String(u.id) : '';
+      var phone = (s && s.phone) ? String(s.phone).replace(/\D/g, '').slice(-10) : '';
+      if (!userId && !phone) return false;
+      var qs = 'action=GET_ADDRESSES';
+      if (userId) qs += '&user_id=' + encodeURIComponent(userId);
+      if (phone) qs += '&phone=' + encodeURIComponent(phone);
+      var url = sheetHookUrl(qs);
       if (!url) return false;
       try {
-        var res = await fetch(url);
+        var res = await fetch(url, { cache: 'no-store' });
         var data = await res.json();
         var remote = (data && Array.isArray(data.addresses)) ? data.addresses : [];
         if (!remote.length) return false;
-        var a = remote[0];
-        var local = getAddresses();
-        var match = null;
-        if (String(a.phone || '').trim()) {
-          match = local.filter(function (x) { return String(x.phone || '').trim() === String(a.phone).trim(); })[0] || null;
-        }
-        if (match) {
-          match.name = a.name || match.name;
-          match.phone = a.phone || match.phone;
-          match.address = a.address || match.address;
-        } else {
-          match = { id: 'A' + Date.now(), name: a.name || '', phone: a.phone || '', address: a.address || '' };
-          local.unshift(match);
-        }
-        local.forEach(function (x) { x.isDefault = (x === match); });
+        // Replace the in-memory list with the server's saved addresses,
+        // normalized into the client's { id, name, phone, address, isDefault } shape.
+        var local = remote.map(function (a, i) {
+          return {
+            id: 'A' + i + '_' + Date.now(),
+            name: a.name || '',
+            phone: a.phone || '',
+            address: a.address || '',
+            isDefault: false
+          };
+        });
+        if (local.length) local[0].isDefault = true;
         setAddresses(local);
         var al = document.getElementById('addressScreen');
         if (al && !al.classList.contains('hidden')) renderAddressList();
@@ -5317,16 +5495,11 @@
       if (Array.isArray(user.orders) && user.orders.length) mergeOrdersFromBackend_(user.orders);
       // 2. Persist the backend's saved address into munna_addresses + checkout.
       if (u.address) saveProfileAddress_(u);
-      // 2b. Restore the CLOUD CART (account-wise sync): merge the basket saved
-      //     on another device into the local cart, persist + refresh badge,
-      //     floating bar, render() and drawer so this device shows the same
-      //     basket immediately.
+      // 2b. Restore the CLOUD CART (account-wise sync): the server's saved
+      //     basket is the source of truth, so REPLACE the in-memory cart and
+      //     refresh badge, floating bar, render() and drawer.
       if (user.cart && typeof user.cart === 'object' && !Array.isArray(user.cart)) {
-        mergeCloudCart_(user.cart);
-        render();
-        renderBar();
-        updateCartBadge();
-        renderCartDrawer();
+        applyCloudCart_(user.cart);
       }
       // 3. Session -> 'active_store_user' + 'MUNA_USER_SESSION', header "Name ✓",
       //    close modal, sync Users tab, prefill checkout, success alert.
@@ -5339,28 +5512,8 @@
       showScreen('home');
     }
 
-    // Merge the account's cloud cart { ean: qty } into the active cart. Local
-    // wins on conflicts (this device was used last); cloud only fills gaps.
-    // Persists via cacheCart_() and refreshes the badge + drawer.
-    function mergeCloudCart_(cloud) {
-      try {
-        if (!cloud || typeof cloud !== 'object' || Array.isArray(cloud)) return false;
-        Object.keys(cloud).forEach(function (ean) {
-          var q = parseInt(cloud[ean], 10);
-          if (!(q > 0)) return;
-          if (q > 99) q = 99;
-          var local = parseInt(cart[ean], 10);
-          if (!(local > 0)) cart[ean] = q;
-        });
-        cacheCart_();
-        updateCartBadge();
-        renderCartDrawer();
-        return true;
-      } catch (e) { return false; }
-    }
-
-    // Merge backend order history into MUNA_ALL_ORDERS (dedup by order_id) and
-    // refresh the Orders tab / 5-stage stepper if it is currently visible.
+    // Merge backend order history into the in-memory _allOrders (dedup by
+    // order_id) and refresh the Orders tab / 5-stage stepper if visible.
     function mergeOrdersFromBackend_(remote) {
       try {
         if (!Array.isArray(remote) || !remote.length) return false;

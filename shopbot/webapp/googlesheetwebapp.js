@@ -61,16 +61,13 @@ function nowStamp_() {
 }
 
 // =========================================================================
-// Admin credentials: Script Properties -> Config tab -> built-in default.
-// The REAL values live in shopbot/.env (ADMIN_USERNAME / ADMIN_PASSWORD,
-// git-ignored). Mirror the same two values into this Apps Script project via
-// Project Settings -> Script Properties (ADMIN_USERNAME / ADMIN_PASSWORD).
-// The Config tab keys ADMIN_USERNAME / ADMIN_PASSWORD are the fallback /
-// runtime store (Change Password writes there). Script Properties win when
-// both exist, so redeploying never locks you out after a Sheet password
-// change — clear the property to go back to the Sheet value.
-// Defaults: both "1111111111" (10 digits). Seeded on first read so a brand
-// new Sheet immediately accepts the documented defaults.
+// Admin credentials: default 1111111111 / 1111111111.
+// NO Python/PC dependency: login is verified entirely by this Apps Script.
+// Resolution order:
+//   1. Script Properties (ADMIN_USERNAME / ADMIN_PASSWORD) — optional override,
+//      only if you set them in Apps Script -> Project Settings.
+//   2. Sheet Config tab — written by the panel's Change Password.
+//   3. Built-in default 1111111111 / 1111111111 — always works out of the box.
 // =========================================================================
 var DEFAULT_ADMIN_USER = "1111111111";
 var DEFAULT_ADMIN_PASS = "1111111111";
@@ -112,7 +109,12 @@ function getAdminPass_(ss) {
   return v;
 }
 
+// Persist a single admin credential into the Config tab (best effort).
+
 // checkAdminAuth(username, password) -> { ok:true } | { ok:false, error }
+// Pure Apps Script: compares against ADMIN_USERNAME / ADMIN_PASSWORD from
+// Script Properties (optional override) -> Config tab -> default 1111111111.
+// NO Python / PC / .env / network call. Always works, even on a blank browser.
 function checkAdminAuth_(ss, data) {
   var u = tenDigits_(data && data.username);
   var p = tenDigits_(data && data.password);
@@ -125,8 +127,8 @@ function checkAdminAuth_(ss, data) {
   return { ok: false, success: false, error: "ଭୁଲ୍ Username / Password!" };
 }
 
-// updateAdminPassword(currentPassword, newPassword10Digit) -> updates the
-// ADMIN_PASSWORD cell in the Config tab. Both must be exactly 10 digits.
+// updateAdminPassword(currentPassword, newPassword10Digit[, newUsername]) ->
+// saves into Config tab (+ Script Properties). Pure Apps Script, no PC file.
 function updateAdminPassword_(ss, data) {
   var cur = tenDigits_(data && data.currentPassword);
   var nw = tenDigits_(data && data.newPassword);
@@ -137,6 +139,14 @@ function updateAdminPassword_(ss, data) {
     return { ok: false, success: false, error: "Current password ଭୁଲ୍ ଅଛି।" };
   }
   saveConfig_(ss, "ADMIN_PASSWORD", nw);
+  try { PropertiesService.getScriptProperties().setProperty("ADMIN_PASSWORD", nw); } catch (eProp) {}
+  // Optional username reset in the same call (10 digits). Old panels never
+  // send newUsername, so it is simply ignored then.
+  var nwUser = tenDigits_(data && data.newUsername);
+  if (nwUser) {
+    saveConfig_(ss, "ADMIN_USERNAME", nwUser);
+    try { PropertiesService.getScriptProperties().setProperty("ADMIN_USERNAME", nwUser); } catch (eProp2) {}
+  }
   return { ok: true, success: true, status: "success" };
 }
 
@@ -193,15 +203,36 @@ function doGet(e) {
       }
       ordOut = ordFilt;
     }
-    return jsonResponse({ status: "success", orders: ordOut, sheet_ready: true });
+    // Account-wise cart hydrate: ?phone= also returns that customer's current
+    // cloud cart (Users-tab CartJSON) so the client can rehydrate its
+    // in-memory basket WITHOUT a second round-trip or trusting localStorage.
+    var ordCart = null;
+    if (ordPhone) {
+      try {
+        var ordUserRow = findUserRow_(ss, ordPhone);
+        if (ordUserRow) ordCart = parseUserCart_(ordUserRow.vals[USERS_HEADERS.length - 1]);
+      } catch (eCart) { ordCart = null; }
+    }
+    return jsonResponse({
+      status: "success", orders: ordOut, sheet_ready: true, cart: ordCart
+    });
   }
 
   // ବିକଳ୍ପ C: Addresses tab -> webapp ରେ bot ର ସେଭ୍ କରାଯାଇଥିବା ଠିକଣା ଆସିବ
+  // Accepts ?user_id=<telegram id> OR ?phone=<10-digit> (web-only customers
+  // have no Telegram id but still save addresses via checkout).
   if (params && params.action === "GET_ADDRESSES") {
-    return jsonResponse({
-      status: "success",
-      addresses: readAddresses_(ss, params.user_id || "")
-    });
+    var addrOut = readAddresses_(ss, params.user_id || "");
+    if (!addrOut.length && params.phone) {
+      var addrPhone = sanitizePhone_(params.phone);
+      if (addrPhone) {
+        var addrAll = readAddresses_(ss, "");
+        for (var addrI = 0; addrI < addrAll.length; addrI++) {
+          if (sanitizePhone_(addrAll[addrI].phone) === addrPhone) addrOut.push(addrAll[addrI]);
+        }
+      }
+    }
+    return jsonResponse({ status: "success", addresses: addrOut });
   }
 
   // ବିକଳ୍ପ C1: Users -> admin panel ର "ସମସ୍ତ ଗ୍ରାହକ" ଟ୍ୟାବ୍ (Orders + Addresses ରୁ unique)
@@ -629,16 +660,32 @@ function doPost(e) {
     if (data.action === "VALIDATE_TOKEN") { return jsonResponse(validateToken_(ss, data)); }
     if (data.action === "SAVE_USER_CART") { return jsonResponse(saveUserCart_(ss, data)); }
 
-    // Admin authentication (10-digit username + password, Config tab).
+    // Admin authentication (10-digit username + password).
     //   {"action":"check_admin_auth","username":"...","password":"..."}
-    //   {"action":"update_admin_password","currentPassword":"...","newPassword":"..."}
-    // NOTE: both MUST return a readable JSON body, so the webapp calls them
+    //   {"action":"update_admin_password","currentPassword":"...","newPassword":"...","newUsername":"..."}
+    //   {"action":"update_admin_username","currentPassword":"...","newUsername":"..."}
+    // NOTE: all MUST return a readable JSON body, so the webapp calls them
     // with a normal (non no-cors) fetch — see adminFetchJson_().
     if (data.action === "check_admin_auth") {
       return jsonResponse(checkAdminAuth_(ss, data));
     }
     if (data.action === "update_admin_password") {
       return jsonResponse(updateAdminPassword_(ss, data));
+    }
+    // Admin USERNAME reset (same Config tab + Script Properties persistence).
+    //   {"action":"update_admin_username","currentPassword":"...","newUsername":"..."}
+    if (data.action === "update_admin_username") {
+      var nwUserOnly = tenDigits_(data && data.newUsername);
+      var curForUser = tenDigits_(data && data.currentPassword);
+      if (!nwUserOnly) {
+        return jsonResponse({ ok: false, success: false, error: "New username 10-ଅଙ୍କ ହେବା ଉଚିତ୍।" });
+      }
+      if (curForUser !== getAdminPass_(ss)) {
+        return jsonResponse({ ok: false, success: false, error: "Current password ଭୁଲ୍ ଅଛି।" });
+      }
+      saveConfig_(ss, "ADMIN_USERNAME", nwUserOnly);
+      try { PropertiesService.getScriptProperties().setProperty("ADMIN_USERNAME", nwUserOnly); } catch (eU) {}
+      return jsonResponse({ ok: true, success: true, status: "success" });
     }
 
     // Multi-admin ring sync: mark an order's AdminAlertStatus so every other
