@@ -37,6 +37,40 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<!-- Service worker: live order alert notification channel + offline shell -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+  window.munnaShowOrderNotification = function (title, body) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+    try {
+      var tag = 'munna-new-order';
+      var n = new Notification(title, {
+        body: body,
+        icon: 'icon-192.png',
+        badge: 'icon-192.png',
+        tag: tag,
+        requireInteraction: true,
+        renotify: true
+      });
+      n.onclick = function () { window.focus(); n.close(); };
+      return true;
+    } catch (e) { return false; }
+  };
+  window.munnaRequestOrderNotifications = function () {
+    if (!('Notification' in window) || Notification.permission === 'denied') return Promise.resolve(false);
+    if (Notification.permission === 'granted') return Promise.resolve(true);
+    try { return Notification.requestPermission().then(function (p) { return p === 'granted'; }).catch(function () { return false; }); }
+    catch (e) { return Promise.resolve(false); }
+  };
+</script>
+
+<!-- Telegram WebApp SDK -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
 
 <!-- Leaflet.js for 3 KM Delivery Zone Map -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -1855,8 +1889,14 @@
         total: total,
         order: orderObj
       });
+      // New order also rings the same device immediately, so a browser order
+      // never waits for the bot's Telegram sync before the admin hears it.
+      // Telegram orders keep their existing bot alert as a second channel.
       if (!sentToBot) {
         postToSheet({ action: 'create_order', order: orderObj });
+        _seenAlertIds[orderObj.order_id] = 1;
+        _knownOrderIds[orderObj.order_id] = 1;
+        if (isAdmin_()) showNewOrderAlert_(orderObj);
       }
 
       // FULL payable bill (items + delivery − coupon) on the success screen.
@@ -2614,12 +2654,26 @@
     // its ring on the next poll. The modal auto-dismisses after 15 s.
     // ====================================================================
     var RING_SECONDS = 15;
-    var RING_POLL_MS = 5500;           // poll every ~5.5 s (spec: 5-8 s)
+    var RING_POLL_MS = 4500;           // faster ~4.5 s polling for live orders
     var _ringCtx = null, _ringOsc = null, _ringGain = null;
-    var _ringTimer = null, _ringCountdown = null, _ringStopAt = 0;
-    var _adminPollTimer = null;
+    var _ringTimer = null, _ringCountdown = null, _ringStopAt = 0, _ringVisibilityTimer = null;
+    var _adminPollTimer = null, _adminPollBusy = false, _adminPollErrors = 0;
     var _activeNewOrderId = '';        // order id currently shown in the modal
     var _seenAlertIds = {};            // order ids already alerted on THIS device
+    var _knownOrderIds = {};            // fallback: every order already seen on this device
+
+    function vibrateNewOrder_() {
+      try {
+        if (!navigator.vibrate) return;
+        navigator.vibrate([500, 250, 500, 250, 700]);
+      } catch (e) {}
+    }
+
+    function showBrowserNewOrderNotice_(o) {
+      var msg = (o.customer_name || 'Customer') + ' · Rs.' + money(o.total || 0) +
+        (String(o.delivery_type || '') === 'Store Pickup' ? ' · Store Pickup' : ' · Home Delivery');
+      try { if (window.munnaShowOrderNotification) window.munnaShowOrderNotification('🚨 New Order #' + (o.order_id || ''), msg); } catch (e) {}
+    }
 
     function startRing_() {
       stopRing_(); // never stack oscillators
@@ -2695,6 +2749,9 @@
         set('newOrderSlot', o.pickup_slot || '');
       }
       document.getElementById('newOrderAlertModal').classList.remove('hidden');
+      try { window.munnaRequestOrderNotifications && window.munnaRequestOrderNotifications(); } catch (e) {}
+      vibrateNewOrder_();
+      showBrowserNewOrderNotice_(o);
       startRing_();
       // Auto-dismiss after 15 s if nobody acts (ring also stops then).
       setTimeout(function () {
@@ -2749,16 +2806,28 @@
       } catch (e) {}
     }
 
-    // Poll GET_UNSEEN_ORDERS every ~5.5 s while an admin session is active.
+    // Poll GET_UNSEEN_ORDERS every ~4.5 s while an admin session is active.
+    // Polling continues even while the dashboard is closed; it pauses only in
+    // a hidden tab (Android/iOS browsers freeze background timers anyway) and
+    // resumes instantly when the tab/app becomes visible again.
     function startAdminOrderPolling_() {
+      if (!isAdmin_()) return;
+      if (!isAdmin_()) return;
       if (_adminPollTimer) return; // already running
       var tick = async function () {
         if (!isAdmin_()) { stopAdminOrderPolling_(); return; }
-        var url = sheetHookUrl('action=GET_UNSEEN_ORDERS&_=' + Date.now());
-        if (!url) return;
+        if (document.hidden) return;
+        if (_adminPollBusy) return;
+        _adminPollBusy = true;
         try {
-          var res = await fetch(url);
+          var url = sheetHookUrl('action=GET_UNSEEN_ORDERS&_=' + Date.now());
+          if (!url) return;
+          var ctrl = new AbortController();
+          var to = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 7000);
+          var res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+          clearTimeout(to);
           var data = await res.json();
+          _adminPollErrors = 0;
           var list = (data && Array.isArray(data.orders)) ? data.orders : [];
           // Drop anything this device already alerted or that was Reviewed.
           var fresh = list.filter(function (r) {
@@ -2766,6 +2835,7 @@
             if (!id || _seenAlertIds[id]) return false;
             if (String(r.admin_alert_status || '').trim() === 'Reviewed') return false;
             if (String(r.status || '').toLowerCase() !== 'pending') return false;
+            if (_activeNewOrderId && id === _activeNewOrderId) return false; // keep current modal stable
             return true;
           });
           // Another admin already acted (Reviewed) -> stop our ring too.
@@ -2778,6 +2848,7 @@
             var target = normalizeOrder(fresh[0]);
             if (target) {
               _seenAlertIds[String(target.order_id)] = 1;
+              _knownOrderIds[String(target.order_id)] = 1;
               // Merge into local cache so the admin Orders tab sees it.
               try {
                 var byId = {};
@@ -2790,10 +2861,25 @@
               if (dashEl && !dashEl.classList.contains('hidden')) renderAdminOrders();
             }
           }
-        } catch (e) { /* transient network error — keep polling */ }
+        } catch (e) {
+          // transient network error — retry with the normal interval
+          _adminPollErrors++;
+        } finally {
+          _adminPollBusy = false;
+        }
       };
       tick();
       _adminPollTimer = setInterval(tick, RING_POLL_MS);
+      // Mobile browsers pause background polling. When the tab/app comes back
+      // to the foreground, poll immediately so an order placed meanwhile rings
+      // without waiting for the next interval.
+      document.addEventListener('visibilitychange', function () {
+        if (!isAdmin_()) { stopAdminOrderPolling_(); return; }
+        if (!document.hidden) {
+          if (_ringVisibilityTimer) clearTimeout(_ringVisibilityTimer);
+          _ringVisibilityTimer = setTimeout(function () { tick(); }, 300);
+        }
+      });
     }
     function stopAdminOrderPolling_() {
       if (_adminPollTimer) { clearInterval(_adminPollTimer); _adminPollTimer = null; }
