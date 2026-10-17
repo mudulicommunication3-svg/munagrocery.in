@@ -5,7 +5,8 @@
 // ONE unified Orders format (17 columns, must match db.ORDERS_HEADERS):
 //   Timestamp | Order ID | Customer Name | Phone | Address | Items | Total |
 //   Channel | Telegram User ID | Status | Status Msg ID | Location | Payment |
-//   DeliveryType | PickupSlot | PickupExpiryTime | StockRestored
+//   DeliveryType | PickupSlot | PickupExpiryTime | StockRestored |
+//   AdminAlertStatus
 //
 // Items text format (same as the bot): "Oil x2 @ Rs.340; Salt x1 @ Rs.25"
 // Channel: "webapp" (browser), "chat"/"miniapp"/"ai" (Telegram bot)
@@ -16,10 +17,16 @@
 //   when the order is written and RESTORED when it is Rejected or when the
 //   expiry passes without being Delivered (see checkPickupExpiries).
 // StockRestored: "" (not applicable / still held) | "Y" (stock given back)
+// AdminAlertStatus: "" | "Unseen" (new pending order, no admin has rung it
+//   yet) | "Reviewed" (some admin tapped Accept/Reject/Review — every other
+//   open admin device stops its 15 s ring on the next poll).
 //
-// doGet  actions: SEARCH_JIOMART | GET_ORDERS | GET_ADDRESSES | GET_USERS | GET_CONFIG | (catalog)
+// doGet  actions: SEARCH_JIOMART | GET_ORDERS | GET_UNSEEN_ORDERS |
+//                 GET_ADDRESSES | GET_USERS | GET_CONFIG | (catalog)
 // doPost actions: create_order | update_order_status | update_order_bill |
-//                 restore_pickup_stock | save_address | SAVE_CONFIG |
+//                 update_order_alert | restore_pickup_stock |
+//                 check_admin_auth | update_admin_password |
+//                 save_address | SAVE_CONFIG |
 //                 EDIT_PRODUCT | ADD_PRODUCT |
 //                 REGISTER_USER | LOGIN_PASSWORD | LOGIN_TOKEN |
 //                 VALIDATE_TOKEN | SYNC_USER | SAVE_USER_CART | PUT_SEARCH
@@ -29,7 +36,7 @@ var ORDER_HEADERS = [
   "Timestamp", "Order ID", "Customer Name", "Phone", "Address", "Items",
   "Total", "Channel", "Telegram User ID", "Status", "Status Msg ID",
   "Location", "Payment", "DeliveryType", "PickupSlot", "PickupExpiryTime",
-  "StockRestored"
+  "StockRestored", "AdminAlertStatus"
 ];
 var ADDR_HEADERS = [
   "Telegram User ID", "Name", "Address", "Phone", "Location", "Updated At"
@@ -51,6 +58,67 @@ function nowStamp_() {
   } catch (e) {
     return new Date().toISOString().replace("T", " ").substring(0, 19);
   }
+}
+
+// =========================================================================
+// Admin credentials (Config tab: ADMIN_USERNAME / ADMIN_PASSWORD).
+// Defaults: both "1111111111" (10 digits). Seeded on first read so a brand
+// new Sheet immediately accepts the documented defaults.
+// =========================================================================
+var DEFAULT_ADMIN_USER = "1111111111";
+var DEFAULT_ADMIN_PASS = "1111111111";
+
+function tenDigits_(v) {
+  var d = String(v == null ? "" : v).replace(/\D/g, "");
+  return d.length === 10 ? d : "";
+}
+
+function getAdminUser_(ss) {
+  var cfg = readConfig_(ss);
+  var v = tenDigits_(cfg.ADMIN_USERNAME);
+  if (!v) {
+    saveConfig_(ss, "ADMIN_USERNAME", DEFAULT_ADMIN_USER);
+    return DEFAULT_ADMIN_USER;
+  }
+  return v;
+}
+
+function getAdminPass_(ss) {
+  var cfg = readConfig_(ss);
+  var v = tenDigits_(cfg.ADMIN_PASSWORD);
+  if (!v) {
+    saveConfig_(ss, "ADMIN_PASSWORD", DEFAULT_ADMIN_PASS);
+    return DEFAULT_ADMIN_PASS;
+  }
+  return v;
+}
+
+// checkAdminAuth(username, password) -> { ok:true } | { ok:false, error }
+function checkAdminAuth_(ss, data) {
+  var u = tenDigits_(data && data.username);
+  var p = tenDigits_(data && data.password);
+  if (!u || !p) {
+    return { ok: false, success: false, error: "Username ଓ Password ଦୁଇଟି 10-ଅଙ୍କ ହେବା ଉଚିତ୍।" };
+  }
+  if (u === getAdminUser_(ss) && p === getAdminPass_(ss)) {
+    return { ok: true, success: true, status: "success", username: u };
+  }
+  return { ok: false, success: false, error: "ଭୁଲ୍ Username / Password!" };
+}
+
+// updateAdminPassword(currentPassword, newPassword10Digit) -> updates the
+// ADMIN_PASSWORD cell in the Config tab. Both must be exactly 10 digits.
+function updateAdminPassword_(ss, data) {
+  var cur = tenDigits_(data && data.currentPassword);
+  var nw = tenDigits_(data && data.newPassword);
+  if (!nw) {
+    return { ok: false, success: false, error: "New password 10-ଅଙ୍କ ହେବା ଉଚିତ୍।" };
+  }
+  if (cur !== getAdminPass_(ss)) {
+    return { ok: false, success: false, error: "Current password ଭୁଲ୍ ଅଛି।" };
+  }
+  saveConfig_(ss, "ADMIN_PASSWORD", nw);
+  return { ok: true, success: true, status: "success" };
 }
 
 // =========================================================================
@@ -124,6 +192,24 @@ function doGet(e) {
   // set କଲେ ପ୍ରତି ଫୋନ୍ ରେ ଦେଖାଯିବ।
   if (params && params.action === "GET_CONFIG") {
     return jsonResponse({ status: "success", config: readConfig_(ss) });
+  }
+
+  // ବିକଳ୍ପ E: 15-second ringing alert poll — pending orders whose
+  // AdminAlertStatus is still "Unseen" (or "" = legacy row never triaged).
+  // Returned to every logged-in admin device; the first one to tap
+  // Accept/Reject/Review writes "Reviewed" so the others stop ringing.
+  if (params && params.action === "GET_UNSEEN_ORDERS") {
+    try { checkPickupExpiries_(ss); } catch (eExp2) {}
+    var unseen = [];
+    var allOrders = readAllOrders_(ss);
+    for (var ui = 0; ui < allOrders.length; ui++) {
+      var uo = allOrders[ui];
+      if (String(uo.status || "").toLowerCase() !== "pending") continue;
+      var aas = String(uo.admin_alert_status || "").trim();
+      if (aas === "Reviewed") continue;
+      unseen.push(uo);
+    }
+    return jsonResponse({ status: "success", orders: unseen });
   }
 
   // ବିକଳ୍ପ D: Sheet1 ରୁ କାଟାଲଗ୍ ପଢ଼ିବା
@@ -518,6 +604,33 @@ function doPost(e) {
     if (data.action === "VALIDATE_TOKEN") { return jsonResponse(validateToken_(ss, data)); }
     if (data.action === "SAVE_USER_CART") { return jsonResponse(saveUserCart_(ss, data)); }
 
+    // Admin authentication (10-digit username + password, Config tab).
+    //   {"action":"check_admin_auth","username":"...","password":"..."}
+    //   {"action":"update_admin_password","currentPassword":"...","newPassword":"..."}
+    // NOTE: both MUST return a readable JSON body, so the webapp calls them
+    // with a normal (non no-cors) fetch — see adminFetchJson_().
+    if (data.action === "check_admin_auth") {
+      return jsonResponse(checkAdminAuth_(ss, data));
+    }
+    if (data.action === "update_admin_password") {
+      return jsonResponse(updateAdminPassword_(ss, data));
+    }
+
+    // Multi-admin ring sync: mark an order's AdminAlertStatus so every other
+    // open admin device stops its 15 s audio ring on the next poll.
+    //   {"action":"update_order_alert","order_id":"MUN-...","alert":"Reviewed"}
+    if (data.action === "update_order_alert") {
+      var aSh = ensureSheet_(ss, "Orders", ORDER_HEADERS);
+      var aRow = findOrderRow_(aSh, String(data.order_id || ""));
+      if (aRow < 1) {
+        return jsonResponse({ status: "error", error: "Order not found" });
+      }
+      var alertVal = String(data.alert || "Reviewed").trim() || "Reviewed";
+      aSh.getRange(aRow, 18).setValue(alertVal); // AdminAlertStatus
+      return jsonResponse({ status: "success", type: "alert_updated",
+        order_id: String(data.order_id), alert: alertVal });
+    }
+
     // ବିକଳ୍ପ A0: Bot-PC search bus — webapp ଫୋନ୍ ଏଠାରେ request ପକାଏ
     if (data.action === "PUT_SEARCH") {
       return jsonResponse(putSearch_(ss, data));
@@ -714,7 +827,8 @@ function rowToOrder_(row) {
     delivery_type: String(r[13] || "").trim(),
     pickup_slot: String(r[14] || "").trim(),
     pickup_expiry_time: String(r[15] || "").trim(),
-    stock_restored: String(r[16] || "").trim()
+    stock_restored: String(r[16] || "").trim(),
+    admin_alert_status: String(r[17] || "").trim()
   };
 }
 
@@ -800,6 +914,7 @@ function normalizeOrder_(data) {
     pickup_slot: pickupSlot,
     pickup_expiry_time: pickupExpiry,
     stock_restored: String(o.stock_restored || "").trim(),
+    admin_alert_status: String(o.admin_alert_status || o.adminAlertStatus || "").trim(),
     lines: lines
   };
 }
@@ -810,7 +925,8 @@ function orderRow_(o) {
     o.total, o.channel, o.telegram_user_id, o.status, o.status_msg_id,
     o.location, o.payment,
     o.delivery_type || "", o.pickup_slot || "", o.pickup_expiry_time || "",
-    o.stock_restored || ""
+    o.stock_restored || "",
+    o.admin_alert_status || ""
   ];
 }
 
@@ -861,6 +977,11 @@ function formatStamp_(d) {
 
 function writeNewOrder_(ss, payload) {
   var o = normalizeOrder_(payload);
+  // New pending orders start "Unseen" so the 15 s ringing poll picks them up
+  // on every open admin device. Explicit values (bot/legacy) are preserved.
+  if (!o.admin_alert_status && String(o.status).toLowerCase() === "pending") {
+    o.admin_alert_status = "Unseen";
+  }
   var ordersSh = ensureSheet_(ss, "Orders", ORDER_HEADERS);
   var existing = findOrderRow_(ordersSh, o.order_id);
   if (existing > 0) {

@@ -107,25 +107,8 @@
           </p>
         </div>
       </div>
-      <!-- Right: sleek icon chips (globe / profile pill / lock) -->
-      <div class="flex items-center gap-1.5 shrink-0">
-        <!-- Language: compact globe chip -->
-        <button onclick="toggleLang()" title="ଭାଷା ବଦଳାନ୍ତୁ (Language)" class="h-8 px-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold flex items-center gap-1">
-          <i class="ph-bold ph-globe-hemisphere-west text-sm"></i>
-          <span id="langBtnText">OD</span>
-        </button>
-        <!-- Profile: sleek circular pill with first name + check -->
-        <button id="headerAuthBtn" onclick="onHeaderAuth()" class="h-8 max-w-[92px] pl-1.5 pr-2.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-[11px] font-bold flex items-center gap-1">
-          <span class="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center shrink-0">
-            <i id="headerAuthIcon" class="ph-fill ph-user text-[11px]"></i>
-          </span>
-          <span id="headerAuthText" class="truncate">Login</span>
-        </button>
-        <!-- Admin: elegant small lock chip -->
-        <button onclick="openAdminModal()" title="Admin" class="w-8 h-8 rounded-full bg-[#ffd43b] text-slate-950 flex items-center justify-center shadow-xs hover:bg-yellow-400">
-          <i class="ph-bold ph-lock-key text-sm"></i>
-        </button>
-      </div>
+      <!-- Clean header: store identity ONLY — Language / Login / Admin lock
+           all moved to the Profile screen (see #profileScreen below). -->
     </div>
 
     <!-- Store Address & 3KM Delivery Zone Strip -->
@@ -530,11 +513,42 @@
         </div>
       </div>
       <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5" id="authRowCard"></div>
+
+      <!-- Language selector (moved from the header) -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-xs font-bold text-slate-700">
+          <i class="ph-bold ph-globe-hemisphere-west text-[#1864ab] text-lg"></i>
+          <span>Language (ଭାଷା)</span>
+        </div>
+        <div class="flex gap-1.5">
+          <button id="langBtnOD" onclick="setLang(false)" class="px-3 py-1.5 rounded-lg text-[11px] font-black border transition-all">OD</button>
+          <button id="langBtnEN" onclick="setLang(true)" class="px-3 py-1.5 rounded-lg text-[11px] font-black border transition-all">EN</button>
+        </div>
+      </div>
+
       <div class="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-100">
         <button onclick="showScreen('orders')" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-receipt text-[#1864ab] text-lg"></i> My Orders (ମୋ ଅର୍ଡର)</button>
         <button onclick="showScreen('address')" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-map-pin text-[#1864ab] text-lg"></i> Saved Addresses (ଠିକଣା)</button>
-        <button onclick="openAdminModal()" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-shield-check text-[#1864ab] text-lg"></i> Admin Panel (ଆଡମିନ୍)</button>
+        <!-- Admin Panel tile: HIDDEN by default — only visible when the
+             admin session (isAdminLoggedIn) is active on this device. -->
+        <button id="profAdminTile" onclick="openAdminModal()" class="hidden w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-shield-check text-[#1864ab] text-lg"></i> Admin Panel (ଆଡମିନ୍)</button>
       </div>
+
+      <!-- Admin Login portal (10-digit username + password, Sheet-backed) -->
+      <div id="profAdminPortalCard" class="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 space-y-2">
+        <div class="flex items-center gap-2 text-xs font-black text-slate-700">
+          <i class="ph-bold ph-lock-key text-amber-500"></i>
+          <span>Admin Login Portal</span>
+        </div>
+        <p class="text-[10px] text-slate-400 leading-snug">10-ଅଙ୍କ Username / Password ଦେଇ ଆଡମିନ୍ ପ୍ୟାନେଲ୍ ଖୋଲନ୍ତୁ।</p>
+        <button id="profAdminLoginBtn" onclick="openAdminModal()" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-shield-check"></i> Admin Login
+        </button>
+        <button id="profAdminLogoutBtn" onclick="logoutAdmin()" class="hidden w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-extrabold flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-sign-out"></i> Logout Admin
+        </button>
+      </div>
+
       <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 text-[11px] text-slate-500 space-y-1">
         <div class="flex justify-between"><span>Total Orders</span><span id="profOrderCount" class="font-black text-slate-800">0</span></div>
         <div class="flex justify-between"><span>Saved Addresses</span><span id="profAddrCount" class="font-black text-slate-800">0</span></div>
@@ -542,18 +556,51 @@
     </div>
   </div>
 
-  <!-- ================= ADMIN PIN MODAL ================= -->
+  <!-- ================= ADMIN LOGIN MODAL (10-digit username + password) ================= -->
   <div id="adminPinModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-xs rounded-2xl p-5 shadow-2xl text-center">
       <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-2">
-        <i class="ph-bold ph-lock-key text-xl"></i>
+        <i class="ph-bold ph-shield-check text-xl"></i>
       </div>
-      <h3 class="font-extrabold text-slate-900 text-sm">ଦୋକାନ ଆଡମିନ୍ ପିନ୍</h3>
-      <p class="text-[11px] text-slate-500 mt-0.5">PIN ପ୍ରବେଶ କରନ୍ତୁ (Default: 1234)</p>
-      <input type="password" id="adminPinInput" maxlength="6" placeholder="PIN" class="my-3 text-center tracking-widest text-base font-bold w-28 mx-auto py-1 border-b-2 border-amber-500 outline-none">
+      <h3 class="font-extrabold text-slate-900 text-sm">Admin Login</h3>
+      <p class="text-[11px] text-slate-500 mt-0.5">10-ଅଙ୍କ Username ଓ Password (Default: 1111111111)</p>
+      <input type="text" id="adminPinInput" maxlength="10" inputmode="numeric" placeholder="Username (10 digits)" class="my-2 w-full text-center tracking-widest text-sm font-bold py-1.5 border-b-2 border-amber-500 outline-none">
+      <input type="password" id="adminPassInput" maxlength="10" inputmode="numeric" placeholder="Password (10 digits)" class="mb-3 w-full text-center tracking-widest text-sm font-bold py-1.5 border-b-2 border-amber-500 outline-none">
+      <p id="adminLoginHint" class="hidden text-[11px] text-rose-600 font-bold mb-2"></p>
       <div class="flex items-center gap-2">
         <button onclick="closeAdminPinModal()" class="w-1/2 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">ବାତିଲ୍</button>
         <button onclick="verifyAdminPin()" class="w-1/2 py-2 rounded-xl bg-[#1864ab] text-white text-xs font-extrabold">ଲଗଇନ୍</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 🚨 NEW ORDER ALERT MODAL (15 s ringing) ================= -->
+  <div id="newOrderAlertModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+      <div class="bg-rose-600 text-white px-4 py-3 flex items-center gap-2 animate-pulse">
+        <i class="ph-bold ph-bell-ringing text-xl"></i>
+        <span class="font-extrabold text-sm">🚨 New Order Alert!</span>
+        <span id="newOrderRingTimer" class="ml-auto text-[11px] font-black bg-white/20 px-2 py-0.5 rounded-md">15s</span>
+      </div>
+      <div class="p-4 space-y-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <span id="newOrderTypeBadge" class="text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-50 text-[#1864ab] border border-blue-200">Delivery</span>
+          <span id="newOrderTime" class="text-[11px] text-slate-500 font-bold"></span>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3 space-y-1.5 text-xs">
+          <div class="flex justify-between gap-2"><span class="text-slate-500 font-bold">Order</span><span id="newOrderId" class="font-black text-slate-800 text-right"></span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-500 font-bold">Customer</span><span id="newOrderName" class="font-black text-slate-800 text-right"></span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-500 font-bold">Phone</span><span id="newOrderPhone" class="font-black text-slate-800 text-right"></span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-500 font-bold">Address</span><span id="newOrderAddr" class="font-black text-slate-800 text-right line-clamp-2"></span></div>
+          <div class="flex justify-between gap-2 pt-1.5 border-t border-slate-200"><span class="text-slate-500 font-bold">Total</span><span id="newOrderTotal" class="font-black text-emerald-700 text-sm"></span></div>
+          <div id="newOrderSlotRow" class="hidden flex justify-between gap-2"><span class="text-slate-500 font-bold">Pickup Slot</span><span id="newOrderSlot" class="font-black text-indigo-700"></span></div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 pt-1">
+          <button onclick="newOrderAlertAction('accept')" class="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-extrabold shadow-sm">✅ Accept</button>
+          <button onclick="newOrderAlertAction('reject')" class="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-extrabold shadow-sm">🚫 Reject</button>
+          <button onclick="newOrderAlertAction('review')" class="py-2.5 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white text-[11px] font-extrabold shadow-sm">👁️ Review</button>
+        </div>
+        <p class="text-[10px] text-slate-400 leading-snug text-center">ଯେକୌଣସି ଆଡମିନ୍ ଫୋନ୍ ରେ ଏହି ବଟନ୍ ଦବାଗଲେ ସବୁ ଫୋନ୍ ର ରିଙ୍ଗ୍ ବନ୍ଦ ହେବ।</p>
       </div>
     </div>
   </div>
@@ -927,6 +974,29 @@
             <button onclick="saveShopSettings()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1">
               <i class="ph-bold ph-floppy-disk"></i> 💾 ସେଭ୍ କରନ୍ତୁ (Checkout &amp; Delivery)
             </button>
+          </div>
+
+          <!-- Security: Change Admin Password + Logout Admin -->
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+              <i class="ph-bold ph-shield-check text-rose-500"></i> 🔐 Admin Security
+            </h4>
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">Current Password (10 digits)</label>
+              <input type="password" id="admCurPass" maxlength="10" inputmode="numeric" placeholder="Current Password" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">New Password (10 digits)</label>
+              <input type="password" id="admNewPass" maxlength="10" inputmode="numeric" placeholder="New Password" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            </div>
+            <p id="admPassHint" class="hidden text-[11px] font-bold text-rose-600"></p>
+            <button onclick="changeAdminPassword()" class="w-full py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1">
+              <i class="ph-bold ph-key"></i> Change Admin Password
+            </button>
+            <button onclick="logoutAdmin()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg flex items-center justify-center gap-1 border border-slate-200">
+              <i class="ph-bold ph-sign-out"></i> Logout Admin
+            </button>
+            <p class="text-[10px] text-slate-400 leading-snug">Session ଏହି ଡିଭାଇସ୍ ରେ ସେଭ୍ ଅଛି (isAdminLoggedIn) — ପୁଣି ପାସୱାର୍ଡ ଦେବାକୁ ପଡ଼ିବ ନାହିଁ।</p>
           </div>
         </div>
       </div>
@@ -1977,6 +2047,9 @@
     // exiting, and preserves the home-catalog scroll position.
     var _backNavGuard = false;
     window.addEventListener('popstate', function () {
+      // (0) 🚨 New Order Alert modal (top-most) — Back = Review (ack + close).
+      var na = document.getElementById('newOrderAlertModal');
+      if (na && !na.classList.contains('hidden')) { newOrderAlertAction('review'); return; }
       // (1) Scanner modal
       var scanner = document.getElementById('scannerModal');
       if (scanner && !scanner.classList.contains('hidden')) { closeScanner(); return; }
@@ -2293,40 +2366,102 @@
       }).join('');
     }
 
-    // --- ADMIN SYSTEM (5-STAGE FULFILLMENT & EDIT ORDER ITEMS) ---
+    // ====================================================================
+    // ADMIN AUTH (10-digit username + password, Google Sheet backed)
+    // Session persisted as localStorage 'isAdminLoggedIn' = '1' so no later
+    // feature/setting ever asks for a password again on this device.
+    // ====================================================================
+    var ADMIN_SESSION_KEY = 'isAdminLoggedIn';
+    function isAdmin_() { try { return localStorage.getItem(ADMIN_SESSION_KEY) === '1'; } catch (e) { return false; } }
+    function setAdminSession_(on) {
+      try { if (on) localStorage.setItem(ADMIN_SESSION_KEY, '1'); else localStorage.removeItem(ADMIN_SESSION_KEY); } catch (e) {}
+      renderProfile(); // toggles the Admin Panel tile + portal buttons
+    }
+
+    // A REAL (readable) POST — postToSheet() uses no-cors (opaque), which
+    // cannot return the {ok:true} body we need for auth / password change.
+    // Falls back to a no-cors fire-and-forget only if the readable fetch fails.
+    async function adminFetchJson_(payload) {
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
+        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      if (!hook) return null;
+      try {
+        var res = await fetch(hook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        return await res.json();
+      } catch (e) { return null; }
+    }
+
     function openAdminModal() {
+      // Already logged in on this device -> straight to the dashboard.
+      if (isAdmin_()) { closeAdminPinModal(); openAdminDashboard_(); return; }
       document.getElementById('adminPinModal').classList.remove('hidden');
-      document.getElementById('adminPinInput').value = '';
-      document.getElementById('adminPinInput').focus();
+      var hint = document.getElementById('adminLoginHint');
+      if (hint) { hint.classList.add('hidden'); hint.innerText = ''; }
+      var u = document.getElementById('adminPinInput');
+      if (u) { u.value = ''; u.focus(); }
+      var p = document.getElementById('adminPassInput');
+      if (p) p.value = '';
       if (!(history.state && history.state.modal === 'admin_pin')) history.pushState({ modal: 'admin_pin' }, '', window.location.href);
     }
     function closeAdminPinModal() { document.getElementById('adminPinModal').classList.add('hidden'); }
-    function verifyAdminPin() {
-      // Real web login: an OTP-verified phone session opens Admin directly —
-      // no shared 1234 PIN to leak. The PIN box stays only as a fallback for
-      // devices where the login modal never ran.
-      try {
-        var s = (typeof getSessionUser === 'function') ? getSessionUser() : null;
-        if (s && s.phone && (s.provider === 'otp' || s.provider === 'google' || s.provider === 'telegram')) {
-          closeAdminPinModal();
-          openAdminDashboard_();
-          return;
-        }
-      } catch (e) {}
-      var pinEl = document.getElementById('adminPinInput');
-      var pin = pinEl ? String(pinEl.value || '').trim() : '';
-      var cfgPin = '';
-      try { cfgPin = String((typeof shopConfig !== 'undefined' && shopConfig.adminPin) || '').trim(); } catch (e2) { cfgPin = ''; }
-      if (pin && (pin === cfgPin || pin === '1234')) {
+
+    // Verify 10-digit username + password against the Sheet (check_admin_auth).
+    async function verifyAdminPin() {
+      var uEl = document.getElementById('adminPinInput');
+      var pEl = document.getElementById('adminPassInput');
+      var hint = document.getElementById('adminLoginHint');
+      var u = String(uEl ? uEl.value : '').replace(/\D/g, '');
+      var p = String(pEl ? pEl.value : '').replace(/\D/g, '');
+      function fail(msg) {
+        if (hint) { hint.classList.remove('hidden'); hint.innerText = '❌ ' + msg; }
+      }
+      if (u.length !== 10 || p.length !== 10) { fail('Username ଓ Password ଦୁଇଟି 10-ଅଙ୍କ ହେବା ଉଚିତ୍।'); return; }
+      var d = await adminFetchJson_({ action: 'check_admin_auth', username: u, password: p });
+      var ok = d && (d.ok === true || d.status === 'success');
+      if (ok) {
+        setAdminSession_(true);
         closeAdminPinModal();
         openAdminDashboard_();
+        startAdminOrderPolling_();
       } else {
-        alert('ପ୍ରଥମେ ଲଗଇନ୍ କରନ୍ତୁ (OTP / Google / Telegram) — ତା’ପରେ Admin ଖୋଲିବ।');
-        closeAdminPinModal();
-        if (typeof openLoginModal === 'function') openLoginModal();
+        fail((d && d.error) || 'ଭୁଲ୍ Username / Password! (Sheet webhook ଯାଞ୍ଚ କରନ୍ତୁ)');
       }
     }
+
+    // Change Admin Password (Sheet: update_admin_password).
+    async function changeAdminPassword() {
+      var cur = String(((document.getElementById('admCurPass') || {}).value) || '').replace(/\D/g, '');
+      var nw = String(((document.getElementById('admNewPass') || {}).value) || '').replace(/\D/g, '');
+      var hint = document.getElementById('admPassHint');
+      function fail(msg) { if (hint) { hint.classList.remove('hidden'); hint.innerText = '❌ ' + msg; } }
+      function okMsg(msg) { if (hint) { hint.classList.remove('hidden'); hint.style.color = '#059669'; hint.innerText = '✅ ' + msg; } }
+      if (hint) hint.style.color = '';
+      if (cur.length !== 10 || nw.length !== 10) { fail('Current ଓ New ଦୁଇଟି 10-ଅଙ୍କ ହେବା ଉଚିତ୍।'); return; }
+      var d = await adminFetchJson_({ action: 'update_admin_password', currentPassword: cur, newPassword: nw });
+      if (d && (d.ok === true || d.status === 'success')) {
+        okMsg('Password ବଦଳିଗଲା!');
+        var c1 = document.getElementById('admCurPass'); if (c1) c1.value = '';
+        var c2 = document.getElementById('admNewPass'); if (c2) c2.value = '';
+      } else {
+        fail((d && d.error) || 'Password ବଦଳିଲା ନାହିଁ।');
+      }
+    }
+
+    // Logout Admin: clear the persisted session, stop ringing, close panel.
+    function logoutAdmin() {
+      setAdminSession_(false);
+      stopRing_();
+      closeNewOrderAlertModal_(true);
+      closeAdminDashboard();
+      alert('👋 Admin Logout ହେଲା।');
+    }
+
     function openAdminDashboard_() {
+      if (!isAdmin_()) { openAdminModal(); return; }
       document.getElementById('adminDashboard').classList.remove('hidden');
       if (!(history.state && history.state.modal === 'admin_dash')) history.pushState({ modal: 'admin_dash' }, '', window.location.href);
       renderAdminOrders();
@@ -2339,6 +2474,7 @@
       document.getElementById('imgbbKeyInput').value = localStorage.getItem('munna_imgbb_key') || '';
       fillShopSettingsInputs();
       renderStockHealth();
+      startAdminOrderPolling_();
     }
     function closeAdminDashboard() { document.getElementById('adminDashboard').classList.add('hidden'); }
 
@@ -2475,6 +2611,200 @@
     // this keeps the local catalog honest between polls).
     setTimeout(checkLocalPickupExpiry_, 3000);
     setInterval(checkLocalPickupExpiry_, 30000);
+
+    // ====================================================================
+    // 🚨 15-SECOND RINGING NEW-ORDER ALERT (logged-in admins only)
+    // Web Audio oscillator loop (no external asset) rings up to 15 s when a
+    // pending + AdminAlertStatus=Unseen order appears. Accept/Reject/Review on
+    // ANY device writes AdminAlertStatus=Reviewed -> every other device stops
+    // its ring on the next poll. The modal auto-dismisses after 15 s.
+    // ====================================================================
+    var RING_SECONDS = 15;
+    var RING_POLL_MS = 5500;           // poll every ~5.5 s (spec: 5-8 s)
+    var _ringCtx = null, _ringOsc = null, _ringGain = null;
+    var _ringTimer = null, _ringCountdown = null, _ringStopAt = 0;
+    var _adminPollTimer = null;
+    var _activeNewOrderId = '';        // order id currently shown in the modal
+    var _seenAlertIds = {};            // order ids already alerted on THIS device
+
+    function startRing_() {
+      stopRing_(); // never stack oscillators
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!_ringCtx) _ringCtx = new AC();
+        if (_ringCtx.state === 'suspended') _ringCtx.resume();
+        _ringOsc = _ringCtx.createOscillator();
+        _ringGain = _ringCtx.createGain();
+        _ringOsc.type = 'square';
+        _ringOsc.frequency.value = 880;
+        _ringGain.gain.value = 0.0001;
+        _ringOsc.connect(_ringGain);
+        _ringGain.connect(_ringCtx.destination);
+        _ringOsc.start();
+        // Beep pulse: square-wave gain blips ~2 per second for 15 s.
+        var t = _ringCtx.currentTime;
+        for (var i = 0; i < RING_SECONDS * 2; i++) {
+          _ringGain.gain.setValueAtTime(0.0001, t + i * 0.5);
+          _ringGain.gain.exponentialRampToValueAtTime(0.25, t + i * 0.5 + 0.02);
+          _ringGain.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.5 + 0.28);
+        }
+        _ringStopAt = Date.now() + RING_SECONDS * 1000;
+        _ringCountdown = setInterval(function () {
+          var left = Math.max(0, Math.ceil((_ringStopAt - Date.now()) / 1000));
+          var el = document.getElementById('newOrderRingTimer');
+          if (el) el.innerText = left + 's';
+          if (left <= 0) stopRing_();
+        }, 250);
+        _ringTimer = setTimeout(stopRing_, RINGSAFE_MS());
+      } catch (e) {}
+    }
+    function RINGSAFE_MS() { return RING_SECONDS * 1000; }
+
+    // Equivalent of audio.pause(); audio.currentTime = 0; for Web Audio:
+    // kill the oscillator + reset state + clear all ring timers.
+    function stopRing_() {
+      try {
+        if (_ringOsc) { try { _ringOsc.stop(); } catch (e) {} _ringOsc.disconnect(); _ringOsc = null; }
+        if (_ringGain) { try { _ringGain.disconnect(); } catch (e) {} _ringGain = null; }
+        if (_ringCtx && _ringCtx.state === 'running') { try { _ringCtx.suspend(); } catch (e) {} }
+      } catch (e) {}
+      if (_ringTimer) { clearTimeout(_ringTimer); _ringTimer = null; }
+      if (_ringCountdown) { clearInterval(_ringCountdown); _ringCountdown = null; }
+      _ringStopAt = 0;
+      var el = document.getElementById('newOrderRingTimer');
+      if (el) el.innerText = RING_SECONDS + 's';
+    }
+
+    // Show the 🚨 modal for an unseen pending order + start the ring.
+    function showNewOrderAlert_(o) {
+      if (!o) return;
+      _activeNewOrderId = String(o.order_id || o.id || '');
+      var isPickup = String(o.delivery_type || '') === 'Store Pickup';
+      var badge = document.getElementById('newOrderTypeBadge');
+      if (badge) {
+        badge.innerText = isPickup ? '🏪 Store Pickup' : '🚚 Home Delivery';
+        badge.className = 'text-[10px] font-black px-2 py-0.5 rounded-md border ' +
+          (isPickup ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'bg-blue-50 text-[#1864ab] border-blue-200');
+      }
+      var set = function (id, v) { var el = document.getElementById(id); if (el) el.innerText = v; };
+      set('newOrderId', '#' + (o.order_id || o.id || ''));
+      set('newOrderName', o.customer_name || o.name || 'Customer');
+      set('newOrderPhone', o.phone || '—');
+      set('newOrderAddr', o.address || '—');
+      set('newOrderTotal', 'Rs.' + money(o.total || 0));
+      set('newOrderTime', (o.date || o.timestamp || ''));
+      var slotRow = document.getElementById('newOrderSlotRow');
+      if (slotRow) {
+        slotRow.classList.toggle('hidden', !isPickup);
+        set('newOrderSlot', o.pickup_slot || '');
+      }
+      document.getElementById('newOrderAlertModal').classList.remove('hidden');
+      startRing_();
+      // Auto-dismiss after 15 s if nobody acts (ring also stops then).
+      setTimeout(function () {
+        if (_activeNewOrderId === String(o.order_id || o.id || '')) {
+          closeNewOrderAlertModal_(true);
+        }
+      }, RINGSAFE_MS());
+    }
+
+    function closeNewOrderAlertModal_(keepId) {
+      document.getElementById('newOrderAlertModal').classList.add('hidden');
+      stopRing_();
+      if (!keepId) _activeNewOrderId = '';
+    }
+
+    // Accept / Reject / Review -> write AdminAlertStatus=Reviewed so ALL other
+    // admin devices stop ringing on their next poll, then act on the order.
+    function newOrderAlertAction(kind) {
+      var id = _activeNewOrderId;
+      if (!id) { closeNewOrderAlertModal_(false); return; }
+      markOrderAlertReviewed_(id); // fire-and-forget POST (multi-device sync)
+      closeNewOrderAlertModal_(false);
+      var idx = -1;
+      var list = getMyOrders();
+      for (var i = 0; i < list.length; i++) {
+        if (String(list[i].order_id) === String(id)) { idx = i; break; }
+      }
+      if (idx < 0) { syncOrdersFromSheet(); return; }
+      if (kind === 'accept') { adminAcceptOrder(idx); }
+      else if (kind === 'reject') { adminRejectOrder(idx); }
+      else { // review: keep status pending, just open the Orders tab
+        switchAdminTab('orders');
+        syncOrdersFromSheet();
+      }
+    }
+
+    // POST AdminAlertStatus=Reviewed for one order (multi-admin ring sync).
+    function markOrderAlertReviewed_(orderId) {
+      if (!orderId) return;
+      _seenAlertIds[orderId] = 1;
+      postToSheet({ action: 'update_order_alert', order_id: orderId, alert: 'Reviewed' });
+      // Also update the local copy so this device never re-rings it.
+      try {
+        var orders = getMyOrders();
+        for (var i = 0; i < orders.length; i++) {
+          if (String(orders[i].order_id) === String(orderId)) {
+            orders[i].admin_alert_status = 'Reviewed';
+            setMyOrders(orders);
+            break;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Poll GET_UNSEEN_ORDERS every ~5.5 s while an admin session is active.
+    function startAdminOrderPolling_() {
+      if (_adminPollTimer) return; // already running
+      var tick = async function () {
+        if (!isAdmin_()) { stopAdminOrderPolling_(); return; }
+        var url = sheetHookUrl('action=GET_UNSEEN_ORDERS&_=' + Date.now());
+        if (!url) return;
+        try {
+          var res = await fetch(url);
+          var data = await res.json();
+          var list = (data && Array.isArray(data.orders)) ? data.orders : [];
+          // Drop anything this device already alerted or that was Reviewed.
+          var fresh = list.filter(function (r) {
+            var id = String(r.order_id || r.id || '');
+            if (!id || _seenAlertIds[id]) return false;
+            if (String(r.admin_alert_status || '').trim() === 'Reviewed') return false;
+            if (String(r.status || '').toLowerCase() !== 'pending') return false;
+            return true;
+          });
+          // Another admin already acted (Reviewed) -> stop our ring too.
+          if (_activeNewOrderId && !fresh.some(function (r) {
+              return String(r.order_id || r.id) === _activeNewOrderId; })) {
+            markOrderAlertReviewed_(_activeNewOrderId); // local ack
+            closeNewOrderAlertModal_(true);
+          }
+          if (fresh.length) {
+            var target = normalizeOrder(fresh[0]);
+            if (target) {
+              _seenAlertIds[String(target.order_id)] = 1;
+              // Merge into local cache so the admin Orders tab sees it.
+              try {
+                var byId = {};
+                getMyOrders().forEach(function (o) { byId[o.order_id] = o; });
+                byId[target.order_id] = target;
+                setMyOrders(Object.keys(byId).map(function (k) { return byId[k]; }));
+              } catch (e2) {}
+              showNewOrderAlert_(target);
+              var dashEl = document.getElementById('adminDashboard');
+              if (dashEl && !dashEl.classList.contains('hidden')) renderAdminOrders();
+            }
+          }
+        } catch (e) { /* transient network error — keep polling */ }
+      };
+      tick();
+      _adminPollTimer = setInterval(tick, RING_POLL_MS);
+    }
+    function stopAdminOrderPolling_() {
+      if (_adminPollTimer) { clearInterval(_adminPollTimer); _adminPollTimer = null; }
+      stopRing_();
+    }
 
     // --- ALL CUSTOMERS (admin Users tab): local orders + Sheet Addresses ---
     function aggregateUsers_() {
@@ -2659,6 +2989,7 @@
     }
 
     function adminAcceptOrder(oIdx) {
+      // markOrderAlertReviewed_ happens inside setOrderFulfillmentStage().
       setOrderFulfillmentStage(oIdx, 2);
     }
 
@@ -2671,6 +3002,7 @@
       orders[oIdx].status = 'delivered';
       orders[oIdx].stage = 5;
       setMyOrders(orders);
+      markOrderAlertReviewed_(orders[oIdx].order_id); // ring sync (multi-device)
       pushOrderStatus(orders[oIdx]);
       renderAdminOrders();
       alert('✅ Order #' + orders[oIdx].id + ' Picked Up / Delivered — stock deduction confirmed.');
@@ -2685,6 +3017,7 @@
       orders[oIdx].status = isPickup ? 'rejected' : 'cancelled';
       orders[oIdx].stage = 5;
       setMyOrders(orders);
+      markOrderAlertReviewed_(orders[oIdx].order_id); // ring sync (multi-device)
       pushOrderStatus(orders[oIdx]); // -> Sheet -> bot edits customer's live message
       if (isPickup) {
         // Instantly give the held stock back (Sheet + local catalog).
@@ -2722,9 +3055,12 @@
 
     function setOrderFulfillmentStage(oIdx, stageNum) {
       var orders = getMyOrders();
+      if (!orders[oIdx]) return;
       orders[oIdx].stage = stageNum;
       orders[oIdx].status = STAGE_STATUS[stageNum - 1] || 'pending';
       setMyOrders(orders);
+      // Any progress tap acknowledges the alert -> stop ringing everywhere.
+      markOrderAlertReviewed_(orders[oIdx].order_id);
       // Push to the shared Sheet: the bot then edits the customer's live
       // Telegram status message and its own Admin Panel shows the same stage.
       pushOrderStatus(orders[oIdx]);
@@ -3747,6 +4083,7 @@
         pickup_slot: pickupSlot,
         pickup_expiry_time: pickupExpiry,
         stock_restored: String(o.stock_restored || '').trim(),
+        admin_alert_status: String(o.admin_alert_status || o.adminAlertStatus || '').trim(),
         total: parseFloat(String(o.total || 0).replace(/,/g, '')) || 0,
         items: lines,
         items_text: (typeof itemsRaw === 'string' && itemsRaw) ? itemsRaw : itemsToText(lines),
@@ -4139,15 +4476,41 @@
         ? myAddrs.filter(function (a) { return String(a.phone || '').trim() === s.phone; }).length
         : myAddrs.length;
       document.getElementById('profAddrCount').innerText = acount;
+
+      // Admin visibility: the Panel tile only appears for a logged-in admin;
+      // the portal shows [Admin Login] or [Logout Admin] accordingly.
+      var adminOn = isAdmin_();
+      var tile = document.getElementById('profAdminTile');
+      if (tile) tile.classList.toggle('hidden', !adminOn);
+      var loginBtn = document.getElementById('profAdminLoginBtn');
+      if (loginBtn) loginBtn.classList.toggle('hidden', adminOn);
+      var logoutBtn = document.getElementById('profAdminLogoutBtn');
+      if (logoutBtn) logoutBtn.classList.toggle('hidden', !adminOn);
+
+      // Language selector highlight (OD / EN) in the Profile card.
+      var od = document.getElementById('langBtnOD');
+      var en = document.getElementById('langBtnEN');
+      if (od && en) {
+        od.className = 'px-3 py-1.5 rounded-lg text-[11px] font-black border transition-all ' +
+          (isEnglish ? 'bg-slate-50 text-slate-500 border-slate-200'
+                     : 'bg-[#1864ab] text-white border-[#1864ab]');
+        en.className = 'px-3 py-1.5 rounded-lg text-[11px] font-black border transition-all ' +
+          (isEnglish ? 'bg-[#1864ab] text-white border-[#1864ab]'
+                     : 'bg-slate-50 text-slate-500 border-slate-200');
+      }
     }
 
     function handleSearch(v) { query = v || ""; document.getElementById('clearSearchBtn').classList.toggle('hidden', !query); render(); }
     function clearSearch() { document.getElementById('searchInput').value = ""; query = ""; document.getElementById('clearSearchBtn').classList.add('hidden'); render(); }
-    function toggleLang() {
-      isEnglish = !isEnglish;
-      document.getElementById('langBtnText').innerText = isEnglish ? "ଓଡ଼ିଆ" : "English";
+    // Language selector (Profile screen): explicit OD / EN set.
+    function setLang(english) {
+      isEnglish = !!english;
       document.getElementById('lblStoreName').innerText = isEnglish ? "MUNNA MOBILE & GROCERY" : "ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ";
+      try { localStorage.setItem('munna_lang', isEnglish ? 'en' : 'od'); } catch (e) {}
+      renderProfile(); // refresh the OD/EN button highlight
     }
+    // Back-compat alias (old header chip called toggleLang()).
+    function toggleLang() { setLang(!isEnglish); }
 
     // --- PRODUCT SCANNER (EAN/QR: camera + photo + manual) ---
     var scannerCtx = 'customer';   // 'customer' | 'admin' | 'quickbill'
@@ -4523,23 +4886,12 @@
       return n || (s && s.phone ? '👤' : '');
     }
 
-    // Header profile chip: avatar + first name + ✓ (logged in) / "Login" (out).
-    function updateHeaderAuth() {
-      var s = getSessionUser();
-      var t = document.getElementById('headerAuthText');
-      var ic = document.getElementById('headerAuthIcon');
-      if (!t) return;
-      if (s) {
-        t.innerText = (sessionFirstName() || 'Profile') + ' ✓';
-        if (ic) { ic.className = 'ph-fill ph-check-circle'; }
-      } else {
-        t.innerText = 'Login';
-        if (ic) { ic.className = 'ph-fill ph-user'; }
-      }
-    }
+    // Header auth chip REMOVED (Login/Logout now live in the Profile screen's
+    // authRowCard). Kept as a safe no-op so existing callers don't break.
+    function updateHeaderAuth() { /* no-op: header chip removed */ }
     function onHeaderAuth() {
-      if (getSessionUser()) showScreen('profile');
-      else openLoginModal();
+      // Old header pill behaviour -> route to the Profile screen instead.
+      showScreen('profile');
     }
 
     // Login modal: reset to the Login (password) tab + clear fields on open.
@@ -5025,7 +5377,9 @@
       initCarousel();
       loadCart_(); // restore cart + applied coupon so refresh never empties it
       autoTelegramLogin_(); // Telegram WebApp -> silent profile login
-      updateHeaderAuth(); // header shows Login or the customer's first name
+      // Restore the saved language (OD/EN) for the Profile selector.
+      try { if (localStorage.getItem('munna_lang') === 'en') setLang(true); } catch (eL) {}
+      updateHeaderAuth(); // no-op now (header chip removed) — kept for callers
       render();
       prefillOrderForm();
       renderProfile();
@@ -5043,6 +5397,9 @@
       syncAddressesFromSheet();
       setInterval(function () { syncOrdersFromSheet(); }, 60000);
       setInterval(function () { syncAddressesFromSheet(); }, 300000);
+      // Resume the 15 s new-order ring polling if this device is already an
+      // authenticated admin (isAdminLoggedIn persisted across reloads).
+      if (isAdmin_()) startAdminOrderPolling_();
 
       // Manifest shortcuts: /?screen=orders|cart|address|profile
       try {
