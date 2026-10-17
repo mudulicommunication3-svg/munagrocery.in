@@ -155,6 +155,9 @@ function doGet(e) {
 
   // ବିକଳ୍ପ B: Orders tab -> webapp ରେ Telegram ଓ browser ଦୁଇ ପାଖର order ଦେଖାଇବ
   if (params && params.action === "GET_ORDERS") {
+    // Every GET repairs the sheet header first: users often clear old order
+    // rows, which can delete the header and make subsequent writes fail.
+    var ordSheet = ensureSheet_(ss, "Orders", ORDER_HEADERS);
     // Admin-fetch sweep: expire any overdue Store Pickup order (give the stock
     // back + mark "Expired / Cancelled") BEFORE the list is returned, so the
     // admin always sees fresh, correct statuses even without the trigger.
@@ -171,7 +174,7 @@ function doGet(e) {
       }
       ordOut = ordFilt;
     }
-    return jsonResponse({ status: "success", orders: ordOut });
+    return jsonResponse({ status: "success", orders: ordOut, sheet_ready: true });
   }
 
   // ବିକଳ୍ପ C: Addresses tab -> webapp ରେ bot ର ସେଭ୍ କରାଯାଇଥିବା ଠିକଣା ଆସିବ
@@ -199,6 +202,8 @@ function doGet(e) {
   // Returned to every logged-in admin device; the first one to tap
   // Accept/Reject/Review writes "Reviewed" so the others stop ringing.
   if (params && params.action === "GET_UNSEEN_ORDERS") {
+    // Repair a cleared/deleted Orders header before reading pending rows.
+    ensureSheet_(ss, "Orders", ORDER_HEADERS);
     try { checkPickupExpiries_(ss); } catch (eExp2) {}
     var unseen = [];
     var allOrders = readAllOrders_(ss);
@@ -598,6 +603,7 @@ function doPost(e) {
     //   {"action":"REGISTER_USER","name","phone","password","address"}
     //   {"action":"LOGIN_PASSWORD","phone","password"}
     //   {"action":"LOGIN_TOKEN","token"} / {"action":"VALIDATE_TOKEN","token"}
+    //   {"action":"repair_orders_sheet"}
     if (data.action === "REGISTER_USER") { return jsonResponse(registerUser_(ss, data)); }
     if (data.action === "LOGIN_PASSWORD") { return jsonResponse(loginPassword_(ss, data)); }
     if (data.action === "LOGIN_TOKEN") { return jsonResponse(validateToken_(ss, data)); }
@@ -629,6 +635,20 @@ function doPost(e) {
       aSh.getRange(aRow, 18).setValue(alertVal); // AdminAlertStatus
       return jsonResponse({ status: "success", type: "alert_updated",
         order_id: String(data.order_id), alert: alertVal });
+    }
+
+    // Repair a cleared Orders sheet: restore the full 18-column header without
+    // touching existing rows. The webapp calls this before GET/POST operations,
+    // so manually deleting old order rows can never leave the sheet unusable.
+    if (data.action === "repair_orders_sheet") {
+      var repairSh = ensureSheet_(ss, "Orders", ORDER_HEADERS);
+      return jsonResponse({
+        status: "success",
+        type: "orders_sheet_ready",
+        headers: ORDER_HEADERS,
+        columns: ORDER_HEADERS.length,
+        rows: Math.max(0, repairSh.getLastRow() - 1)
+      });
     }
 
     // ବିକଳ୍ପ A0: Bot-PC search bus — webapp ଫୋନ୍ ଏଠାରେ request ପକାଏ
@@ -690,6 +710,8 @@ function doPost(e) {
     // ବିକଳ୍ପ 3: ନୂଆ order (webapp browser checkout) - ଠିକ୍ ସେହି same 13-column row
     // ଯାହା bot ର db.place_order ଲେଖେ, ତାହା Apps Script ମଧ୍ୟ ଲେଖିବ।
     if (data.action === "create_order") {
+      // Repaired before every write so clearing old rows never blocks a new order.
+      ensureSheet_(ss, "Orders", ORDER_HEADERS);
       return jsonResponse(writeNewOrder_(ss, data));
     }
 
@@ -1110,8 +1132,8 @@ function resolveLinesByEan_(prodSheet, lines) {
 // quantities back into the Products sheet and marks the order
 // "Expired / Cancelled".
 function checkPickupExpiries_(ss) {
-  var sh = ss.getSheetByName("Orders");
-  if (!sh || sh.getLastRow() < 2) return 0;
+  var sh = ensureSheet_(ss, "Orders", ORDER_HEADERS);
+  if (sh.getLastRow() < 2) return 0;
   var lastCol = Math.max(ORDER_HEADERS.length, sh.getMaxColumns());
   var rows = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getValues();
   var now = new Date();
@@ -1250,9 +1272,9 @@ function syncUser_(ss, data) {
 
 // All orders, newest first (webapp shows Telegram + browser orders together).
 function readAllOrders_(ss) {
-  var sh = ss.getSheetByName("Orders");
+  var sh = ensureSheet_(ss, "Orders", ORDER_HEADERS);
   var out = [];
-  if (!sh || sh.getLastRow() < 2) return out;
+  if (sh.getLastRow() < 2) return out;
   var rows = sh.getRange(
     2, 1, sh.getLastRow() - 1, Math.min(ORDER_HEADERS.length, sh.getMaxColumns())
   ).getValues();
