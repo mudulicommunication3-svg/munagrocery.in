@@ -635,6 +635,11 @@
     </div>
   </div>
 
+  <!-- ================= LIVE APP SYNC STATUS (admin/full-store devices) ================= -->
+  <div id="adminSyncStatus" class="hidden fixed left-3 z-[75] bg-slate-950/85 text-white rounded-full px-3 py-1.5 text-[10px] font-black shadow-xl border border-white/10" style="bottom: calc(62px + env(safe-area-inset-bottom, 0px));">
+    <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 align-middle"></span><span id="adminSyncStatusText">Live sync ready</span>
+  </div>
+
   <!-- ================= FULL ADMIN DASHBOARD ================= -->
   <div id="adminDashboard" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 hidden overflow-y-auto">
     <div class="min-h-full max-w-md mx-auto bg-slate-50 border-x border-slate-200 flex flex-col pb-10">
@@ -1901,7 +1906,14 @@
       _knownOrderIds[orderObj.order_id] = 1;
       if (isAdmin_()) {
         showNewOrderAlert_(orderObj);
-        try { syncOrdersFromSheet(true); } catch (e) {}
+        renderAdminSyncStatus_('New order queued — syncing...', true);
+        try {
+          syncOrdersFromSheet(true).then(function () {
+            renderAdminSyncStatus_('New order received', true);
+            var dash = document.getElementById('adminDashboard');
+            if (dash && !dash.classList.contains('hidden')) renderAdminOrders();
+          });
+        } catch (e) {}
       }
 
       // FULL payable bill (items + delivery − coupon) on the success screen.
@@ -2493,9 +2505,11 @@
     // Logout Admin: clear the persisted session, stop ringing, close panel.
     function logoutAdmin() {
       setAdminSession_(false);
+      stopAdminOrderPolling_();
       stopRing_();
       closeNewOrderAlertModal_(true);
       closeAdminDashboard();
+      renderAdminSyncStatus_('Live sync stopped', false);
       alert('👋 Admin Logout ହେଲା।');
     }
 
@@ -2506,14 +2520,16 @@
       renderAdminOrders();
       renderAdminList();
       renderAdminBanners();
-      syncOrdersFromSheet();
-      syncUsersFromSheet();
+      try { syncOrdersFromSheet(true); } catch (e) {}
+      try { syncUsersFromSheet(); } catch (e) {}
+      try { syncBannersFromSheet(); } catch (e) {}
       var hook = localStorage.getItem('munna_sheet_webhook');
       if (hook) document.getElementById('webhookInput').value = hook;
       document.getElementById('imgbbKeyInput').value = localStorage.getItem('munna_imgbb_key') || '';
       fillShopSettingsInputs();
       renderStockHealth();
       startAdminOrderPolling_();
+      renderAdminSyncStatus_('Admin live sync started', true);
     }
     function closeAdminDashboard() { document.getElementById('adminDashboard').classList.add('hidden'); }
 
@@ -2666,6 +2682,21 @@
     var _activeNewOrderId = '';        // order id currently shown in the modal
     var _seenAlertIds = {};            // order ids already alerted on THIS device
     var _knownOrderIds = {};            // fallback: every order already seen on this device
+    var _adminSyncBusy = false;
+    var _lastServerSyncAt = 0;
+    var _lastServerSyncOkAt = 0;
+
+    function renderAdminSyncStatus_(text, ok) {
+      var pill = document.getElementById('adminSyncStatus');
+      var txt = document.getElementById('adminSyncStatusText');
+      if (!pill || !txt) return;
+      var adminSession = isAdmin_();
+      pill.classList.toggle('hidden', !adminSession);
+      if (!adminSession) return;
+      txt.innerText = text;
+      pill.classList.toggle('bg-rose-700', ok === false);
+      pill.classList.toggle('bg-slate-950/85', ok !== false);
+    }
 
     function vibrateNewOrder_() {
       try {
@@ -2877,7 +2908,23 @@
       // admins so customer webapp orders appear immediately in the Orders tab.
       var syncOrdersTick = function () {
         if (!isAdmin_() || document.hidden) return;
-        try { syncOrdersFromSheet(true); } catch (e) {}
+        if (_adminSyncBusy) return;
+        _adminSyncBusy = true;
+        renderAdminSyncStatus_('Syncing live orders...', true);
+        syncOrdersFromSheet(true).then(function (ok) {
+          _adminSyncBusy = false;
+          _lastServerSyncAt = Date.now();
+          if (ok) {
+            _lastServerSyncOkAt = Date.now();
+            renderAdminSyncStatus_('Live orders synced', true);
+          } else {
+            var stale = _lastServerSyncOkAt && (Date.now() - _lastServerSyncOkAt > 15000);
+            renderAdminSyncStatus_(stale ? 'Server sync delayed' : 'Waiting for server...', stale);
+          }
+        }).catch(function () {
+          _adminSyncBusy = false;
+          renderAdminSyncStatus_('Server sync error', false);
+        });
       };
       tick();
       syncOrdersTick();
@@ -2896,6 +2943,7 @@
     function stopAdminOrderPolling_() {
       if (_adminPollTimer) { clearInterval(_adminPollTimer); _adminPollTimer = null; }
       stopRing_();
+      renderAdminSyncStatus_('Live sync stopped', false);
     }
 
     // --- ALL CUSTOMERS (admin Users tab): local orders + Sheet Addresses ---
@@ -4264,12 +4312,16 @@
       var sessPhone = (!adminSync && su && su.phone)
         ? String(su.phone).replace(/\D/g, '').slice(-10) : '';
       var url = sheetHookUrl('action=GET_ORDERS' + (sessPhone ? '&phone=' + encodeURIComponent(sessPhone) : '') + '&_=' + Date.now());
-      if (!url) return false;
+      if (!url) {
+        if (adminSync) renderAdminSyncStatus_('Webhook missing', false);
+        return false;
+      }
       try {
         var ctrl = new AbortController();
         var to = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000);
         var res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
         clearTimeout(to);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         var data = await res.json();
         var remote = (data && Array.isArray(data.orders)) ? data.orders : [];
         if (sessPhone) {
@@ -5459,6 +5511,11 @@
         // ?sheet= deep-link always wins (the bot passes its webhook this way).
         if (sUrl) {
           localStorage.setItem('munna_sheet_webhook', sUrl);
+        } else if (localStorage.getItem('munna_sheet_webhook') && DEFAULT_SHEET_WEBHOOK) {
+          // Always keep this app on the live production Sheet webhook. A stale
+          // saved/deep-link webhook is the most common reason customer orders
+          // never reach the admin panel.
+          localStorage.setItem('munna_sheet_webhook', DEFAULT_SHEET_WEBHOOK);
         } else if (!localStorage.getItem('munna_sheet_webhook') && DEFAULT_SHEET_WEBHOOK) {
           // First visit on a new device: adopt the default webhook and pull
           // the LIVE catalog right away instead of the sample products.
@@ -5492,13 +5549,33 @@
       setInterval(function () { syncBannersFromSheet(); syncFromGoogleSheet(); }, 120000);
       // Shared-database sync: Telegram (bot) orders + saved addresses, then
       // keep refreshing so stage/status changes made in the bot show up here.
+      // Admin/full-store devices use a faster sync managed by
+      // startAdminOrderPolling_; customers retain the 60-second account sync.
       syncOrdersFromSheet();
       syncAddressesFromSheet();
-      setInterval(function () { syncOrdersFromSheet(); }, 60000);
+      if (!isAdmin_()) setInterval(function () { syncOrdersFromSheet(); }, 60000);
       setInterval(function () { syncAddressesFromSheet(); }, 300000);
       // Resume the 15 s new-order ring polling if this device is already an
       // authenticated admin (isAdminLoggedIn persisted across reloads).
       if (isAdmin_()) startAdminOrderPolling_();
+      renderAdminSyncStatus_('Live sync ready', true);
+      // Foreground/online/refresh events always trigger a full server pull so
+      // the app never remains stuck on an old order list.
+      window.addEventListener('focus', function () {
+        if (!isAdmin_()) return;
+        renderAdminSyncStatus_('App active — syncing...', true);
+        try { startAdminOrderPolling_(); } catch (e) {}
+      });
+      window.addEventListener('online', function () {
+        if (!isAdmin_()) return;
+        renderAdminSyncStatus_('Back online — syncing...', true);
+        try { startAdminOrderPolling_(); } catch (e) {}
+      });
+      window.addEventListener('pageshow', function (e) {
+        if (!isAdmin_() || !e.persisted) return;
+        renderAdminSyncStatus_('App resumed — syncing...', true);
+        try { startAdminOrderPolling_(); } catch (e2) {}
+      });
 
       // Manifest shortcuts: /?screen=orders|cart|address|profile
       try {
