@@ -79,6 +79,10 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
+CONFIG_TAB_NAME = "Config"
+CONFIG_HEADERS: List[str] = ["Key", "Value"]
+ADMIN_ENV_KEYS: List[str] = ["ADMIN_USERNAME", "ADMIN_PASSWORD"]
+
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
@@ -233,6 +237,75 @@ def ensure_headers(spreadsheet) -> None:
     ensure_orders_tab(spreadsheet)
 
 
+def ensure_config_tab(spreadsheet) -> None:
+    """Create the Config tab (Key | Value shared settings) when missing."""
+    try:
+        worksheet = spreadsheet.worksheet(CONFIG_TAB_NAME)
+    except Exception:  # noqa: BLE001 - WorksheetNotFound (or API 404)
+        worksheet = None
+    if worksheet is not None:
+        return
+    try:
+        worksheet = spreadsheet.add_worksheet(
+            title=CONFIG_TAB_NAME, rows=100, cols=len(CONFIG_HEADERS)
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise SetupError(f"Could not create the Config tab: {exc}") from exc
+    try:
+        worksheet.update(values=[CONFIG_HEADERS], range_name="A1:B1")
+    except Exception as exc:  # noqa: BLE001
+        raise SetupError(f"Could not write the Config header row: {exc}") from exc
+    try:
+        worksheet.format("A1:B1", {"textFormat": {"bold": True}})
+    except Exception:  # non-fatal cosmetic step
+        pass
+    logger.info("Config tab created: %s", CONFIG_HEADERS)
+
+
+def sync_admin_login(spreadsheet) -> Dict[str, str]:
+    """Push ADMIN_USERNAME / ADMIN_PASSWORD from .env into Config tab.
+
+    The .env file stays the single source of truth (it is git-ignored);
+    the Sheet Config tab is what the Apps Script webhook actually reads.
+    Only non-empty 10-digit values are written; missing keys are left
+    untouched so a first run never wipes a password set from the panel.
+    Returns the {key: value} pairs that were written.
+    """
+    try:
+        worksheet = spreadsheet.worksheet(CONFIG_TAB_NAME)
+    except Exception:  # noqa: BLE001
+        ensure_config_tab(spreadsheet)
+        worksheet = spreadsheet.worksheet(CONFIG_TAB_NAME)
+    try:
+        rows = worksheet.get_all_values() or []
+    except Exception as exc:  # noqa: BLE001
+        raise SetupError(f"Could not read the Config tab: {exc}") from exc
+    existing = {
+        str(r[0]).strip(): (str(r[1]) if len(r) > 1 else "")
+        for r in rows[1:]
+        if r and str(r[0]).strip()
+    }
+    written: Dict[str, str] = {}
+    for key in ADMIN_ENV_KEYS:
+        value = "".join(ch for ch in (os.getenv(key) or "") if ch.isdigit())
+        if len(value) != 10:
+            if (os.getenv(key) or "").strip():
+                logger.warning("%s in .env is not 10 digits - skipped.", key)
+            continue
+        if existing.get(key) == value:
+            continue
+        try:
+            row_no = next(
+                i + 2 for i, r in enumerate(rows[1:]) if r and str(r[0]).strip() == key
+            )
+            worksheet.update(values=[[key, value]], range_name=f"A{row_no}:B{row_no}")
+        except Exception:  # key row missing -> append
+            worksheet.append_row([key, value])
+        written[key] = value
+        logger.info("Config %s synced from .env.", key)
+    return written
+
+
 def ensure_orders_tab(spreadsheet) -> None:
     """Create the Orders tab (one row per placed order) when missing."""
     try:
@@ -379,6 +452,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         else:
             spreadsheet, created = ensure_spreadsheet(client, args.title)
         ensure_headers(spreadsheet)
+        ensure_config_tab(spreadsheet)
+        try:
+            synced = sync_admin_login(spreadsheet)
+        except SetupError as exc:
+            logger.warning("Admin login sync skipped: %s", exc)
+            synced = {}
 
         email = resolve_email(args.email)
         spreadsheet_id = str(spreadsheet.id)
@@ -407,6 +486,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"  URL             : {spreadsheet_url}")
         print(f"  Shared with     : {email} (writer)")
         print(f"  Headers         : {', '.join(HEADERS)}")
+        if synced:
+            print(f"  Admin login     : synced {', '.join(sorted(synced))} (.env -> Config tab)")
+        else:
+            print("  Admin login     : unchanged (set ADMIN_USERNAME / ADMIN_PASSWORD in .env to sync)")
         print(f"  Saved to        : {ENV_PATH.name}")
         return 0
     except SetupError as exc:

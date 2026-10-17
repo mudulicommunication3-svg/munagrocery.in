@@ -61,12 +61,27 @@ function nowStamp_() {
 }
 
 // =========================================================================
-// Admin credentials (Config tab: ADMIN_USERNAME / ADMIN_PASSWORD).
+// Admin credentials: Script Properties -> Config tab -> built-in default.
+// The REAL values live in shopbot/.env (ADMIN_USERNAME / ADMIN_PASSWORD,
+// git-ignored). Mirror the same two values into this Apps Script project via
+// Project Settings -> Script Properties (ADMIN_USERNAME / ADMIN_PASSWORD).
+// The Config tab keys ADMIN_USERNAME / ADMIN_PASSWORD are the fallback /
+// runtime store (Change Password writes there). Script Properties win when
+// both exist, so redeploying never locks you out after a Sheet password
+// change — clear the property to go back to the Sheet value.
 // Defaults: both "1111111111" (10 digits). Seeded on first read so a brand
 // new Sheet immediately accepts the documented defaults.
 // =========================================================================
 var DEFAULT_ADMIN_USER = "1111111111";
 var DEFAULT_ADMIN_PASS = "1111111111";
+
+function scriptAdminProp_(key, fallback) {
+  try {
+    var v = PropertiesService.getScriptProperties().getProperty(key);
+    if (v !== null && v !== undefined && String(v).trim() !== "") return String(v).trim();
+  } catch (e) {}
+  return fallback;
+}
 
 function tenDigits_(v) {
   var d = String(v == null ? "" : v).replace(/\D/g, "");
@@ -74,6 +89,8 @@ function tenDigits_(v) {
 }
 
 function getAdminUser_(ss) {
+  var envUser = tenDigits_(scriptAdminProp_("ADMIN_USERNAME", ""));
+  if (envUser) return envUser;
   var cfg = readConfig_(ss);
   var v = tenDigits_(cfg.ADMIN_USERNAME);
   if (!v) {
@@ -84,6 +101,8 @@ function getAdminUser_(ss) {
 }
 
 function getAdminPass_(ss) {
+  var envPass = tenDigits_(scriptAdminProp_("ADMIN_PASSWORD", ""));
+  if (envPass) return envPass;
   var cfg = readConfig_(ss);
   var v = tenDigits_(cfg.ADMIN_PASSWORD);
   if (!v) {
