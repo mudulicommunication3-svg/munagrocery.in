@@ -2,17 +2,25 @@
 // MUNNA MOBILE & Grocery - Google Apps Script Web App
 // Shared database for the Telegram bot (db.py) AND the webapp (index.html).
 //
-// ONE unified Orders format (13 columns, must match db.ORDERS_HEADERS):
+// ONE unified Orders format (17 columns, must match db.ORDERS_HEADERS):
 //   Timestamp | Order ID | Customer Name | Phone | Address | Items | Total |
-//   Channel | Telegram User ID | Status | Status Msg ID | Location | Payment
+//   Channel | Telegram User ID | Status | Status Msg ID | Location | Payment |
+//   DeliveryType | PickupSlot | PickupExpiryTime | StockRestored
 //
 // Items text format (same as the bot): "Oil x2 @ Rs.340; Salt x1 @ Rs.25"
 // Channel: "webapp" (browser), "chat"/"miniapp"/"ai" (Telegram bot)
 // Status: pending | accepted | packing | out_for_delivery | delivered | cancelled
+// DeliveryType: "" (home delivery) | "Store Pickup"
+//   Store Pickup rows hold PickupSlot ("30 min"|"1 hour"|"2 hour") and
+//   PickupExpiryTime (sheet timestamp = order time + slot). Stock is deducted
+//   when the order is written and RESTORED when it is Rejected or when the
+//   expiry passes without being Delivered (see checkPickupExpiries).
+// StockRestored: "" (not applicable / still held) | "Y" (stock given back)
 //
 // doGet  actions: SEARCH_JIOMART | GET_ORDERS | GET_ADDRESSES | GET_USERS | GET_CONFIG | (catalog)
 // doPost actions: create_order | update_order_status | update_order_bill |
-//                 save_address | SAVE_CONFIG | EDIT_PRODUCT | ADD_PRODUCT |
+//                 restore_pickup_stock | save_address | SAVE_CONFIG |
+//                 EDIT_PRODUCT | ADD_PRODUCT |
 //                 REGISTER_USER | LOGIN_PASSWORD | LOGIN_TOKEN |
 //                 VALIDATE_TOKEN | SYNC_USER | SAVE_USER_CART | PUT_SEARCH
 // =========================================================================
@@ -20,7 +28,8 @@
 var ORDER_HEADERS = [
   "Timestamp", "Order ID", "Customer Name", "Phone", "Address", "Items",
   "Total", "Channel", "Telegram User ID", "Status", "Status Msg ID",
-  "Location", "Payment"
+  "Location", "Payment", "DeliveryType", "PickupSlot", "PickupExpiryTime",
+  "StockRestored"
 ];
 var ADDR_HEADERS = [
   "Telegram User ID", "Name", "Address", "Phone", "Location", "Updated At"
@@ -78,6 +87,10 @@ function doGet(e) {
 
   // ବିକଳ୍ପ B: Orders tab -> webapp ରେ Telegram ଓ browser ଦୁଇ ପାଖର order ଦେଖାଇବ
   if (params && params.action === "GET_ORDERS") {
+    // Admin-fetch sweep: expire any overdue Store Pickup order (give the stock
+    // back + mark "Expired / Cancelled") BEFORE the list is returned, so the
+    // admin always sees fresh, correct statuses even without the trigger.
+    try { checkPickupExpiries_(ss); } catch (eExp) {}
     // Account-wise sync: ?phone=<10-digit> returns only that customer's rows
     // (keeps multi-device refreshes scoped to the logged-in account). Without
     // the param the full list is returned (admin panel / bot depend on it).
@@ -570,7 +583,11 @@ function doPost(e) {
     // ବିକଳ୍ପ 4: webapp admin panel ରୁ status ବଦଳ (bot ଏହା ଦେଖି customer msg edit କରିବ)
     if (data.action === "update_order_status") {
       var st = String(data.status || "").trim();
-      if (ORDER_STATUSES.indexOf(st) < 0) {
+      var stLower = st.toLowerCase();
+      var isKnown = ORDER_STATUSES.indexOf(st) >= 0 ||
+        stLower === "rejected" || stLower === "expired / cancelled" ||
+        stLower === "picked up" || stLower === "picked_up";
+      if (!isKnown) {
         return jsonResponse({ status: "error", error: "Unknown status: " + st });
       }
       var shS = ensureSheet_(ss, "Orders", ORDER_HEADERS);
@@ -579,7 +596,26 @@ function doPost(e) {
         return jsonResponse({ status: "error", error: "Order not found" });
       }
       shS.getRange(rowS, 10).setValue(st);
+      // Reject (or Cancel) of a Store Pickup order -> IMMEDIATELY give the
+      // held stock back to the Products sheet (idempotent via StockRestored).
+      var wasPickup = String(shS.getRange(rowS, 14).getValue() || "").trim();
+      if (wasPickup === "Store Pickup" &&
+          (stLower === "rejected" || stLower === "cancelled")) {
+        restoreOrderStock_(ss, String(data.order_id));
+      }
       return jsonResponse({ status: "success", type: "status_updated", order_id: String(data.order_id), status: st });
+    }
+
+    // ବିକଳ୍ପ 4b: Store Pickup stock restore (admin Reject fallback / manual).
+    //   {"action":"restore_pickup_stock","order_id":"MUN-..."}
+    if (data.action === "restore_pickup_stock") {
+      var didRestore = restoreOrderStock_(ss, String(data.order_id || ""));
+      return jsonResponse({
+        status: "success",
+        type: "stock_restored",
+        order_id: String(data.order_id || ""),
+        restored: !!didRestore
+      });
     }
 
     // ବିକଳ୍ପ 5: webapp admin panel ରୁ bill edit (items + total)
@@ -657,7 +693,7 @@ function ensureSheet_(ss, name, headers) {
   return sh;
 }
 
-// One sheet row -> unified order object (pads older 9/12 column rows).
+// One sheet row -> unified order object (pads older 9/12/13 column rows).
 function rowToOrder_(row) {
   var r = (row || []).slice();
   while (r.length < ORDER_HEADERS.length) r.push("");
@@ -674,7 +710,11 @@ function rowToOrder_(row) {
     status: String(r[9] || "").trim() || "pending",
     status_msg_id: String(r[10] || ""),
     location: String(r[11] || ""),
-    payment: String(r[12] || "").trim() || "COD"
+    payment: String(r[12] || "").trim() || "COD",
+    delivery_type: String(r[13] || "").trim(),
+    pickup_slot: String(r[14] || "").trim(),
+    pickup_expiry_time: String(r[15] || "").trim(),
+    stock_restored: String(r[16] || "").trim()
   };
 }
 
@@ -727,6 +767,21 @@ function normalizeOrder_(data) {
     location = o.lat + "," + o.lng;
   }
 
+  // Store Pickup: delivery_type + slot + expiry. The expiry defaults to the
+  // order timestamp + slot so a bot/webapp order without an explicit expiry
+  // still auto-expires correctly.
+  var deliveryType = String(o.delivery_type || o.deliveryType || "").trim();
+  var pickupSlot = String(o.pickup_slot || o.pickupSlot || "").trim();
+  if (!deliveryType && pickupSlot) deliveryType = "Store Pickup";
+  if (deliveryType === "Store Pickup" && !pickupSlot) {
+    pickupSlot = readPickupSlotFromItems_(itemsText);
+  }
+  var pickupExpiry = String(o.pickup_expiry_time || o.pickupExpiryTime ||
+    o.pickup_expiry || "").trim();
+  if (deliveryType === "Store Pickup" && !pickupExpiry) {
+    pickupExpiry = addSlotToStamp_(ts, pickupSlot);
+  }
+
   return {
     timestamp: ts,
     order_id: orderId,
@@ -741,6 +796,10 @@ function normalizeOrder_(data) {
     status_msg_id: String(o.status_msg_id || ""),
     location: location,
     payment: String(o.payment || "COD").trim() || "COD",
+    delivery_type: deliveryType,
+    pickup_slot: pickupSlot,
+    pickup_expiry_time: pickupExpiry,
+    stock_restored: String(o.stock_restored || "").trim(),
     lines: lines
   };
 }
@@ -749,8 +808,54 @@ function orderRow_(o) {
   return [
     o.timestamp, o.order_id, o.customer_name, o.phone, o.address, o.items,
     o.total, o.channel, o.telegram_user_id, o.status, o.status_msg_id,
-    o.location, o.payment
+    o.location, o.payment,
+    o.delivery_type || "", o.pickup_slot || "", o.pickup_expiry_time || "",
+    o.stock_restored || ""
   ];
+}
+
+// "Store Pickup (30 min)" embedded in an Items cell -> "30 min" (bot orders).
+function readPickupSlotFromItems_(itemsText) {
+  var m = String(itemsText || "").match(/Store Pickup\s*\(([^)]+)\)/i);
+  return m ? String(m[1]).trim() : "";
+}
+
+// Slot minutes -> offset. Unknown/empty slot => 0 (never expires early).
+function slotMinutes_(slot) {
+  var s = String(slot || "").toLowerCase().replace(/\s+/g, " ").trim();
+  if (!s) return 0;
+  if (s.indexOf("30") === 0) return 30;
+  if (s.indexOf("2") === 0) return 120;
+  if (s.indexOf("1") === 0) return 60;
+  var m = s.match(/(\d+)/);
+  return m ? (Number(m[1]) || 0) : 0;
+}
+
+// "yyyy-MM-dd HH:mm:ss" + slot -> sheet timestamp string of the expiry.
+function addSlotToStamp_(stamp, slot) {
+  var mins = slotMinutes_(slot);
+  if (!mins) return "";
+  var d = parseStamp_(stamp);
+  if (!d) return "";
+  d.setTime(d.getTime() + mins * 60000);
+  return formatStamp_(d);
+}
+
+function parseStamp_(stamp) {
+  var s = String(stamp || "").trim().replace("T", " ").substring(0, 19);
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s)) {
+    var p = s.split(/[- :]/);
+    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]),
+      Number(p[3]), Number(p[4]), Number(p[5]));
+  }
+  var t = Date.parse(s);
+  return isNaN(t) ? null : new Date(t);
+}
+
+function formatStamp_(d) {
+  var p = function (n) { return String(n).length < 2 ? "0" + n : String(n); };
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) +
+    " " + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
 }
 
 
@@ -760,10 +865,15 @@ function writeNewOrder_(ss, payload) {
   var existing = findOrderRow_(ordersSh, o.order_id);
   if (existing > 0) {
     // Same order sent twice -> update in place, never duplicate the row.
+    // A resend must NEVER re-deduct stock (the first write already held it).
+    var prev = rowToOrder_(ordersSh.getRange(existing, 1, 1, ORDER_HEADERS.length).getValues()[0]);
+    o.stock_restored = prev.stock_restored || "";
     ordersSh.getRange(existing, 1, 1, ORDER_HEADERS.length).setValues([orderRow_(o)]);
     return { status: "success", type: "order_updated", order_id: o.order_id };
   }
   var eanLines = (o.lines || []).filter(function (l) { return l && l.ean; });
+  // Stock hold for EVERY order (home delivery + Store Pickup) — exactly one
+  // deduction per order id, then Restore gives it back on Reject/expiry.
   if (eanLines.length) deductStock_(ss.getSheetByName("Sheet1"), eanLines);
   ordersSh.appendRow(orderRow_(o));
   // Register EVERY customer in Addresses so the admin "All Users" tab is
@@ -772,7 +882,34 @@ function writeNewOrder_(ss, payload) {
     var uid2 = String(o.telegram_user_id || o.phone || "").trim();
     if (uid2) upsertAddress_(ss, uid2, o.customer_name, o.address, o.phone, o.location);
   }
+  // Belt-and-braces: heal any clock-skewed/missing expiry right away + arm
+  // the 5-minute auto-restore trigger once.
+  try { ensurePickupTrigger_(); } catch (e) {}
+  checkPickupExpiries_(ss);
   return { status: "success", type: "order_recorded", order_id: o.order_id };
+}
+
+// Give the ordered quantities BACK to Sheet1 by EAN (inverse of deductStock_).
+// Used by Store Pickup Reject + the expiry sweep.
+function restoreStock_(prodSheet, lines) {
+  if (!prodSheet || !lines || !lines.length) return;
+  var lastRow = prodSheet.getLastRow();
+  if (lastRow < 2) return;
+  var cols = Math.min(7, prodSheet.getMaxColumns());
+  var rows = prodSheet.getRange(2, 1, lastRow - 1, cols).getValues();
+  var index = {};
+  for (var i = 0; i < rows.length; i++) {
+    var ean = String(rows[i][4] || "").trim();
+    if (ean && index[ean] === undefined) index[ean] = i;
+  }
+  for (var j = 0; j < lines.length; j++) {
+    var ean2 = String(lines[j].ean || "").trim();
+    var qty = Number(lines[j].qty || 0);
+    var at = index[ean2];
+    if (at === undefined || !qty) continue;
+    var cur = Number(rows[at][3] || 0);
+    prodSheet.getRange(at + 2, 4).setValue(Math.max(0, cur + qty));
+  }
 }
 
 
@@ -796,6 +933,129 @@ function deductStock_(prodSheet, lines) {
     var cur = Number(rows[at][3] || 0);
     prodSheet.getRange(at + 2, 4).setValue(Math.max(0, cur - qty));
   }
+}
+
+// Restore the stock held by a Store Pickup order and flag it as given back.
+// Returns true only when THIS call did the restore (StockRestored = "Y" guard
+// makes a double-click / repeated sweep idempotent — stock never inflates).
+function restoreOrderStock_(ss, orderId) {
+  var sh = ensureSheet_(ss, "Orders", ORDER_HEADERS);
+  var row = findOrderRow_(sh, orderId);
+  if (row < 1) return false;
+  var o = rowToOrder_(sh.getRange(row, 1, 1, ORDER_HEADERS.length).getValues()[0]);
+  if (o.stock_restored === "Y") return false;
+  if (String(o.delivery_type) !== "Store Pickup") return false;
+  var lines = resolveLinesByEan_(ss.getSheetByName("Sheet1"), itemsToLines_(o.items));
+  if (lines.length) restoreStock_(ss.getSheetByName("Sheet1"), lines);
+  sh.getRange(row, 17).setValue("Y"); // StockRestored
+  return true;
+}
+
+// Items text -> [{name, qty}] (the Items cell carries the NAME, not the EAN).
+function itemsToLines_(itemsText) {
+  var out = [];
+  String(itemsText || "").split(";").forEach(function (seg) {
+    seg = seg.trim();
+    if (!seg) return;
+    var m = seg.match(/^(.*?)\s*[xX]\s*(\d+)\s*@/);
+    if (!m) return;
+    out.push({ name: m[1].trim(), qty: parseInt(m[2], 10) || 0 });
+  });
+  return out;
+}
+
+// Resolve [{name,qty}] -> [{ean,qty}] via Sheet1 (product name -> EAN column).
+function resolveLinesByEan_(prodSheet, lines) {
+  if (!prodSheet || !lines || !lines.length) return [];
+  var lastRow = prodSheet.getLastRow();
+  if (lastRow < 2) return [];
+  var cols = Math.min(7, prodSheet.getMaxColumns());
+  var rows = prodSheet.getRange(2, 1, lastRow - 1, cols).getValues();
+  var byName = {};
+  for (var i = 0; i < rows.length; i++) {
+    var nm = String(rows[i][0] || "").trim().toLowerCase();
+    if (nm && byName[nm] === undefined) byName[nm] = String(rows[i][4] || "").trim();
+  }
+  return lines.map(function (l) {
+    return { ean: byName[String(l.name || "").trim().toLowerCase()] || "", qty: l.qty };
+  }).filter(function (l) { return l.ean && l.qty > 0; });
+}
+
+// =========================================================================
+// Store Pickup auto stock restore (time-driven trigger + on-read sweep)
+// =========================================================================
+// Scans Store Pickup orders whose PickupExpiryTime has passed without being
+// Delivered / Picked Up (or whose status is Rejected) -> puts the ordered
+// quantities back into the Products sheet and marks the order
+// "Expired / Cancelled".
+function checkPickupExpiries_(ss) {
+  var sh = ss.getSheetByName("Orders");
+  if (!sh || sh.getLastRow() < 2) return 0;
+  var lastCol = Math.max(ORDER_HEADERS.length, sh.getMaxColumns());
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, lastCol).getValues();
+  var now = new Date();
+  var restored = 0;
+
+  for (var i = 0; i < rows.length; i++) {
+    var o = rowToOrder_(rows[i]);
+    if (String(o.delivery_type) !== "Store Pickup") continue;
+    var status = String(o.status || "").trim().toLowerCase();
+    if (o.stock_restored === "Y") continue;
+
+    // Rejected -> give the stock back right now (idempotent).
+    if (status === "rejected") {
+      if (restoreOrderStock_(ss, o.order_id)) restored++;
+      continue;
+    }
+    // Final states -> the stock was genuinely collected, keep it deducted.
+    if (status === "delivered" || status === "picked up" || status === "picked_up" ||
+        status === "expired / cancelled" || status === "cancelled") {
+      continue;
+    }
+
+    var exp = parseStamp_(o.pickup_expiry_time);
+    if (!exp) continue;
+    if (now.getTime() > exp.getTime()) {
+      if (restoreOrderStock_(ss, o.order_id)) restored++;
+      var rowN = findOrderRow_(sh, o.order_id);
+      if (rowN > 0) sh.getRange(rowN, 10).setValue("Expired / Cancelled");
+    }
+  }
+  return restored;
+}
+
+// Public entry point — the time-driven trigger target (every 5 minutes).
+// Can also be run manually from the Apps Script editor.
+function checkPickupExpiries() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    return { status: "success", restored: checkPickupExpiries_(ss) };
+  } catch (err) {
+    return { status: "error", error: err.toString() };
+  }
+}
+
+// Installs the 5-minute time-driven trigger (idempotent). Run once from the
+// Apps Script editor, or let ensurePickupTrigger_() arm it on the first order.
+function installPickupExpiryTrigger() {
+  var existing = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < existing.length; i++) {
+    if (existing[i].getHandlerFunction() === "checkPickupExpiries") {
+      return { status: "success", installed: false };
+    }
+  }
+  ScriptApp.newTrigger("checkPickupExpiries").timeBased().everyMinutes(5).create();
+  return { status: "success", installed: true };
+}
+
+// Arm the trigger once (guarded by a script property) so the sweep is active
+// even if nobody ran installPickupExpiryTrigger() by hand. The on-read sweep
+// below still covers environments where triggers are unavailable.
+function ensurePickupTrigger_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty("pickup_expiry_trigger_installed") === "1") return;
+  installPickupExpiryTrigger();
+  props.setProperty("pickup_expiry_trigger_installed", "1");
 }
 
 // One DEFAULT address per user (same Addresses tab the bot writes).
