@@ -47,8 +47,7 @@
 
       // PUBLIC read-only server diagnostics for admin live order verification.
       window.munnaReadonlyGet = function (path) {
-        var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
-          || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+        var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
         if (!hook) return Promise.resolve({ ok: false, status: 0, url: '', json: null });
         var ctrl = new AbortController();
         var timeout = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000);
@@ -1155,17 +1154,6 @@
     const STORE_LNG = 86.059808;
     const MAX_RADIUS_KM = 3.0;
 
-    // ====================================================================
-    // Google Apps Script Webhook - LIVE catalog for every new visitor.
-    // Without it, a fresh device/browser only shows the built-in sample
-    // products below. Resolution order (later wins only when earlier absent):
-    //   1. ?sheet=<url>            deep-link override (bot Mini App uses this)
-    //   2. localStorage webhook    saved via Admin -> Sheets
-    //   3. DEFAULT_SHEET_WEBHOOK   this constant (new devices auto-sync)
-    // Get the real URL from the bot server's .env: SHEET_WEBHOOK_URL=...
-    // (Apps Script editor -> Deploy -> Web app -> URL ending in /exec)
-    // ====================================================================
-    const DEFAULT_SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbw9bsU9AR5CPk-PzsLqjzzJ_17J8B6p34TvNAR0dPnTUMVPW7ja3ZfYEv1oTjUHKqKt/exec";
 
     // ImgBB API key - powers the Banners-tab Image Link Generator on every
     // device with no setup. Resolution order: localStorage override (Admin ->
@@ -2471,8 +2459,7 @@
     // but this helper remains for auth calls that need the same JSON shape.
     // Falls back to a no-cors fire-and-forget only if the readable fetch fails.
     async function adminFetchJson_(payload) {
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
-        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
       if (!hook) return null;
       try {
         var res = await fetch(hook, {
@@ -3864,8 +3851,7 @@
     // bot PC's answer — the ONLY path proven to reach JioMart (bot's
     // jiomart_search.fetch_items). ~5-20s depending on the bot poll loop.
     async function searchBusViaSheet(q, pin) {
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
-        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
       if (!hook) return null;
       var rid = 'SQ-' + Date.now().toString(36).toUpperCase() + '-' +
         Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -4162,10 +4148,9 @@
       syncAddressesFromSheet();
     }
     async function syncFromGoogleSheet() {
-      // Prefer the saved webhook; fall back to DEFAULT_SHEET_WEBHOOK so a
-      // brand-new device still fetches the LIVE inventory instead of staying
-      // on the built-in sample products.
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim() || DEFAULT_SHEET_WEBHOOK;
+      // Only fetch when the admin has configured a Sheet webhook in Admin ->
+      // Sheets. Brand-new devices stay on built-in sample products until then.
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
       if (!hook) return;
       try {
         var res = await fetch(hook);
@@ -4307,17 +4292,14 @@
 
     // --- SHARED-DATABASE HELPERS (Google Sheet via Apps Script webhook) ---
     function sheetHookUrl(suffix) {
-      // localStorage first, DEFAULT_SHEET_WEBHOOK fallback — customer phones
-      // that never opened Admin still reach the shared Sheet (banners/order
-      // sync must work on EVERY device, not just the admin's).
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
-        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      // localStorage webhook only — no hardcoded production webhook is shipped
+      // in this repo. Admin must save the Sheet URL via Admin -> Sheets.
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
       if (!hook) return '';
       return hook + (hook.indexOf('?') >= 0 ? '&' : '?') + (suffix || '');
     }
     function postToSheet(payload) {
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
-        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
       if (!hook) return Promise.resolve({ ok: false, status: 0, url: '', json: null });
       try {
         return fetch(hook, {
@@ -4474,8 +4456,7 @@
     function pushConfigToSheet(key, value) {
       // Returns false when no webhook is configured, so callers can warn.
       if (!key) return false;
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
-        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
       if (!hook) return false;
       try {
         fetch(hook, {
@@ -5230,8 +5211,7 @@
     // When NO webhook is configured the flow falls back to a local session so
     // the page still works offline (no localhost / Python server needed).
     function pwHook_() {
-      return (localStorage.getItem('munna_sheet_webhook') || '').trim()
-        || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+      return (localStorage.getItem('munna_sheet_webhook') || '').trim();
     }
     // LOGIN button: verify phone + password against the Users store.
     // LOGIN button: send TRIMMED phone + password to the Apps Script webhook.
@@ -5629,16 +5609,9 @@
         // ?sheet= deep-link always wins (the bot passes its webhook this way).
         if (sUrl) {
           localStorage.setItem('munna_sheet_webhook', sUrl);
-        } else if (localStorage.getItem('munna_sheet_webhook') && DEFAULT_SHEET_WEBHOOK) {
-          // Always keep this app on the live production Sheet webhook. A stale
-          // saved/deep-link webhook is the most common reason customer orders
-          // never reach the admin panel.
-          localStorage.setItem('munna_sheet_webhook', DEFAULT_SHEET_WEBHOOK);
-        } else if (!localStorage.getItem('munna_sheet_webhook') && DEFAULT_SHEET_WEBHOOK) {
-          // First visit on a new device: adopt the default webhook and pull
-          // the LIVE catalog right away instead of the sample products.
-          localStorage.setItem('munna_sheet_webhook', DEFAULT_SHEET_WEBHOOK);
         }
+        // Admin must save the Sheet URL via Admin -> Sheets on each device
+        // (or via ?sheet= deep-link). No hardcoded production webhook is shipped.
         // ?pw=<password> / ?wppx=<payload> quick-login routing (replaces the
         // old mob://wx PHP hook). ?pw= pre-fills / (localhost only) auto-logs-in;
         // ?wppx= is stashed for the WhatsApp deep-link bridge (reserved).
@@ -5659,7 +5632,7 @@
       renderProfile();
       updateCartBadge();
       renderScanHistory();
-      // Fetch + render live inventory (localStorage webhook or DEFAULT_SHEET_WEBHOOK).
+      // Fetch + render live inventory (localStorage webhook).
       syncFromGoogleSheet();
       // Admin-set offer banners are shared: Sheet first (ALL customers see the
       // same banners), local cache only until the Sheet answers.
