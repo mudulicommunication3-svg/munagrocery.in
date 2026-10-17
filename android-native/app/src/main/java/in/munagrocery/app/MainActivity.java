@@ -3,6 +3,8 @@ package in.munagrocery.app;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -40,10 +42,12 @@ import androidx.core.view.WindowInsetsControllerCompat;
 public class MainActivity extends Activity {
 
     private static final String HOME_URL = "https://munagrocery.in";
+    private static final String ORDER_NOTIFICATION_CHANNEL_ID = "munna_new_orders";
     private static final int FILE_CHOOSER_REQUEST = 1001;
 
     // Runtime permissions requested up-front in onCreate().
     private static final int PERMISSION_REQ_CODE = 101;
+    private static final int NOTIFICATION_PERMISSION_REQ_CODE = 102;
     private static final String[] REQUIRED_PERMISSIONS = {
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION,
@@ -111,9 +115,10 @@ public class MainActivity extends Activity {
         // 3 KM Leaflet map tiles + Google Fonts / CDNs load over https.
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
 
-        // Android OS runtime permission dialogs (Camera + GPS) up-front so the
-        // WebView's geolocation / getUserMedia prompts can be granted instantly.
+        // Camera + notification permission dialogs (API 33+ notifications) so
+        // the WebView can ask for and receive new-order alerts.
         ensureRuntimePermissions();
+        ensureNotificationPermission();
 
         // Keep every navigation strictly inside this WebView (no Chrome/Tab).
         webView.setWebViewClient(new WebViewClient() {
@@ -211,6 +216,30 @@ public class MainActivity extends Activity {
         }
         if (missing) {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSION_REQ_CODE);
+        }
+    }
+
+    /** Create the new-order channel and request Android 13+ notification permission. */
+    private void ensureNotificationPermission() {
+        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        if (notificationManager != null) {
+            NotificationChannel channel = new NotificationChannel(
+                    ORDER_NOTIFICATION_CHANNEL_ID,
+                    "New orders",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription("Alerts for new customer orders");
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 500, 250, 500, 250, 700});
+            notificationManager.createNotificationChannel(channel);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                !hasPermission(Manifest.permission.POST_NOTIFICATIONS)) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIFICATION_PERMISSION_REQ_CODE
+            );
         }
     }
 
