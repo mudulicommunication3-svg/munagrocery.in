@@ -66,6 +66,11 @@ ORDERS_HEADERS: List[str] = [
     "Status Msg ID",
     "Location",
     "Payment",
+    "DeliveryType",
+    "PickupSlot",
+    "PickupExpiryTime",
+    "StockRestored",
+    "AdminAlertStatus",
 ]
 
 # Drive scope is required to CREATE spreadsheets and SHARE them.
@@ -244,11 +249,11 @@ def ensure_orders_tab(spreadsheet) -> None:
     except Exception as exc:  # noqa: BLE001
         raise SetupError(f"Could not create the Orders tab: {exc}") from exc
     try:
-        worksheet.update(values=[ORDERS_HEADERS], range_name="A1:I1")
+        worksheet.update(values=[ORDERS_HEADERS], range_name="A1:R1")
     except Exception as exc:  # noqa: BLE001
         raise SetupError(f"Could not write the Orders header row: {exc}") from exc
     try:
-        worksheet.format("A1:I1", {"textFormat": {"bold": True}})
+        worksheet.format("A1:R1", {"textFormat": {"bold": True}})
     except Exception as exc:  # non-fatal cosmetic step
         logger.debug("Could not bold the Orders header row: %s", exc)
     logger.info("Orders tab created: %s", ORDERS_HEADERS)

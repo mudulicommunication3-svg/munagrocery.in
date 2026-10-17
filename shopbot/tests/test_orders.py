@@ -197,6 +197,8 @@ def main() -> int:
     logged = orders_ws.appended[0]
     check("order row has customer+total",
           logged[2] == "Ravi" and logged[6] == 2 * 170 + 25 and logged[7] == "chat")
+    check("order row has 18 unified columns", len(logged) == len(db.ORDERS_HEADERS) == 18)
+    check("order row starts Unseen alert", logged[17] == "Unseen")
 
     fresh()
     try:
@@ -214,6 +216,7 @@ def main() -> int:
     orders_ws.append_row(["2026-01-02", "MUN-NEW", "B", "2", "y", "Salt x2", 50, "ai", "2"])
     recent = db.get_recent_orders(limit=5)
     check("recent newest-first", [o["order_id"] for o in recent] == ["MUN-NEW", "MUN-OLD"])
+    check("recent reads 18-column fields", all("delivery_type" in o and "admin_alert_status" in o for o in recent))
 
     # --- checkout() notifies admins ---------------------------------------
     _ws, _sheet = fresh()

@@ -1919,23 +1919,44 @@
       // Browser/admin webapp orders: write the Sheet row directly. Telegram
       // Mini App orders are handled by the bot through sendData above.
       if (!sentToBot) {
-        // Readable POST + server-side row verification: no-cors POSTs can fail
-        // silently after a Sheet setup/redeploy, leaving orders only local.
+        // Readable POST + server-side row verification: un-awaited no-cors
+        // style writes can leave orders only in local cache.
+        renderAdminSyncStatus_('Saving order to Google Sheet...', true);
         try {
-          postToSheet({ action: 'repair_orders_sheet' });
-          postToSheet({ action: 'create_order', order: orderObj }).then(function (r) {
-            if (r && r.ok && r.json && (r.json.status === 'success' || r.json.type === 'order_recorded')) {
-              try {
-                syncOrdersFromSheet(true).then(function () {
+          var repairP = postToSheet({ action: 'repair_orders_sheet' });
+          var saveP = (repairP && repairP.then ? repairP : Promise.resolve(repairP))
+            .then(function () { return postToSheet({ action: 'create_order', order: orderObj }); })
+            .then(function (r) {
+              var body = (r && r.json) || {};
+              if (r && r.ok && (body.status === 'success' || body.type === 'order_recorded')) {
+                var savedId = String(body.order_id || orderObj.order_id || '');
+                return syncOrdersFromSheet(true).then(function () {
+                  return syncOrdersFromSheet(true);
+                }).then(function () {
                   renderAdminSyncStatus_('Order saved to Google Sheet', true);
+                  return verifyOrderOnSheet_(savedId);
+                }).then(function (verified) {
+                  if (verified) {
+                    renderAdminSyncStatus_('Order saved to Google Sheet', true);
+                  } else {
+                    renderAdminSyncStatus_('Sheet save pending — retry from Orders', false);
+                    markPendingSheetOrder_(orderObj);
+                  }
                 });
-              } catch (e) {}
-            } else {
+              }
               renderAdminSyncStatus_('Sheet order save failed', false);
-            }
-          });
+              markPendingSheetOrder_(orderObj);
+              return null;
+            })
+            .catch(function () {
+              renderAdminSyncStatus_('Sheet order save failed', false);
+              markPendingSheetOrder_(orderObj);
+              return null;
+            });
+          try { if (saveP && saveP.catch) saveP.catch(function () {}); } catch (ignoreUnhandled) {}
         } catch (e) {
           renderAdminSyncStatus_('Sheet order save failed', false);
+          markPendingSheetOrder_(orderObj);
         }
       }
       // Alert THIS admin device immediately, then refresh the full admin
@@ -2586,10 +2607,13 @@
       if (t === 'settings') fillShopSettingsInputs();
     }
 
-    function manualFullOrderSync() {
+    async function manualFullOrderSync() {
       if (!isAdmin_()) { openAdminModal(); return; }
       renderAdminSyncStatus_('Manual full live sync...', true);
       startAdminOrderPolling_();
+      try {
+        await resendPendingSheetOrders_();
+      } catch (e) {}
       return syncOrdersFromSheet(true).then(function (ok) {
         if (ok) {
           renderAdminOrders();
@@ -2599,6 +2623,29 @@
         }
         return ok;
       });
+    }
+
+    async function resendPendingSheetOrders_() {
+      var pending = getPendingSheetOrders_();
+      if (!pending.length) return 0;
+      var sent = 0;
+      for (var i = 0; i < pending.length; i++) {
+        var one = pending[i];
+        if (!one || !one.order_id) continue;
+        try {
+          var r = await postToSheet({ action: 'create_order', order: one });
+          var body = (r && r.json) || {};
+          if (r && r.ok && (body.status === 'success' || body.type === 'order_recorded')) {
+            clearPendingSheetOrder_(one.order_id);
+            sent++;
+          }
+        } catch (e) {}
+      }
+      if (sent) {
+        try { await syncOrdersFromSheet(true); } catch (e2) {}
+        renderAdminSyncStatus_('Resent ' + sent + ' pending order(s)', true);
+      }
+      return sent;
     }
 
     function renderAdminOrders() {
@@ -4299,6 +4346,50 @@
     }
     function setMyOrders(o) { try { localStorage.setItem('MUNA_ALL_ORDERS', JSON.stringify(o)); } catch(e){} }
 
+    // Orders whose server write could not be verified are kept in a small
+    // local outbox so they can be resent after a Sheet clear / bad deploy.
+    var PENDING_SHEET_ORDERS_KEY = 'MUNA_PENDING_SHEET_ORDERS';
+    function getPendingSheetOrders_() {
+      try { return JSON.parse(localStorage.getItem(PENDING_SHEET_ORDERS_KEY) || '[]') || []; }
+      catch (e) { return []; }
+    }
+    function setPendingSheetOrders_(list) {
+      try { localStorage.setItem(PENDING_SHEET_ORDERS_KEY, JSON.stringify(list || [])); } catch (e) {}
+    }
+    function markPendingSheetOrder_(orderObj) {
+      try {
+        if (!orderObj || !orderObj.order_id) return;
+        var pending = getPendingSheetOrders_().filter(function (p) {
+          return String((p && p.order_id) || '') !== String(orderObj.order_id);
+        });
+        pending.unshift(orderObj);
+        setPendingSheetOrders_(pending.slice(0, 25));
+        renderAdminSyncStatus_('Sheet save pending — retry from Orders', false);
+      } catch (e) {}
+    }
+    function clearPendingSheetOrder_(orderId) {
+      try {
+        if (!orderId) return;
+        setPendingSheetOrders_(getPendingSheetOrders_().filter(function (p) {
+          return String((p && p.order_id) || '') !== String(orderId);
+        }));
+      } catch (e) {}
+    }
+    async function verifyOrderOnSheet_(orderId) {
+      if (!orderId) return false;
+      try {
+        var url = sheetHookUrl('action=GET_ORDERS&_=' + Date.now());
+        if (!url) return false;
+        var res = await fetch(url, { cache: 'no-store' });
+        var data = await res.json();
+        var found = ((data && data.orders) || []).some(function (r) {
+          return String((r && (r.order_id || r.id)) || '') === String(orderId);
+        });
+        if (found) clearPendingSheetOrder_(orderId);
+        return found;
+      } catch (e) { return false; }
+    }
+
 
     function sendToBot(payload) {
       if (tg && tg.sendData) { try { tg.sendData(JSON.stringify(payload)); return true; } catch(e){} }
@@ -5006,7 +5097,21 @@
       var orders = getMyOrders();
       orders.unshift(orderObj);
       setMyOrders(orders);
-      postToSheet({ action: 'create_order', order: orderObj });  // Sheet: stock deduct + admin sync
+      renderAdminSyncStatus_('Saving bill to Google Sheet...', true);
+      try {
+        postToSheet({ action: 'repair_orders_sheet' })
+          .then(function () { return postToSheet({ action: 'create_order', order: orderObj }); })
+          .then(function (r) {
+            var body = (r && r.json) || {};
+            if (r && r.ok && (body.status === 'success' || body.type === 'order_recorded')) {
+              renderAdminSyncStatus_('Bill saved to Google Sheet', true);
+              try { syncOrdersFromSheet(true); } catch (e) {}
+            } else {
+              markPendingSheetOrder_(orderObj);
+            }
+          })
+          .catch(function () { markPendingSheetOrder_(orderObj); });
+      } catch (e) { markPendingSheetOrder_(orderObj); }
       qbLines = [];
       var nEl = document.getElementById('qbName'); if (nEl) nEl.value = '';
       var pEl = document.getElementById('qbPhone'); if (pEl) pEl.value = '';
@@ -5669,10 +5774,20 @@
       // keep refreshing so stage/status changes made in the bot show up here.
       // Admin/full-store devices use a faster sync managed by
       // startAdminOrderPolling_; customers retain the 60-second account sync.
+      try { postToSheet({ action: 'repair_orders_sheet' }); } catch (e) {}
       syncOrdersFromSheet();
       syncAddressesFromSheet();
       if (!isAdmin_()) setInterval(function () { syncOrdersFromSheet(); }, 60000);
       setInterval(function () { syncAddressesFromSheet(); }, 300000);
+      // Retry orders whose Sheet write could not be verified earlier. This is
+      // the recovery path after a Sheet clear / redeploy breaks new writes.
+      try {
+        var pendingEarly = getPendingSheetOrders_();
+        if (pendingEarly.length) {
+          renderAdminSyncStatus_('Retrying pending Sheet order(s)...', true);
+          resendPendingSheetOrders_().catch(function () {});
+        }
+      } catch (e) {}
       // Resume the 15 s new-order ring polling if this device is already an
       // authenticated admin (isAdminLoggedIn persisted across reloads).
       if (isAdmin_()) startAdminOrderPolling_();

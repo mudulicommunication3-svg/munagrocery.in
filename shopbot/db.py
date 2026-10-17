@@ -712,12 +712,22 @@ ORDERS_HEADERS: List[str] = [
     "Status Msg ID",
     "Location",
     "Payment",
+    "DeliveryType",
+    "PickupSlot",
+    "PickupExpiryTime",
+    "StockRestored",
+    "AdminAlertStatus",
 ]
 # column indexes (0-based) for the status/workflow fields
 COL_ORDER_STATUS = 9
 COL_ORDER_STATUS_MSG = 10
 COL_ORDER_LOCATION = 11
 COL_ORDER_PAYMENT = 12
+COL_ORDER_DELIVERY_TYPE = 13
+COL_ORDER_PICKUP_SLOT = 14
+COL_ORDER_PICKUP_EXPIRY = 15
+COL_ORDER_STOCK_RESTORED = 16
+COL_ORDER_ALERT_STATUS = 17
 
 # order lifecycle (seller advances these from the Admin Panel)
 ORDER_STATUSES: List[str] = [
@@ -809,6 +819,10 @@ def place_order(
     timestamp=None,
     location="",
     payment="COD",
+    delivery_type="",
+    pickup_slot="",
+    pickup_expiry_time="",
+    admin_alert_status="Unseen",
 ):
     """Validate, deduct stock and log an order - the ONE checkout path.
 
@@ -896,6 +910,11 @@ def place_order(
         "",         # Status Msg ID - filled once the customer status msg is sent
         str(location or "").strip(),
         str(payment or "COD").strip() or "COD",
+        str(delivery_type or "").strip(),
+        str(pickup_slot or "").strip(),
+        str(pickup_expiry_time or "").strip(),
+        "",         # StockRestored - set to Y when held stock is returned
+        str(admin_alert_status or "Unseen").strip() or "Unseen",
     ]
     worksheet = get_orders_worksheet()
     _call("Logging order", worksheet.append_row, row)
@@ -943,6 +962,11 @@ def get_recent_orders(limit=20):
                 "status_msg_id": str(padded[COL_ORDER_STATUS_MSG]).strip(),
                 "location": str(padded[COL_ORDER_LOCATION]).strip(),
                 "payment": str(padded[COL_ORDER_PAYMENT]).strip() or "COD",
+                "delivery_type": str(padded[COL_ORDER_DELIVERY_TYPE]).strip() if len(padded) > COL_ORDER_DELIVERY_TYPE else "",
+                "pickup_slot": str(padded[COL_ORDER_PICKUP_SLOT]).strip() if len(padded) > COL_ORDER_PICKUP_SLOT else "",
+                "pickup_expiry_time": str(padded[COL_ORDER_PICKUP_EXPIRY]).strip() if len(padded) > COL_ORDER_PICKUP_EXPIRY else "",
+                "stock_restored": str(padded[COL_ORDER_STOCK_RESTORED]).strip() if len(padded) > COL_ORDER_STOCK_RESTORED else "",
+                "admin_alert_status": str(padded[COL_ORDER_ALERT_STATUS]).strip() if len(padded) > COL_ORDER_ALERT_STATUS else "",
             }
         )
     orders.reverse()  # newest first (append-only log)

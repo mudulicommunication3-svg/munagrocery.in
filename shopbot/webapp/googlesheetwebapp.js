@@ -2,7 +2,7 @@
 // MUNNA MOBILE & Grocery - Google Apps Script Web App
 // Shared database for the Telegram bot (db.py) AND the webapp (index.html).
 //
-// ONE unified Orders format (17 columns, must match db.ORDERS_HEADERS):
+// ONE unified Orders format (18 columns, must match db.ORDERS_HEADERS):
 //   Timestamp | Order ID | Customer Name | Phone | Address | Items | Total |
 //   Channel | Telegram User ID | Status | Status Msg ID | Location | Payment |
 //   DeliveryType | PickupSlot | PickupExpiryTime | StockRestored |
@@ -707,12 +707,21 @@ function doPost(e) {
       return jsonResponse({ status: "success", type: "product_added" });
     }
 
-    // ବିକଳ୍ପ 3: ନୂଆ order (webapp browser checkout) - ଠିକ୍ ସେହି same 13-column row
+    // ବିକଳ୍ପ 3: ନୂଆ order (webapp browser checkout) - ଠିକ୍ ସେହି same 18-column row
     // ଯାହା bot ର db.place_order ଲେଖେ, ତାହା Apps Script ମଧ୍ୟ ଲେଖିବ।
     if (data.action === "create_order") {
       // Repaired before every write so clearing old rows never blocks a new order.
       ensureSheet_(ss, "Orders", ORDER_HEADERS);
-      return jsonResponse(writeNewOrder_(ss, data));
+      var created = writeNewOrder_(ss, data);
+      if (created && created.status === "success") {
+        // Direct readback proves the new row physically exists before we tell
+        // the phone it was saved. This catches silent quota/range failures.
+        var probe = findOrderRow_(ensureSheet_(ss, "Orders", ORDER_HEADERS), created.order_id);
+        if (probe < 1) {
+          return jsonResponse({ status: "error", error: "Order row was not saved", order_id: created.order_id });
+        }
+      }
+      return jsonResponse(created);
     }
 
     // ବିକଳ୍ପ 4: webapp admin panel ରୁ status ବଦଳ (bot ଏହା ଦେଖି customer msg edit କରିବ)
@@ -999,6 +1008,12 @@ function formatStamp_(d) {
 
 function writeNewOrder_(ss, payload) {
   var o = normalizeOrder_(payload);
+  if (!o.order_id) {
+    return { status: "error", error: "Order ID missing" };
+  }
+  if (!o.items) {
+    return { status: "error", error: "Order items missing" };
+  }
   // New pending orders start "Unseen" so the 15 s ringing poll picks them up
   // on every open admin device. Explicit values (bot/legacy) are preserved.
   if (!o.admin_alert_status && String(o.status).toLowerCase() === "pending") {
@@ -1017,18 +1032,31 @@ function writeNewOrder_(ss, payload) {
   var eanLines = (o.lines || []).filter(function (l) { return l && l.ean; });
   // Stock hold for EVERY order (home delivery + Store Pickup) — exactly one
   // deduction per order id, then Restore gives it back on Reject/expiry.
-  if (eanLines.length) deductStock_(ss.getSheetByName("Sheet1"), eanLines);
-  ordersSh.appendRow(orderRow_(o));
+  // Never let stock handling block the order row itself.
+  try {
+    if (eanLines.length) deductStock_(ss.getSheetByName("Sheet1"), eanLines);
+  } catch (stockErr) {}
+  // Direct column write first, so a helper crash cannot lose the order row.
+  var writeRow = orderRow_(o);
+  try {
+    ordersSh.getRange(ordersSh.getLastRow() + 1, 1, 1, writeRow.length).setValues([writeRow]);
+  } catch (directWriteErr) {
+    ordersSh.appendRow(writeRow);
+  }
   // Register EVERY customer in Addresses so the admin "All Users" tab is
   // complete (Telegram id inside the bot, else the phone number as key).
-  if (o.customer_name && o.address) {
-    var uid2 = String(o.telegram_user_id || o.phone || "").trim();
-    if (uid2) upsertAddress_(ss, uid2, o.customer_name, o.address, o.phone, o.location);
-  }
+  // This must never fail order creation if the Addresses tab is damaged.
+  try {
+    if (o.customer_name && o.address) {
+      var uid2 = String(o.telegram_user_id || o.phone || "").trim();
+      if (uid2) upsertAddress_(ss, uid2, o.customer_name, o.address, o.phone, o.location);
+    }
+  } catch (addrErr) {}
   // Belt-and-braces: heal any clock-skewed/missing expiry right away + arm
-  // the 5-minute auto-restore trigger once.
+  // the 5-minute auto-restore trigger once. Expiry handling must also never
+  // fail order creation.
   try { ensurePickupTrigger_(); } catch (e) {}
-  checkPickupExpiries_(ss);
+  try { checkPickupExpiries_(ss); } catch (eExp) {}
   return { status: "success", type: "order_recorded", order_id: o.order_id };
 }
 

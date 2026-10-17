@@ -2,10 +2,11 @@
 
 The GitHub Pages Mini App (``index.html`` at munagrocery.in) and the Telegram
 bot share ONE
-Orders tab with the exact same 13-column format (``db.ORDERS_HEADERS``):
+Orders tab with the exact same 18-column format (``db.ORDERS_HEADERS``):
 
     Timestamp | Order ID | Customer Name | Phone | Address | Items | Total |
-    Channel | Telegram User ID | Status | Status Msg ID | Location | Payment
+    Channel | Telegram User ID | Status | Status Msg ID | Location | Payment |
+    DeliveryType | PickupSlot | PickupExpiryTime | StockRestored | AdminAlertStatus
 
 Sync directions handled here (poll loop started from ``main.py``):
 
