@@ -7,12 +7,12 @@
 
 <!-- PWA: installable app (manifest + icons + theme) -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1864ab">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="MUNNA GROCERY">
+  <meta name="theme-color" content="#1864ab">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="MUNNA GROCERY">
 
 <!-- WhatsApp Rich Link Image Preview (Open Graph + Twitter Card) — absolute
      public HTTPS image so WhatsApp/Facebook show the store logo card -->
@@ -37,67 +37,60 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
-<!-- Service worker: live order alert notification channel + offline shell -->
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
-    });
-  }
-  window.munnaShowOrderNotification = function (title, body) {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
-    try {
-      var tag = 'munna-new-order';
-      var n = new Notification(title, {
-        body: body,
-        icon: 'icon-192.png',
-        badge: 'icon-192.png',
-        tag: tag,
-        requireInteraction: true,
-        renotify: true
-      });
-      n.onclick = function () { window.focus(); n.close(); };
-      return true;
-<!-- PUBLIC read-only server diagnostics used by the admin live panel. -->
-<script>
-  window.munnaReadonlyGet = function (path) {
-    var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
-      || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
-    if (!hook) return Promise.resolve({ ok: false, status: 0, url: '', json: null });
-    var ctrl = new AbortController();
-    var timeout = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000);
-    return fetch(hook + (hook.indexOf('?') >= 0 ? '&' : '?') + path + '&_=' + Date.now(), {
-      cache: 'no-store',
-      signal: ctrl.signal
-    }).then(function (res) {
-      clearTimeout(timeout);
-      return res.json().catch(function () { return null; }).then(function (json) {
-        return { ok: res.ok, status: res.status, url: hook, json: json };
-      });
-    }).catch(function (e) {
-      clearTimeout(timeout);
-      return { ok: false, status: 0, url: hook, json: null, error: String((e && e.message) || e) };
-    });
-  };
-</script>
+    <!-- Service worker: live order alert notification channel + offline shell -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('sw.js').catch(function () {});
+        });
+      }
 
-<!-- Telegram WebApp SDK -->
+      // PUBLIC read-only server diagnostics for admin live order verification.
+      window.munnaReadonlyGet = function (path) {
+        var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim()
+          || (typeof DEFAULT_SHEET_WEBHOOK !== 'undefined' ? DEFAULT_SHEET_WEBHOOK : '');
+        if (!hook) return Promise.resolve({ ok: false, status: 0, url: '', json: null });
+        var ctrl = new AbortController();
+        var timeout = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000);
+        return fetch(hook + (hook.indexOf('?') >= 0 ? '&' : '?') + path + '&_=' + Date.now(), {
+          cache: 'no-store',
+          signal: ctrl.signal
+        }).then(function (res) {
+          clearTimeout(timeout);
+          return res.json().catch(function () { return null; }).then(function (json) {
+            return { ok: res.ok, status: res.status, url: hook, json: json };
+          });
+        }).catch(function (e) {
+          clearTimeout(timeout);
+          return { ok: false, status: 0, url: hook, json: null, error: String((e && e.message) || e) };
+        });
+      };
 
-    } catch (e) { return false; }
-  };
-  window.munnaRequestOrderNotifications = function () {
-    if (!('Notification' in window) || Notification.permission === 'denied') return Promise.resolve(false);
-    if (Notification.permission === 'granted') return Promise.resolve(true);
-    try { return Notification.requestPermission().then(function (p) { return p === 'granted'; }).catch(function () { return false; }); }
-    catch (e) { return Promise.resolve(false); }
-  };
-</script>
+      window.munnaShowOrderNotification = function (title, body) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+        try {
+          var tag = 'munna-new-order';
+          var n = new Notification(title, {
+            body: body,
+            icon: 'icon-192.png',
+            badge: 'icon-192.png',
+            tag: tag,
+            requireInteraction: true,
+            renotify: true
+          });
+          n.onclick = function () { window.focus(); n.close(); };
+          return true;
+        } catch (e) { return false; }
+      };
+      window.munnaRequestOrderNotifications = function () {
+        if (!('Notification' in window) || Notification.permission === 'denied') return Promise.resolve(false);
+        if (Notification.permission === 'granted') return Promise.resolve(true);
+        try { return Notification.requestPermission().then(function (p) { return p === 'granted'; }).catch(function () { return false; }); }
+        catch (e) { return Promise.resolve(false); }
+      };
+    </script>
 
-<!-- Telegram WebApp SDK -->
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-
-<!-- Leaflet.js for 3 KM Delivery Zone Map -->
+    <!-- Leaflet.js for 3 KM Delivery Zone Map -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
