@@ -4767,13 +4767,16 @@
         return !!(r && (r.verified || (r.ok && (b.status === 'success' ||
           b.type === 'order_recorded' || b.type === 'order_updated'))));
       }
-      // T1: readable, NO preflight (application/json is CORS-simple).
-      return attempt('cors', 'application/json;charset=utf-8', ms).then(function (r1) {
+      // T1: text/plain — CORS-simple request, NO preflight needed.
+      // Google Apps Script doPost parses e.postData.contents regardless of
+      // Content-Type, so this works without OPTIONS.
+      return attempt('cors', 'text/plain;charset=utf-8', ms).then(function (r1) {
         if (good(r1)) return r1;
-        // T2: readable legacy text/plain (no preflight where allowed).
-        return attempt('cors', 'text/plain;charset=utf-8', ms).then(function (r2) {
+        // T2: application/json — triggers preflight, only works if Apps Script
+        // returns CORS headers on OPTIONS (usually it doesn't).
+        return attempt('cors', 'application/json;charset=utf-8', ms).then(function (r2) {
           if (good(r2)) return r2;
-          // T3: no preflight at all — fire-and-forget + GET verification.
+          // T3: no-cors — fire-and-forget + GET verification.
           return attempt('no-cors', 'application/json', ms).then(function (r3) {
             if (good(r3)) return r3;
             // FIX: All 3 methods failed → return explicit FAIL (not stale json).

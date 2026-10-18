@@ -47,25 +47,7 @@ var ORDER_STATUSES = [
 
 function jsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-    });
-}
-
-// Handle CORS preflight (OPTIONS) so browser cross-origin POST works.
-// Without this, the browser blocks the POST before it ever reaches doPost/doGet.
-function corsPreflight() {
-  return ContentService.createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT)
-    .setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400'
-    });
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function nowStamp_() {
@@ -172,10 +154,6 @@ function updateAdminPassword_(ss, data) {
 // କ. doGet: Sheet ଡାଟା ପଢ଼ିବା, Orders/Addresses sync ଏବଂ JioMart Pincode Search
 // =========================================================================
 function doGet(e) {
-  // Handle CORS preflight (OPTIONS) so browser cross-origin GET works.
-  try {
-    if (e && e.parameter && e.parameter.__options === '1') return corsPreflight();
-  } catch (_) {}
   var params = e ? e.parameter : {};
   // MUST be assigned before the GET_SEARCH bus below — with `var` hoisting a
   // later declaration would hand `undefined` into getSearch_ and crash its
@@ -665,10 +643,6 @@ function loginOtpFindRow_(sh, phone) {
 // ଖ. doPost: Orders / Addresses / Products ସମ୍ଭାଳିବା (unified format)
 // =========================================================================
 function doPost(e) {
-  // Handle CORS preflight (OPTIONS) so browser cross-origin POST works.
-  try {
-    if (e && e.parameter && e.parameter.__options === '1') return corsPreflight();
-  } catch (_) {}
   try {
     var data = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
