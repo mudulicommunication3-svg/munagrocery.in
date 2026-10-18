@@ -2022,7 +2022,11 @@
         if (!savedOk) {
           var failMsg = (saveBody && saveBody.error) || ((saveRes && saveRes.error) || 'Sheet order save failed');
           renderAdminSyncStatus_(failMsg, false);
-          alert('❌ Order Sheet କୁ ଗଲା ନାହିଁ: ' + failMsg + '। ଇଣ୍ଟରନେଟ୍ / webhook ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।');
+          // Queue the SAME order_id for an automatic retry (idempotent on the
+          // server — never a duplicate row). The outbox is resend-only: it is
+          // never rendered as history, so Orders still shows only Sheet rows.
+          try { markPendingSheetOrder_(orderObj); resendPendingSheetOrders_().catch(function () {}); } catch (eOut) {}
+          alert('❌ Order Sheet କୁ ଗଲା ନାହିଁ: ' + failMsg + '। ଇଣ୍ଟରନେଟ୍ / webhook ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ — ଏହି order ସ୍ୱୟଂଚାଳିତ ଭାବେ retry ହେବ (ଡୁପ୍ଲିକେଟ୍ ହେବ ନାହିଁ)।');
           return; // cart + form stay intact so the customer can retry safely
         }
         // Server accepted it — now PROVE the row physically exists before
@@ -4501,6 +4505,42 @@
     // =========================================================================
     var _allOrders = [];
     var _ordersMigrated = false;
+    // Persistent Orders cache: `_allOrders` must survive a page refresh so the
+    // Orders tab is NEVER blank while the background Sheet pull re-validates.
+    // Keys: MUNA_ALL_ORDERS_CACHE (verified Sheet rows, newest first),
+    //       MUNA_ALL_ORDERS_PHONE (the phone scope the cache was saved under).
+    // Refresh + a fast (pre-fetch) render shows this cache instantly; the
+    // 60 s / focus sync then REPLACES it with the server's fresh list.
+    var ORDERS_CACHE_KEY = 'MUNA_ALL_ORDERS_CACHE';
+    var ORDERS_CACHE_PHONE_KEY = 'MUNA_ALL_ORDERS_PHONE';
+    function loadOrdersCache_(scopePhone) {
+      try {
+        var savedPhone = String(localStorage.getItem(ORDERS_CACHE_PHONE_KEY) || '');
+        // The cache is account-scoped: ignore another account's rows.
+        if (savedPhone && scopePhone && savedPhone !== scopePhone) return false;
+        var raw = localStorage.getItem(ORDERS_CACHE_KEY);
+        if (!raw) return false;
+        var list = JSON.parse(raw) || [];
+        if (!Array.isArray(list) || !list.length) return false;
+        _allOrders = list.map(normalizeOrder).filter(Boolean);
+        return true;
+      } catch (e) { return false; }
+    }
+    function saveOrdersCache_() {
+      try {
+        if (!_allOrders.length) return; // never wipe a good cache with []
+        localStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify(_allOrders.slice(0, 200)));
+        var su = null;
+        try { su = getSessionUser(); } catch (e2) {}
+        localStorage.setItem(ORDERS_CACHE_PHONE_KEY,
+          (su && su.phone) ? String(su.phone).replace(/\D/g, '').slice(-10) : '');
+      } catch (e) {}
+    }
+    function currentOrdersScopePhone_() {
+      var su = null;
+      try { su = getSessionUser(); } catch (e) {}
+      return (su && su.phone) ? String(su.phone).replace(/\D/g, '').slice(-10) : '';
+    }
     function getMyOrders() {
       // One-time purge of the legacy cache. NOTE: legacy rows are NOT loaded
       // into memory anymore — the Sheet re-fetch (already running on boot)
@@ -4509,10 +4549,14 @@
         _ordersMigrated = true;
         try { localStorage.removeItem('MUNA_ALL_ORDERS'); } catch (e) {}
       }
+      // Boot on a fresh page / after a refresh: hydrate the persisted cache so
+      // the Orders tab never flashes EMPTY while the first sync is in flight.
+      if (!_allOrders.length) loadOrdersCache_(currentOrdersScopePhone_());
       return _allOrders.map(normalizeOrder).filter(Boolean);
     }
     function setMyOrders(o) {
       _allOrders = (o || []).map(normalizeOrder).filter(Boolean);
+      saveOrdersCache_();
     }
 
     // Server-save outbox (retry-only): orders whose create_order POST could
@@ -4578,30 +4622,62 @@
       if (!hook) return '';
       return hook + (hook.indexOf('?') >= 0 ? '&' : '?') + (suffix || '');
     }
+    // ONE attempt -> ALWAYS { ok, status, url, json, error? } (never throws).
+    // 15 s AbortController timeout: an Apps Script cold-start / quota slow POST
+    // can otherwise hang FOREVER — that was the "order never saved to Sheet"
+    // hang. Timeout now surfaces as ok:false so the retry below can fire.
+    function postToSheetOnce_(payload, hook, timeoutMs) {
+      var ctrl = null;
+      var timer = null;
+      var opts = {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      };
+      try {
+        ctrl = new AbortController();
+        opts.signal = ctrl.signal;
+        timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, timeoutMs || 15000);
+      } catch (e) {}
+      return fetch(hook, opts).then(function (res) {
+        if (timer) clearTimeout(timer);
+        // ALWAYS wrap as { ok, status, url, json } — callers read r.ok and
+        // r.json.status. Returning raw json here broke every save check.
+        return res.text().then(function (txt) {
+          var body = null;
+          try { body = txt ? JSON.parse(txt) : null; } catch (pe) { body = null; }
+          return { ok: res.ok, status: res.status, url: hook, json: body };
+        }).catch(function () {
+          if (timer) clearTimeout(timer);
+          return { ok: res.ok, status: res.status, url: hook, json: null };
+        });
+      }).catch(function (e) {
+        if (timer) clearTimeout(timer);
+        return { ok: false, status: 0, url: hook, json: null,
+                 error: String((e && e.message) || e) };
+      });
+    }
+    // Public wrapper: up to 3 attempts with a short backoff. create_order is
+    // IDEMPOTENT on the server (same order_id updates in place, never a
+    // duplicate row), so a retry after a timeout can never double-charge.
     function postToSheet(payload) {
       var hook = window.munnaHookBase();
       if (!hook) return Promise.resolve({ ok: false, status: 0, url: '', json: null });
-      try {
-        return fetch(hook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        }).then(function (res) {
-          // ALWAYS wrap as { ok, status, url, json } — callers read r.ok and
-          // r.json.status. Returning raw json here broke every save check.
-          return res.text().then(function (txt) {
-            var body = null;
-            try { body = txt ? JSON.parse(txt) : null; } catch (pe) { body = null; }
-            if (!body) body = { ok: res.ok, status: res.status, url: hook, json: null };
-            return { ok: res.ok, status: res.status, url: hook, json: body };
-          }).catch(function () {
-            return { ok: res.ok, status: res.status, url: hook, json: null };
-          });
-        }).catch(function (e) {
-          return { ok: false, status: 0, url: hook, json: null, error: String((e && e.message) || e) };
+      var attempt = function (n) {
+        return postToSheetOnce_(payload, hook, 15000).then(function (r) {
+          var body = (r && r.json) || {};
+          var good = !!(r && r.ok && (body.status === 'success' ||
+            body.type === 'order_recorded' || body.type === 'order_updated'));
+          if (good || n >= 3) return r;
+          return new Promise(function (res) { setTimeout(res, 700 * n); })
+            .then(function () { return attempt(n + 1); });
         });
+      };
+      try {
+        return attempt(1);
       } catch (e) {
-        return Promise.resolve({ ok: false, status: 0, url: hook, json: null, error: String(e && e.message || e) });
+        return Promise.resolve({ ok: false, status: 0, url: hook, json: null,
+                                 error: String(e && e.message || e) });
       }
     }
     // Status change (webapp admin) -> shared Sheet -> bot edits the customer's
@@ -4685,7 +4761,20 @@
             renderAdminSyncStatus_(_lastSyncReason, false);
           }
         }
-        if (!remote.length) return false;
+        if (!remote.length) {
+          // An EMPTY success response must NEVER wipe an already-populated
+          // list (the Sheet just returned 0 rows this second — quota / lag /
+          // partially-cleared tab). Keep the current list + cache; the next
+          // poll re-validates. Only genuinely-empty accounts show the
+          // "no orders" empty state (they had nothing to lose).
+          if (adminSync) return false;
+          if (getMyOrders().length) {
+            // Not an error: keep the last verified list and try again shortly.
+            setTimeout(function () { syncOrdersFromSheet(); }, 8000);
+            return false;
+          }
+          return false;
+        }
         var normalized = remote.map(normalizeOrder).filter(Boolean);
         if (adminSync) {
           // Admin: MERGE into the current list so the panel keeps any
@@ -4739,6 +4828,12 @@
               return true;
             }
           } catch (retryError) {}
+        } else {
+          // CUSTOMER path: a failed / timed-out pull must never leave the
+          // Orders tab EMPTY. The cached list is already shown (see
+          // getMyOrders) — just re-sync shortly so a single 8 s timeout or
+          // quota blip self-heals instead of blanking the screen.
+          setTimeout(function () { syncOrdersFromSheet(); }, 10000);
         }
         return false;
       }
@@ -5958,6 +6053,10 @@
       // Admin/full-store devices use a faster sync managed by
       // startAdminOrderPolling_; customers retain the 60-second account sync.
       try { postToSheet({ action: 'repair_orders_sheet' }); } catch (e) {}
+      // IMMEDIATE render from the persisted cache (getMyOrders hydrates it), so
+      // the Orders tab is never blank while the first Sheet pull is in flight;
+      // the pull below then REPLACES it with fresh, verified rows.
+      try { renderOrders(); } catch (eR) {}
       syncOrdersFromSheet();
       syncAddressesFromSheet();
       if (!isAdmin_()) setInterval(function () { syncOrdersFromSheet(); }, 60000);
@@ -5978,16 +6077,22 @@
       // Foreground/online/refresh events always trigger a full server pull so
       // the app never remains stuck on an old order list.
       window.addEventListener('focus', function () {
+        // Re-sync for EVERYONE on refocus: returning to the tab after a while
+        // (or right after a refresh) immediately revalidates the Orders list.
+        try { syncOrdersFromSheet(); } catch (eF0) {}
         if (!isAdmin_()) return;
         renderAdminSyncStatus_('App active — syncing...', true);
         try { startAdminOrderPolling_(); } catch (e) {}
       });
       window.addEventListener('online', function () {
+        try { syncOrdersFromSheet(); } catch (eO0) {}
         if (!isAdmin_()) return;
         renderAdminSyncStatus_('Back online — syncing...', true);
         try { startAdminOrderPolling_(); } catch (e) {}
       });
       window.addEventListener('pageshow', function (e) {
+        // bfcache restore (mobile back/forward) — same as a refresh: re-pull.
+        try { syncOrdersFromSheet(); } catch (eP0) {}
         if (!isAdmin_() || !e.persisted) return;
         renderAdminSyncStatus_('App resumed — syncing...', true);
         try { startAdminOrderPolling_(); } catch (e2) {}
