@@ -4554,6 +4554,11 @@
       try { su = getSessionUser(); } catch (e) {}
       return (su && su.phone) ? String(su.phone).replace(/\D/g, '').slice(-10) : '';
     }
+    // Orders cache (localStorage persistence). On a cold boot (data cleared,
+    // refreshed, app reopened), the Sheet fetch happens async in the background,
+    // but the USER MUST SEE their orders immediately. So getMyOrders() forces
+    // ONE quick sync call on first read (synchronous-ish, non-blocking) so the
+    // Orders tab is NEVER left blank just because localStorage was cleared.
     function getMyOrders() {
       // One-time purge of the legacy cache. NOTE: legacy rows are NOT loaded
       // into memory anymore — the Sheet re-fetch (already running on boot)
@@ -4565,6 +4570,40 @@
       // Boot on a fresh page / after a refresh: hydrate the persisted cache so
       // the Orders tab never flashes EMPTY while the first sync is in flight.
       if (!_allOrders.length) loadOrdersCache_(currentOrdersScopePhone_());
+      // If the local cache is EMPTY (user cleared app data / refreshed cold),
+      // STILL DO NOT SHOW A BLANK ORDERS TAB: do one quick non-blocking
+      // server pull so the Orders tab shows the orders that ARE in the Sheet.
+      // This is the fix for "after clearing app data the Orders tab stays empty".
+      if (!_allOrders.length) {
+        try {
+          var su = null;
+          try { su = getSessionUser(); } catch (eQ) {}
+          var sessPhone = (su && su.phone) ? String(su.phone).replace(/\D/g, '').slice(-10) : '';
+          var url = sheetHookUrl('action=GET_ORDERS' + (sessPhone ? '&phone=' + encodeURIComponent(sessPhone) : '') + '&_=' + Date.now());
+          if (url) {
+            var _coldCtrl = null, _coldTimer = null;
+            try {
+              _coldCtrl = new AbortController();
+              _coldTimer = setTimeout(function () { try { _coldCtrl.abort(); } catch (e) {} }, 8000);
+            } catch (eT) {}
+            fetch(url, { cache: 'no-store', signal: _coldCtrl ? _coldCtrl.signal : undefined })
+              .then(function (res) { if (_coldTimer) clearTimeout(_coldTimer); if (!res.ok) return; return res.json(); })
+              .then(function (data) {
+                var remote = (data && Array.isArray(data.orders)) ? data.orders : [];
+                if (sessPhone) {
+                  remote = remote.filter(function (r) {
+                    return String(r.phone || '').replace(/\D/g, '').slice(-10) === sessPhone;
+                  });
+                }
+                if (remote.length) {
+                  setMyOrders(remote);
+                  try { renderOrders(); } catch (eR) {}
+                }
+              })
+              .catch(function () { if (_coldTimer) clearTimeout(_coldTimer); });
+          }
+        } catch (eC) {}
+      }
       return _allOrders.map(normalizeOrder).filter(Boolean);
     }
     function setMyOrders(o) {
