@@ -4542,7 +4542,16 @@
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
         }).then(function (res) {
-          return res.json().catch(function () { return { ok: res.ok, status: res.status, url: hook, json: null }; });
+          // ALWAYS wrap as { ok, status, url, json } — callers read r.ok and
+          // r.json.status. Returning raw json here broke every save check.
+          return res.text().then(function (txt) {
+            var body = null;
+            try { body = txt ? JSON.parse(txt) : null; } catch (pe) { body = null; }
+            if (!body) body = { ok: res.ok, status: res.status, url: hook, json: null };
+            return { ok: res.ok, status: res.status, url: hook, json: body };
+          }).catch(function () {
+            return { ok: res.ok, status: res.status, url: hook, json: null };
+          });
         }).catch(function (e) {
           return { ok: false, status: 0, url: hook, json: null, error: String((e && e.message) || e) };
         });
