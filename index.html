@@ -4776,7 +4776,19 @@
           // T3: no preflight at all — fire-and-forget + GET verification.
           return attempt('no-cors', 'application/json', ms).then(function (r3) {
             if (good(r3)) return r3;
-            return (r2 && r2.json) ? r2 : (r1 && r1.json ? r1 : r3);
+            // FIX: All 3 methods failed → return explicit FAIL (not stale json).
+            // The old code returned (r2.json || r1.json || r3) which passed the
+            // `savedOk` check with a stale payload when every attempt actually
+            // failed — orders then showed a phantom success screen and were
+            // never written to the Sheet.
+            return {
+              ok: false, status: 0, url: hook, json: null,
+              verified: false, mode: 'all-failed',
+              error: 'All 3 POST methods failed (CORS/network): ' +
+                'T1=' + ((r1 && r1.error) || (r1 && r1.status) || 'no') +
+                ' T2=' + ((r2 && r2.error) || (r2 && r2.status) || 'no') +
+                ' T3=' + ((r3 && r3.error) || (r3 && r3.status) || 'no')
+            };
           });
         });
       });
