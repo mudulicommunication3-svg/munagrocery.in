@@ -1872,7 +1872,7 @@
     }
     function backToAddress() { setStep('Address'); scrollToStep_('stepAddress'); }
 
-    function placeMiniOrder() {
+    async function placeMiniOrder() {
       // Ordering requires a logged-in session (browse stays open without it).
       if (!requireLoginForOrder_()) return;
       var name = document.getElementById('orderCustName').value.trim() || 'Customer';
@@ -1951,15 +1951,9 @@
         lines: lines
       };
 
-      // Save locally first so the Orders screen works instantly (and offline).
-      var orders = getMyOrders();
-      orders.unshift(orderObj);
-      setMyOrders(orders);
-
-      // ✅ Store Pickup: deduct the ordered quantities from the LOCAL catalog
-      // right away (a stock "hold"). The Apps Script webhook does the same to
-      // the shared Sheet; Reject/expiry restores it (see restorePickupStock_).
-      if (isPickup) applyLocalStockHold_(lines);
+      // Do NOT cache the order locally before the server confirms it — the
+      // Sheet is the single source of truth. Success screen + stock deduction
+      // happen ONLY after create_order is verified (see below).
 
       // ✅ Auto-save the address clicked/typed at checkout: next order
       // pre-fills it (and syncs to the shared Sheet for the bot/admin).
@@ -1991,47 +1985,63 @@
         total: total,
         order: orderObj
       });
-      // Browser/admin webapp orders: write the Sheet row directly. Telegram
-      // Mini App orders are handled by the bot through sendData above.
+      // Browser/admin webapp orders: write the Sheet row FIRST and wait for the
+      // verified server response. NOTHING below (success screen, stock hold,
+      // cart clear) runs until the row is confirmed in the Orders tab.
+      // Telegram Mini App orders are handled by the bot through sendData above.
       if (!sentToBot) {
-        // Readable POST + server-side row verification: un-awaited no-cors
-        // style writes can leave orders only in local cache.
-        renderAdminSyncStatus_('Saving order to Google Sheet...', true);
-        try {
-          var saveP = postToSheet({ action: 'create_order', order: orderObj })
-            .then(function (r) {
-              var body = (r && r.json) || {};
-              if (r && r.ok && (body.status === 'success' || body.type === 'order_recorded')) {
-                var savedId = String(body.order_id || orderObj.order_id || '');
-                return syncOrdersFromSheet(true).then(function () {
-                  return syncOrdersFromSheet(true);
-                }).then(function () {
-                  renderAdminSyncStatus_('Order saved to Google Sheet', true);
-                  return verifyOrderOnSheet_(savedId);
-                }).then(function (verified) {
-                  if (verified) {
-                    renderAdminSyncStatus_('Order saved to Google Sheet', true);
-                  } else {
-                    renderAdminSyncStatus_('Sheet save pending — retry from Orders', false);
-                    markPendingSheetOrder_(orderObj);
-                  }
-                });
-              }
-              renderAdminSyncStatus_('Sheet order save failed', false);
-              markPendingSheetOrder_(orderObj);
-              return null;
-            })
-            .catch(function () {
-              renderAdminSyncStatus_('Sheet order save failed', false);
-              markPendingSheetOrder_(orderObj);
-              return null;
-            });
-          try { if (saveP && saveP.catch) saveP.catch(function () {}); } catch (ignoreUnhandled) {}
-        } catch (e) {
-          renderAdminSyncStatus_('Sheet order save failed', false);
-          markPendingSheetOrder_(orderObj);
+        var hookMissing = !sheetHookUrl('action=GET_ORDERS');
+        if (hookMissing) {
+          renderAdminSyncStatus_('Sheet webhook ସେଟ୍ କରନ୍ତୁ — order ସେଭ୍ ହେଲା ନାହିଁ', false);
+          alert('❌ Google Sheet webhook ସେଟ୍ ହୋଇନାହିଁ! Admin → Sheets ଟ୍ୟାବ୍ ରେ Webhook URL ଲଗାନ୍ତୁ, ତା\'ପରେ ପୁଣି order କରନ୍ତୁ।');
+          return;
         }
+        renderAdminSyncStatus_('Saving order to Google Sheet...', true);
+        var saveRes = null;
+        try {
+          saveRes = await postToSheet({ action: 'create_order', order: orderObj });
+        } catch (saveErr) {
+          saveRes = { ok: false, json: null, error: String((saveErr && saveErr.message) || saveErr) };
+        }
+        var saveBody = (saveRes && saveRes.json) || {};
+        var savedOk = !!(saveRes && saveRes.ok &&
+          (saveBody.status === 'success' || saveBody.type === 'order_recorded' || saveBody.type === 'order_updated'));
+        if (!savedOk) {
+          var failMsg = (saveBody && saveBody.error) || ((saveRes && saveRes.error) || 'Sheet order save failed');
+          renderAdminSyncStatus_(failMsg, false);
+          alert('❌ Order Sheet କୁ ଗଲା ନାହିଁ: ' + failMsg + '। ଇଣ୍ଟରନେଟ୍ / webhook ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।');
+          return; // cart + form stay intact so the customer can retry safely
+        }
+        // Server accepted it — now PROVE the row physically exists before
+        // showing success. Two fresh pulls so a cached GET cannot fake it.
+        var savedId = String(saveBody.order_id || orderObj.order_id || '');
+        var verified = false;
+        try {
+          await syncOrdersFromSheet(true);
+          await syncOrdersFromSheet(true);
+          verified = await verifyOrderOnSheet_(savedId);
+        } catch (verifyErr) { verified = false; }
+        if (!verified) {
+          renderAdminSyncStatus_('Sheet save pending — retry from Orders', false);
+          alert('⚠️ Order Sheet ରେ ଦେଖାଯାଉ ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ — ଦୁଇଥର ଟଙ୍କା/ଷ୍ଟକ୍ କଟିବ ନାହିଁ (order ID ସମାନ ରହିବ)।');
+          return;
+        }
+        renderAdminSyncStatus_('Order saved to Google Sheet', true);
       }
+      // The Sheet row is VERIFIED at this point — local stock hold + in-memory
+      // order insert happen here (never before), so a failed save can never
+      // show a deducted quantity or a phantom success screen.
+      // ✅ Store Pickup: hold the ordered quantities in the LOCAL catalog
+      // right away. The Apps Script webhook does the same to the shared Sheet;
+      // Reject/expiry restores it (see restorePickupStock_).
+      if (isPickup) applyLocalStockHold_(lines);
+      // Mirror the verified order into the in-memory list so the Orders
+      // screen shows it instantly (source: Sheet, not a pre-save guess).
+      try {
+        var verifiedOrders = getMyOrders();
+        verifiedOrders.unshift(orderObj);
+        setMyOrders(verifiedOrders);
+      } catch (mirrorErr) {}
       // Alert THIS admin device immediately, then refresh the full admin
       // panel so the new order is present even before the next poll.
       _seenAlertIds[orderObj.order_id] = 1;
@@ -4467,29 +4477,25 @@
       };
     }
     // =========================================================================
-    // ORDERS — IN-MEMORY ONLY (no localStorage persistence).
-    // `getMyOrders()` always returns a fresh normalized list from the
-    // in-memory `_allOrders` array, which is populated exclusively by
-    // syncOrdersFromSheet() (GET_ORDERS on the Apps Script backend) and by
-    // LOGIN_PASSWORD / VALIDATE_TOKEN responses (mergeOrdersFromBackend_).
-    // The legacy localStorage 'MUNA_ALL_ORDERS' cache is no longer trusted:
-    // the first load after this change migrates it to memory once, then the
-    // very next successful server sync overwrites it and purges the key.
+    // ORDERS — SHEET ONLY. `_allOrders` holds ONLY rows verified to exist in
+    // the Google Sheet (fetched via GET_ORDERS, or confirmed by the read-back
+    // inside placeMiniOrder after create_order). NOTHING unverified may enter:
+    //   * pre-save local guesses are FORBIDDEN (this was the "success screen
+    //     shows, Sheet empty, history gone after refresh" bug),
+    //   * the retry outbox below is never merged in, never rendered, never
+    //     counted — it is a resend queue for the SAME order_id only.
+    // Legacy localStorage 'MUNA_ALL_ORDERS' is purged on first read and never
+    // trusted afterwards.
     // =========================================================================
     var _allOrders = [];
     var _ordersMigrated = false;
     function getMyOrders() {
-      // One-time migration from the legacy localStorage cache so an existing
-      // user's history is not blank for the split-second before the first
-      // GET_ORDERS response lands. It is never re-read after this.
+      // One-time purge of the legacy cache. NOTE: legacy rows are NOT loaded
+      // into memory anymore — the Sheet re-fetch (already running on boot)
+      // repopulates history from the server within seconds.
       if (!_ordersMigrated) {
         _ordersMigrated = true;
-        try {
-          var legacy = JSON.parse(localStorage.getItem('MUNA_ALL_ORDERS') || '[]') || [];
-          if (legacy.length) _allOrders = legacy.map(normalizeOrder).filter(Boolean);
-        } catch (e) {}
-        // Purge the key so it can never be trusted again on this device.
-        try { localStorage.removeItem('MUNA_ALL_ORDERS'); } catch (e2) {}
+        try { localStorage.removeItem('MUNA_ALL_ORDERS'); } catch (e) {}
       }
       return _allOrders.map(normalizeOrder).filter(Boolean);
     }
@@ -4497,8 +4503,12 @@
       _allOrders = (o || []).map(normalizeOrder).filter(Boolean);
     }
 
-    // Orders whose server write could not be verified are kept in a small
-    // local outbox so they can be resent after a Sheet clear / bad deploy.
+    // Server-save outbox (retry-only): orders whose create_order POST could
+    // not be VERIFIED are queued here so a later retry can attempt the SAME
+    // order_id (idempotent on the server — never a duplicate row).
+    // This is NOT order history: it is never rendered, never merged into
+    // getMyOrders(), and never counted. Orders tab / history shows Sheet
+    // rows only.
     var PENDING_SHEET_ORDERS_KEY = 'MUNA_PENDING_SHEET_ORDERS';
     function getPendingSheetOrders_() {
       try { return JSON.parse(localStorage.getItem(PENDING_SHEET_ORDERS_KEY) || '[]') || []; }
@@ -5230,7 +5240,7 @@
 
     function qbRemove(i) { qbLines.splice(i, 1); renderQuickBill(); }
 
-    function saveQuickBill() {
+    async function saveQuickBill() {
       if (!qbLines.length) { alert('⚡ ଖାଲି ବିଲ୍ — ପ୍ରଥମେ ବାରକୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ!'); return; }
       var name = (((document.getElementById('qbName') || {}).value) || '').trim() || 'Store Walk-in';
       var phone = (((document.getElementById('qbPhone') || {}).value) || '').trim();
@@ -5252,24 +5262,50 @@
         payment: 'COD',
         lines: lines
       };
-      var orders = getMyOrders();
-      orders.unshift(orderObj);
-      setMyOrders(orders);
+      // Sheet-FIRST, like placeMiniOrder: no local insert, no "saved" alert
+      // until the row is verified in the Orders tab.
+      if (!sheetHookUrl('action=GET_ORDERS')) {
+        renderAdminSyncStatus_('Sheet webhook ସେଟ୍ କରନ୍ତୁ — bill ସେଭ୍ ହେଲା ନାହିଁ', false);
+        alert('❌ Google Sheet webhook ସେଟ୍ ହୋଇନାହିଁ! Admin → Sheets ଟ୍ୟାବ୍ ରେ Webhook URL ଲଗାନ୍ତୁ।');
+        return;
+      }
       renderAdminSyncStatus_('Saving bill to Google Sheet...', true);
+      var saveRes = null;
       try {
-        postToSheet({ action: 'repair_orders_sheet' })
-          .then(function () { return postToSheet({ action: 'create_order', order: orderObj }); })
-          .then(function (r) {
-            var body = (r && r.json) || {};
-            if (r && r.ok && (body.status === 'success' || body.type === 'order_recorded')) {
-              renderAdminSyncStatus_('Bill saved to Google Sheet', true);
-              try { syncOrdersFromSheet(true); } catch (e) {}
-            } else {
-              markPendingSheetOrder_(orderObj);
-            }
-          })
-          .catch(function () { markPendingSheetOrder_(orderObj); });
-      } catch (e) { markPendingSheetOrder_(orderObj); }
+        // Direct create_order — the server repairs the header itself (no
+        // separate repair pre-call; that raced with the write and lost rows).
+        saveRes = await postToSheet({ action: 'create_order', order: orderObj });
+      } catch (saveErr) {
+        saveRes = { ok: false, json: null };
+      }
+      var saveBody = (saveRes && saveRes.json) || {};
+      var savedOk = !!(saveRes && saveRes.ok &&
+        (saveBody.status === 'success' || saveBody.type === 'order_recorded' || saveBody.type === 'order_updated'));
+      if (!savedOk) {
+        renderAdminSyncStatus_('Sheet bill save failed', false);
+        alert('❌ Bill Sheet କୁ ଗଲା ନାହିଁ: ' + ((saveBody && saveBody.error) || 'save failed') + '। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।');
+        return;
+      }
+      // Verified mirror + fresh pull, then the success alert.
+      try {
+        await syncOrdersFromSheet(true);
+        var okRow = await verifyOrderOnSheet_(String(saveBody.order_id || orderObj.order_id || ''));
+        if (!okRow) {
+          renderAdminSyncStatus_('Sheet save pending — retry from Orders', false);
+          alert('⚠️ Bill Sheet ରେ ଦେଖାଯାଉ ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।');
+          return;
+        }
+      } catch (verifyErr) {
+        renderAdminSyncStatus_('Sheet save pending — retry from Orders', false);
+        alert('⚠️ Bill verify ହେଲା ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।');
+        return;
+      }
+      try {
+        var verifiedBills = getMyOrders();
+        verifiedBills.unshift(orderObj);
+        setMyOrders(verifiedBills);
+      } catch (mirrorErr) {}
+      renderAdminSyncStatus_('Bill saved to Google Sheet', true);
       qbLines = [];
       var nEl = document.getElementById('qbName'); if (nEl) nEl.value = '';
       var pEl = document.getElementById('qbPhone'); if (pEl) pEl.value = '';
