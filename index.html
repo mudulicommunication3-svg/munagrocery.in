@@ -39,6 +39,19 @@
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
     <!-- Service worker: live order alert notification channel + offline shell -->
     <script>
+      // Default production webhook (Apps Script deployment). Used whenever
+      // this browser has no saved override. The admin can still override it
+      // per-device from Admin -> Sheets (saved to localStorage).
+      window.MUNNA_DEFAULT_WEBHOOK = 'https://script.google.com/macros/s/AKfycbyBG-2536FNp4Kdux8GSBjKMyHjaSBWqSIaJpHDQ68GtzKpyUYR9x_N9QthMdvXPNhE/exec';
+      // Single place every webhook read goes through: saved override wins,
+      // otherwise the built-in default. NEVER blank on a fresh browser.
+      window.munnaHookBase = function () {
+        try {
+          var saved = (localStorage.getItem('munna_sheet_webhook') || '').trim();
+          if (saved) return saved;
+        } catch (e) {}
+        return window.MUNNA_DEFAULT_WEBHOOK || '';
+      };
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('sw.js').catch(function () {});
@@ -47,7 +60,7 @@
 
       // PUBLIC read-only server diagnostics for admin live order verification.
       window.munnaReadonlyGet = function (path) {
-        var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
+        var hook = window.munnaHookBase();
         if (!hook) return Promise.resolve({ ok: false, status: 0, url: '', json: null });
         var ctrl = new AbortController();
         var timeout = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000);
@@ -2574,14 +2587,13 @@
     // A REAL (readable) POST — postToSheet() now uses the readable path too,
     // but this helper remains for auth calls that need the same JSON shape.
     // Falls back to a no-cors fire-and-forget only if the readable fetch fails.
-    // adminFetchHasHook_() tells callers whether a webhook URL is even saved,
-    // so the panel can offer the local default login on a blank browser.
+    // adminFetchHasHook_() is always true now (built-in default webhook) —
+    // kept so callers don't break.
     function adminFetchHasHook_() {
-      try { return ((localStorage.getItem('munna_sheet_webhook') || '').trim() !== ''); }
-      catch (e) { return false; }
+      return true;
     }
     async function adminFetchJson_(payload) {
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
+      var hook = window.munnaHookBase();
       if (!hook) return null;
       try {
         var res = await fetch(hook, {
@@ -2703,8 +2715,8 @@
       try { syncOrdersFromSheet(true); } catch (e) {}
       try { syncUsersFromSheet(); } catch (e) {}
       try { syncBannersFromSheet(); } catch (e) {}
-      var hook = localStorage.getItem('munna_sheet_webhook');
-      if (hook) document.getElementById('webhookInput').value = hook;
+      var hook = window.munnaHookBase();
+      document.getElementById('webhookInput').value = hook;
       document.getElementById('imgbbKeyInput').value = localStorage.getItem('munna_imgbb_key') || '';
       fillShopSettingsInputs();
       renderStockHealth();
@@ -4032,7 +4044,7 @@
     // bot PC's answer — the ONLY path proven to reach JioMart (bot's
     // jiomart_search.fetch_items). ~5-20s depending on the bot poll loop.
     async function searchBusViaSheet(q, pin) {
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
+      var hook = window.munnaHookBase();
       if (!hook) return null;
       var rid = 'SQ-' + Date.now().toString(36).toUpperCase() + '-' +
         Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -4120,7 +4132,7 @@
       document.getElementById('resultsHeaderTitle').innerText = 'JioMart Results' + (sourceUsed ? ' (' + sourceUsed + ')' : '') + ':';
 
       if (results.length === 0) {
-        var hint = localStorage.getItem('munna_sheet_webhook')
+        var hint = window.munnaHookBase()
           ? ' — webhook ଠିକ୍ ଅଛି କିନ୍ତୁ JioMart ରୁ ଫଳାଫଳ ମିଳିଲା ନାହିଁ; ଅନ୍ୟ ନାମ ଚେଷ୍ଟା କରନ୍ତୁ।'
           : ' — Apps Script Webhook ସେଟ୍ କରନ୍ତୁ ଏବଂ ବଟ୍ PC ରେ python main.py ଚାଲୁରଖନ୍ତୁ (ବଟ୍ search bus ମାଧ୍ୟମରେ JioMart ସର୍ଚ୍ଚ କରେ)।';
         var dbg = '';
@@ -4188,7 +4200,7 @@
 
       localStorage.setItem('munna_store_catalog', JSON.stringify(window.STORE_CATALOG));
 
-      var hook = localStorage.getItem('munna_sheet_webhook');
+      var hook = window.munnaHookBase();
       if (hook) {
         try {
           fetch(hook, {
@@ -4304,7 +4316,7 @@
         localStorage.setItem('munna_store_catalog', JSON.stringify(window.STORE_CATALOG));
         // Sheet ରୁ ମଧ୍ୟ ଡିଲିଟ୍ କର — ନହେଲେ ରିଫ୍ରେସ ହେଲେ syncFromGoogleSheet()
         // ପୁରୁଣା ଡାଟା ଆଣି ଡିଲିଟ୍ ଆଇଟମ୍ ଫେରାଇ ଦେବ (ଏହା ହିଁ ମୂଳ ବଗ୍ ଥିଲା)
-        var hook = localStorage.getItem('munna_sheet_webhook');
+        var hook = window.munnaHookBase();
         if (hook && goneEan) {
           try {
             fetch(hook, {
@@ -4329,9 +4341,9 @@
       syncAddressesFromSheet();
     }
     async function syncFromGoogleSheet() {
-      // Only fetch when the admin has configured a Sheet webhook in Admin ->
-      // Sheets. Brand-new devices stay on built-in sample products until then.
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
+      // Default webhook is built in, so even fresh / cleared-data browsers
+      // fetch YOUR Sheet's catalog on first load (no manual setup needed).
+      var hook = window.munnaHookBase();
       if (!hook) return;
       try {
         var res = await fetch(hook);
@@ -4558,15 +4570,16 @@
     }
 
     // --- SHARED-DATABASE HELPERS (Google Sheet via Apps Script webhook) ---
+    // Webhook resolution: saved Admin -> Sheets override wins, otherwise the
+    // built-in MUNNA_DEFAULT_WEBHOOK (head of this file). Fresh browsers and
+    // cleared-data browsers therefore talk to YOUR Sheet immediately.
     function sheetHookUrl(suffix) {
-      // localStorage webhook only — no hardcoded production webhook is shipped
-      // in this repo. Admin must save the Sheet URL via Admin -> Sheets.
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
+      var hook = window.munnaHookBase();
       if (!hook) return '';
       return hook + (hook.indexOf('?') >= 0 ? '&' : '?') + (suffix || '');
     }
     function postToSheet(payload) {
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
+      var hook = window.munnaHookBase();
       if (!hook) return Promise.resolve({ ok: false, status: 0, url: '', json: null });
       try {
         return fetch(hook, {
@@ -4727,7 +4740,7 @@
     function pushConfigToSheet(key, value) {
       // Returns false when no webhook is configured, so callers can warn.
       if (!key) return false;
-      var hook = (localStorage.getItem('munna_sheet_webhook') || '').trim();
+      var hook = window.munnaHookBase();
       if (!hook) return false;
       try {
         fetch(hook, {
@@ -5526,10 +5539,9 @@
     }
 
     // Password login: 100% serverless via the Apps Script webhook (LOGIN_PASSWORD).
-    // When NO webhook is configured the flow falls back to a local session so
-    // the page still works offline (no localhost / Python server needed).
+    // The built-in default webhook means login works on fresh browsers too.
     function pwHook_() {
-      return (localStorage.getItem('munna_sheet_webhook') || '').trim();
+      return window.munnaHookBase();
     }
     // LOGIN button: verify phone + password against the Users store.
     // LOGIN button: send TRIMMED phone + password to the Apps Script webhook.
@@ -5903,8 +5915,9 @@
         if (sUrl) {
           localStorage.setItem('munna_sheet_webhook', sUrl);
         }
-        // Admin must save the Sheet URL via Admin -> Sheets on each device
-        // (or via ?sheet= deep-link). No hardcoded production webhook is shipped.
+        // Default production webhook is built into window.MUNNA_DEFAULT_WEBHOOK
+        // (head of this file), so fresh / cleared-data browsers already talk
+        // to YOUR Sheet. Admin -> Sheets override still wins per-device.
         // ?pw=<password> / ?wppx=<payload> quick-login routing (replaces the
         // old mob://wx PHP hook). ?pw= pre-fills / (localhost only) auto-logs-in;
         // ?wppx= is stashed for the WhatsApp deep-link bridge (reserved).
