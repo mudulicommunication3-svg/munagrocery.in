@@ -4,7 +4,7 @@
    cache-first background-refresh for same-origin static files.
    Bump CACHE when the shell changes so phones pick up the new version.
    ========================================================================== */
-var CACHE = 'munna-shell-v4';
+var CACHE = 'munna-shell-v5';
 var CORE = [
   './',
   './index.html',
