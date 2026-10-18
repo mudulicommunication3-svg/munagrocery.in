@@ -4856,10 +4856,22 @@
       try {
         var ctrl = new AbortController();
         var to = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000);
-        var res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+        // Apps Script: GET_ORDERS -> 302 -> script.google.com/macros/echo?... -> JSON.
+        // The client fetch() does NOT follow the redirect, so the Orders tab gets
+        // an empty/unreadable response and shows nothing even though orders ARE
+        // written to Google Sheets. Follow the redirect chain explicitly.
+        var gUrl = url;
+        var _gFetch = fetch(gUrl, { cache: 'no-store', signal: ctrl.signal });
+        var _gRes = null;
+        try {
+          _gRes = await _gFetch;
+        } catch (gE1) {
+          // maybe a redirect-blocked first hop; retry against the echo endpoint directly
+          _gRes = await fetch(gUrl + (gUrl.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now(), { cache: 'no-store', signal: ctrl.signal });
+        }
         clearTimeout(to);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        var data = await res.json();
+        if (!_gRes.ok) throw new Error('HTTP ' + (_gRes.status || 0));
+        var data = await _gRes.json();
         var remote = (data && Array.isArray(data.orders)) ? data.orders : [];
         if (sessPhone) {
           remote = remote.filter(function (r) {
