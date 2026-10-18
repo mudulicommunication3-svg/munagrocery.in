@@ -2003,7 +2003,7 @@
       // cart clear) runs until the row is confirmed in the Orders tab.
       // Telegram Mini App orders are handled by the bot through sendData above.
       if (!sentToBot) {
-        var hookMissing = !sheetHookUrl('action=GET_ORDERS');
+        renderAdminSyncStatus_('action=GET_ORDERS');
         if (hookMissing) {
           renderAdminSyncStatus_('Sheet webhook ସେଟ୍ କରନ୍ତୁ — order ସେଭ୍ ହେଲା ନାହିଁ', false);
           alert('❌ Google Sheet webhook ସେଟ୍ ହୋଇନାହିଁ! Admin → Sheets ଟ୍ୟାବ୍ ରେ Webhook URL ଲଗାନ୍ତୁ, ତା\'ପରେ ପୁଣି order କରନ୍ତୁ।');
@@ -6270,3 +6270,4 @@
   </script>
 </body>
 </html>
+
