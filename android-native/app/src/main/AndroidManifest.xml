@@ -11,6 +11,14 @@
     <!-- New-order notification alert/vibration -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    // Persistent foreground service: keeps the WebView process alive while the
+    // app is backgrounded (auto-restarts unless the user force-stops), so the
+    // 15 s AlarmManager poller keeps catching live orders like WhatsApp.
+    // No visible notification (START_NOT_STICKY + no notify) — silent keep-alive.
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
@@ -55,6 +63,29 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/filepaths" />
         </provider>
+
+        <!-- Background live-order poll (AlarmManager -> 15 s GET_UNSEEN_ORDERS).
+             Not exported; only this app's own PendingIntents can fire it. -->
+        <receiver
+            android:name=".BackgroundOrderPollReceiver"
+            android:exported="false" />
+
+        <!-- Keep-alive: silent foreground service so Android does not kill the
+             WebView process while backgrounded (auto-restarts on kill unless
+             force-stopped). No visible notification is posted. -->
+        <service
+            android:name=".KeepAliveService"
+            android:exported="false"
+            android:stopWithTask="false" />
+
+        <!-- Re-arm the 15 s poll after a device reboot (alarms are cleared). -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

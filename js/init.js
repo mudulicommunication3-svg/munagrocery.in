@@ -52,6 +52,67 @@
       // authenticated admin (isAdminLoggedIn persisted across reloads).
       if (isAdmin_()) startAdminOrderPolling_();
       renderAdminSyncStatus_('Live sync ready', true);
+
+      // ---- NATIVE APP: notification-tap handoff (window.MunnaOrderBridge) ----
+      // MainActivity.onNewIntent/onResume stashes the tapped order id; the
+      // page consumes it here (and on every focus) so the FULL-SCREEN alert
+      // overlay + 15 s ring restore on whichever screen is frontmost — the
+      // same WhatsApp/Telegram "tap -> live conversation" behaviour.
+      var _nativeNoticeTimer = null;
+      window.munnaOnNativeOrderNotice = function (orderId, title, body) {
+        try { if (_nativeNoticeTimer) clearTimeout(_nativeNoticeTimer); } catch (eT) {}
+        _nativeNoticeTimer = setTimeout(function () {
+          try {
+            var id = String(orderId || '').trim();
+            if (!id) return;
+            // Clear the native pending flag so the handoff fires only once.
+            if (window.MunnaOrderBridge &&
+                typeof window.MunnaOrderBridge.consumePendingNotificationOrderId === 'function') {
+              window.MunnaOrderBridge.consumePendingNotificationOrderId();
+            }
+            if (!isAdmin_()) return;      // overlay is admin-only
+            var target = null;
+            var list = getMyOrders();
+            for (var i = 0; i < list.length; i++) {
+              if (String(list[i].order_id) === id) { target = list[i]; break; }
+            }
+            if (target) {
+              // Merge-first then show: re-open the live overlay + ring.
+              showNewOrderAlert_(target);
+              try { syncOrdersFromSheet(true); } catch (eS) {}
+            } else {
+              // Not in cache yet — pull the full store list and retry once.
+              try { syncOrdersFromSheet(true); } catch (eS2) {}
+              _nativeNoticeTimer = setTimeout(function () {
+                var l2 = getMyOrders(), t2 = null;
+                for (var j = 0; j < l2.length; j++) {
+                  if (String(l2[j].order_id) === id) { t2 = l2[j]; break; }
+                }
+                if (t2 && !_activeNewOrderId) showNewOrderAlert_(t2);
+              }, 1500);
+            }
+            try {
+              if (window.MunnaOrderBridge &&
+                  typeof window.MunnaOrderBridge.consumePendingNotificationOrderId === 'function') {
+                window.MunnaOrderBridge.consumePendingNotificationOrderId();
+              }
+            } catch (eC) {}
+          } catch (eN) {}
+        }, 400);
+      };
+      // Also poll the bridge once on boot + every focus (covers a cold start
+      // straight from a notification tap, where onResume fired before this
+      // handler existed).
+      var checkNativeNotice_ = function () {
+        try {
+          if (!window.MunnaOrderBridge ||
+              typeof window.MunnaOrderBridge.consumePendingNotificationOrderId !== 'function') return;
+          var id = String(window.MunnaOrderBridge.consumePendingNotificationOrderId() || '').trim();
+          if (id && window.munnaOnNativeOrderNotice) window.munnaOnNativeOrderNotice(id, '', '');
+        } catch (eCN) {}
+      };
+      setTimeout(checkNativeNotice_, 2500);
+      window.addEventListener('focus', function () { setTimeout(checkNativeNotice_, 600); });
       // Foreground/online/refresh events always trigger a full server pull so
       // the app never remains stuck on an old order list.
       window.addEventListener('focus', function () {

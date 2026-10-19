@@ -3,8 +3,10 @@
    fallback, so customers always get fresh Sheet/catalog data online and a
    working app offline. Cross-origin calls (Google Sheet webhook, JioMart
    proxies, CDNs) are never intercepted. Bump VERSION when deploying a
-   change so old clients drop their cached copy. */
-const VERSION = 'munna-v1';
+   change so old clients drop their cached copy.
+   VERSION bumped -> munna-v2: adds notificationclick so a tapped tray
+   entry brings the app to the foreground (WhatsApp/Telegram behaviour). */
+const VERSION = 'munna-v2';
 const CACHE = 'munna-shell-' + VERSION;
 
 const PAGES = ['home', 'product', 'cart', 'orders', 'address', 'profile',
@@ -58,4 +60,20 @@ self.addEventListener('fetch', function (event) {
       });
     })
   );
+});
+
+// ---- Live-order system notification tap (WhatsApp/Telegram behaviour) ----
+// When the admin taps a new-order notification while the app is backgrounded,
+// focus the existing app window (or open one if it was closed) and reload so
+// the frontmost screen re-syncs and the order alert overlay is restored.
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+    for (let i = 0; i < list.length; i++) {
+      const w = list[i];
+      if ('focus' in w) { return w.focus().then(function (f) { try { f.location.reload(); } catch (e) {} }); }
+    }
+    if (self.clients.openWindow) { return self.clients.openWindow('./?screen=orders'); }
+    return undefined;
+  }));
 });

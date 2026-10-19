@@ -327,6 +327,11 @@
     var _lastServerSyncAt = 0;
     var _lastServerSyncOkAt = 0;
     var _lastSyncReason = '';
+    // Desktop/in-page browser notification used ONLY when the native Android
+    // bridge (MunnaOrderBridge.showNotification) is not available — e.g. a
+    // normal Chrome tab. In the native app the bridge posts a system tray
+    // notification that behaves like WhatsApp/Telegram.
+    var _fallbackNoticeTimer = 0;
 
     function renderAdminSyncStatus_(text, ok) {
       var pill = document.getElementById('adminSyncStatus');
@@ -350,6 +355,26 @@
     function showBrowserNewOrderNotice_(o) {
       var msg = (o.customer_name || 'Customer') + ' · Rs.' + money(o.total || 0) +
         (String(o.delivery_type || '') === 'Store Pickup' ? ' · Store Pickup' : ' · Home Delivery');
+      // 1) NATIVE app: prefer the Android bridge — it posts a REAL system
+      //    tray notification (visible in the notification shade even when the
+      //    app is backgrounded) with default sound + vibration, exactly like
+      //    WhatsApp/Telegram. The bridge also opens this same alert overlay
+      //    when the tray entry is tapped.
+      try {
+        if (window.MunnaOrderBridge &&
+            typeof window.MunnaOrderBridge.showNotification === 'function') {
+          window.MunnaOrderBridge.showNotification(
+            '🚨 New Order #' + (o.order_id || ''),
+            msg,
+            String(o.order_id || o.id || '')
+          );
+        }
+      } catch (eNative) {}
+      // 2) FALLBACK (normal browser tab): Web Notification API. Debounced so
+      //    rapid poll cycles cannot spam the notification centre.
+      var now = Date.now();
+      if (now - _fallbackNoticeTimer < 8000) return;
+      _fallbackNoticeTimer = now;
       try { if (window.munnaShowOrderNotification) window.munnaShowOrderNotification('🚨 New Order #' + (o.order_id || ''), msg); } catch (e) {}
     }
 
@@ -450,6 +475,13 @@
     function newOrderAlertAction(kind) {
       var id = _activeNewOrderId;
       if (!id) { closeNewOrderAlertModal_(false); return; }
+      // Clear the native tray entry as soon as an admin acts on the order,
+      // so the notification shade never shows a stale alert.
+      try {
+        if (window.MunnaOrderBridge && typeof window.MunnaOrderBridge.cancelNotification === 'function') {
+          window.MunnaOrderBridge.cancelNotification(String(id));
+        }
+      } catch (eBridge) {}
       markOrderAlertReviewed_(id); // fire-and-forget POST (multi-device sync)
       closeNewOrderAlertModal_(false);
       var idx = -1;
@@ -491,6 +523,13 @@
     function startAdminOrderPolling_() {
       if (!isAdmin_()) return;
       if (_adminPollTimer) return; // already running
+      // Tell the native bridge to START background polling when this device
+      // is an admin (keeps live-order alerts flowing while app is backgrounded).
+      try {
+        if (window.MunnaOrderBridge && typeof window.MunnaOrderBridge.setAdminMode === 'function') {
+          window.MunnaOrderBridge.setAdminMode(true);
+        }
+      } catch (eBridgeOn) {}
       var tick = async function () {
         if (!isAdmin_()) { stopAdminOrderPolling_(); return; }
         if (document.hidden) return;
@@ -588,6 +627,12 @@
     function stopAdminOrderPolling_() {
       if (_adminPollTimer) { clearInterval(_adminPollTimer); _adminPollTimer = null; }
       stopRing_();
+      // Stop the native background poller too (admin logged out / session gone).
+      try {
+        if (window.MunnaOrderBridge && typeof window.MunnaOrderBridge.setAdminMode === 'function') {
+          window.MunnaOrderBridge.setAdminMode(false);
+        }
+      } catch (eBridgeOff) {}
       renderAdminSyncStatus_('Live sync stopped', false);
     }
 

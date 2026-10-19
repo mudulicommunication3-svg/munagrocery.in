@@ -95,6 +95,15 @@
         } catch (e) { return false; }
       };
       window.munnaRequestOrderNotifications = function () {
+        // NATIVE APP first: the Android bridge posts system tray notifications
+        // (with default sound + vibration) directly — no browser permission
+        // prompt needed, works while the app is backgrounded.
+        try {
+          if (window.MunnaOrderBridge && typeof window.MunnaOrderBridge.ensurePermission === 'function') {
+            var ensured = window.MunnaOrderBridge.ensurePermission();
+            if (ensured !== false) return Promise.resolve(true);
+          }
+        } catch (eBridge) {}
         if (!('Notification' in window) || Notification.permission === 'denied') return Promise.resolve(false);
         if (Notification.permission === 'granted') return Promise.resolve(true);
         try { return Notification.requestPermission().then(function (p) { return p === 'granted'; }).catch(function () { return false; }); }
