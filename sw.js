@@ -6,7 +6,7 @@
    change so old clients drop their cached copy.
    VERSION bumped -> munna-v2: adds notificationclick so a tapped tray
    entry brings the app to the foreground (WhatsApp/Telegram behaviour). */
-const VERSION = 'munna-v2';
+const VERSION = 'munna-v3';
 const CACHE = 'munna-shell-' + VERSION;
 
 const PAGES = ['home', 'product', 'cart', 'orders', 'address', 'profile',

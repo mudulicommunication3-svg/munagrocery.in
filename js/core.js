@@ -310,6 +310,13 @@
         }
       }
       if (qty <= 0) delete cart[ean]; else cart[ean] = qty;
+      // Defensive: leaving the post-order "Success" card the moment a NEW
+      // item is added, so the next order always lands on the Cart step and
+      // the Checkout button is reachable again.
+      if (qty > 0) {
+        var _succEl2 = document.getElementById('stepSuccess');
+        if (_succEl2 && !_succEl2.classList.contains('hidden')) setStep('Cart');
+      }
       cacheCart_();
       scheduleCartSync_(); // account-wise cloud cart sync (debounced, logged-in only)
       render();

@@ -123,13 +123,21 @@
 <body class="pb-20 antialiased">
 <div id="app"></div>
 
+  <!-- PULL-TO-REFRESH bubble (Chrome-style): pull down from the top on ANY
+       screen (Home + Cart/Orders/Address/Profile) to refresh live data.
+       Lives OUTSIDE #app so the page-loader injection never wipes it. -->
+  <div id="ptrIndicator" class="ptr-indicator" aria-hidden="true">
+    <div class="ptr-spinner"><i class="ph-bold ph-arrow-down" id="ptrArrow"></i></div>
+    <span id="ptrText">ତଳକୁ ଟାଣନ୍ତୁ — ରିଫ୍ରେସ୍ ପାଇଁ</span>
+  </div>
+
   <!-- ================= PAGE LOADER =================
        Every screen lives in pages/*.html and is injected into #app first;
        then js/*.js run in the exact order of the original single inline
        script. init.js starts the app (DOMContentLoaded guard). -->
   <script>
     var MUNNA_PAGES = ['home', 'product', 'cart', 'orders', 'address', 'profile', 'modal-admin-login', 'modal-order-alert', 'admin', 'scanner', 'modal-login'];
-    var MUNNA_SCRIPTS = ['core', 'catalog', 'checkout', 'product-detail', 'navigation', 'admin', 'admin-settings', 'image-search', 'admin-catalog', 'data-helpers', 'sheet-post', 'sheet-sync', 'address', 'profile', 'scanner', 'auth', 'init'];
+    var MUNNA_SCRIPTS = ['core', 'catalog', 'checkout', 'product-detail', 'navigation', 'admin', 'admin-settings', 'image-search', 'admin-catalog', 'data-helpers', 'sheet-post', 'sheet-sync', 'address', 'profile', 'scanner', 'auth', 'pull-refresh', 'init'];
 
     function munnaFetchPage(n) {
       return fetch('pages/' + n + '.html').then(function (r) {

@@ -35,7 +35,13 @@
       if (name === 'cart') {
         // Re-entering with an empty cart (or after a placed order) restarts
         // the flow at Step 1; otherwise the last checkout step is kept.
-        if (!Object.keys(cart).length) setStep('Cart');
+        // BUGFIX: after an order the "Success" card stayed visible even after
+        // new items were added for the NEXT order (checkout button hidden,
+        // only the cached "order done" card showed) - so also restart at
+        // Step 1 whenever the success card is the visible step.
+        var _succEl = document.getElementById('stepSuccess');
+        var _successShown = _succEl && !_succEl.classList.contains('hidden');
+        if (!Object.keys(cart).length || _successShown) setStep('Cart');
         renderCartDrawer();
         var cs = document.getElementById('cartScreen');
         if (cs) cs.scrollTop = 0;

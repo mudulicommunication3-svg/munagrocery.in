@@ -51,3 +51,25 @@
      brand-blue background extends all the way to the top edge. */
   header { padding-top: calc(env(safe-area-inset-top, 24px) + 6px) !important; }
   .screen-header { padding-top: calc(env(safe-area-inset-top, 24px) + 6px) !important; }
+
+  /* ---- PULL-TO-REFRESH (Chrome-style) - works on EVERY screen ---- */
+  .ptr-indicator {
+    position: fixed; top: 0; left: 50%; z-index: 200;
+    transform: translate(-50%, -110px);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: #ffffff; color: #1864ab;
+    border: 1px solid #dbe4f0; border-radius: 9999px;
+    padding: 8px 14px; box-shadow: 0 6px 18px rgba(24,100,171,.20);
+    font-size: 11px; font-weight: 800; white-space: nowrap;
+    pointer-events: none; opacity: 0;
+    transition: transform .18s ease, opacity .18s ease;
+  }
+  .ptr-indicator.ptr-visible { opacity: 1; }
+  .ptr-spinner {
+    width: 26px; height: 26px; border-radius: 9999px;
+    background: #e7f1fb; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: #1864ab; transition: background .15s ease, color .15s ease;
+  }
+  .ptr-indicator.ptr-ready .ptr-spinner { background: #1864ab; color: #fff; }
+  .ptr-indicator.ptr-loading .ptr-spinner { animation: ptrSpin .8s linear infinite; }
+  @keyframes ptrSpin { to { transform: rotate(360deg); } }
