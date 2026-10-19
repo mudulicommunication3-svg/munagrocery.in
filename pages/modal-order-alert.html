@@ -1,0 +1,31 @@
+  <!-- ================= 🚨 NEW ORDER ALERT MODAL (15 s ringing) ================= -->
+  <div id="newOrderAlertModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+      <div class="bg-rose-600 text-white px-4 py-3 flex items-center gap-2 animate-pulse">
+        <i class="ph-bold ph-bell-ringing text-xl"></i>
+        <span class="font-extrabold text-sm">🚨 New Order Alert!</span>
+        <span id="newOrderRingTimer" class="ml-auto text-[11px] font-black bg-white/20 px-2 py-0.5 rounded-md">15s</span>
+      </div>
+      <div class="p-4 space-y-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <span id="newOrderTypeBadge" class="text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-50 text-[#1864ab] border border-blue-200">Delivery</span>
+          <span id="newOrderTime" class="text-[11px] text-slate-500 font-bold"></span>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3 space-y-1.5 text-xs">
+          <div class="flex justify-between gap-2"><span class="text-slate-500 font-bold">Order</span><span id="newOrderId" class="font-black text-slate-800 text-right"></span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-500 font-bold">Customer</span><span id="newOrderName" class="font-black text-slate-800 text-right"></span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-500 font-bold">Phone</span><span id="newOrderPhone" class="font-black text-slate-800 text-right"></span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-500 font-bold">Address</span><span id="newOrderAddr" class="font-black text-slate-800 text-right line-clamp-2"></span></div>
+          <div class="flex justify-between gap-2 pt-1.5 border-t border-slate-200"><span class="text-slate-500 font-bold">Total</span><span id="newOrderTotal" class="font-black text-emerald-700 text-sm"></span></div>
+          <div id="newOrderSlotRow" class="hidden flex justify-between gap-2"><span class="text-slate-500 font-bold">Pickup Slot</span><span id="newOrderSlot" class="font-black text-indigo-700"></span></div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 pt-1">
+          <button onclick="newOrderAlertAction('accept')" class="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-extrabold shadow-sm">✅ Accept</button>
+          <button onclick="newOrderAlertAction('reject')" class="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-extrabold shadow-sm">🚫 Reject</button>
+          <button onclick="newOrderAlertAction('review')" class="py-2.5 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white text-[11px] font-extrabold shadow-sm">👁️ Review</button>
+        </div>
+        <p class="text-[10px] text-slate-400 leading-snug text-center">ଯେକୌଣସି ଆଡମିନ୍ ଫୋନ୍ ରେ ଏହି ବଟନ୍ ଦବାଗଲେ ସବୁ ଫୋନ୍ ର ରିଙ୍ଗ୍ ବନ୍ଦ ହେବ।</p>
+      </div>
+    </div>
+  </div>
+

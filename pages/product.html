@@ -1,0 +1,74 @@
+  <!-- ================= PRODUCT DETAIL SCREEN (One Product One Page) ================= -->
+  <div id="productDetailScreen" class="screen fixed inset-0 z-[60] bg-[#f1f3f6] hidden overflow-y-auto">
+    <!-- Sticky top header with Back — safe-area top padding so the title +
+         Share button sit BELOW the notch/status bar, never under it -->
+    <div class="sticky top-0 z-10 bg-[#1864ab] text-white px-4 pb-3 flex items-center gap-2 shadow-sm" style="padding-top: calc(env(safe-area-inset-top, 0px) + 10px);">
+      <button onclick="closeProductDetail()" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
+      <h3 class="font-extrabold text-sm">ପ୍ରୋଡକ୍ଟ ବିବରଣୀ (Product Details)</h3>
+      <button onclick="shareCurrentProduct()" class="ml-auto flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white text-[11px] font-extrabold px-2.5 py-1.5 rounded-lg active:scale-95 transition-all">
+        <i class="ph-bold ph-share-network"></i> Share
+      </button>
+    </div>
+
+    <!-- Full-width hero image -->
+    <div class="relative bg-white">
+      <img id="pdImage" src="" alt="" class="w-full h-72 object-contain p-4 bg-white">
+      <span id="pdOffBadge" class="hidden absolute top-3 left-3 bg-orange-600 text-white text-xs font-black px-2 py-1 rounded-lg shadow"></span>
+    </div>
+
+    <div class="p-3.5 max-w-md mx-auto pb-32 space-y-3">
+      <!-- Title + category + rating -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-1.5">
+        <span id="pdCategory" class="inline-block bg-blue-50 text-[#1864ab] text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide"></span>
+        <h2 id="pdTitle" class="text-base font-black text-slate-900 leading-snug"></h2>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">4.8 <i class="ph-fill ph-star text-[9px]"></i></span>
+          <span id="pdRating" class="text-[11px] text-slate-500 font-semibold">ଲୋକପ୍ରିୟ ପ୍ରୋଡକ୍ଟ</span>
+        </div>
+      </div>
+
+      <!-- Price + savings -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5">
+        <div class="flex items-baseline gap-2 flex-wrap">
+          <span id="pdPrice" class="text-2xl font-black text-slate-900"></span>
+          <span id="pdMrp" class="text-sm text-slate-400 line-through"></span>
+          <span id="pdSavings" class="text-[11px] font-black text-emerald-700"></span>
+        </div>
+        <div id="pdStock" class="mt-1.5"></div>
+      </div>
+
+      <!-- Description -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5">
+        <h4 class="text-xs font-extrabold text-slate-800 mb-1">ବିବରଣୀ (Description)</h4>
+        <p id="pdDesc" class="text-xs text-slate-600 leading-relaxed"></p>
+      </div>
+      <!-- Similar Products (ଏହିପରି ଅନ୍ୟ ସାମଗ୍ରୀ) — ସମାନ କ୍ୟାଟେଗୋରୀର ଅନ୍ୟ ଆଇଟମ୍, ଭୂମିକା ସ୍ଲାଇଡର୍ -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5">
+        <h4 class="text-xs font-extrabold text-slate-800 mb-2">Similar Products (ଏହିପରି ଅନ୍ୟ ସାମଗ୍ରୀ)</h4>
+        <div id="pdSimilarRow" class="flex overflow-x-auto gap-3 py-1 no-scrollbar"></div>
+      </div>
+      <!-- Flipkart ଷ୍ଟାଇଲ୍ ତଳ ନାଭିଗେସନ ପାଇଁ ଖାଲି ଜାଗା — ଏହା ନଥିଲେ ବିବରଣୀ ଲେଖା ତଳ ବାର ପଛରେ ଲୁଚିଯିବ -->
+      <div style="height: 64px;" aria-hidden="true"></div>
+    </div>
+
+    <!-- Flipkart ପରି ସ୍ଥିର ତଳ ଆକ୍ସନ ବାର — ସିଷ୍ଟମ ଜେସ୍ଚର ବାର ଉପରେ ଭାସେ -->
+    <div class="fixed left-0 right-0 z-10 bg-white border-t border-slate-200 shadow-2xl" style="bottom: calc(54px + env(safe-area-inset-bottom, 0px));">
+      <div class="max-w-md mx-auto px-3.5 py-2.5 flex items-center gap-2">
+        <!-- Qty stepper -->
+        <div class="flex items-center gap-1.5 bg-slate-900 text-white rounded-xl px-1.5 py-1.5 shrink-0">
+          <button onclick="detailQtyChange(-1)" class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center"><i class="ph-bold ph-minus"></i></button>
+          <span id="pdQty" class="text-sm font-black w-6 text-center">1</span>
+          <button onclick="detailQtyChange(1)" class="w-7 h-7 rounded-lg bg-[#1864ab] flex items-center justify-center"><i class="ph-bold ph-plus"></i></button>
+        </div>
+        <!-- Add to Cart -->
+        <button onclick="detailAddToCart()" id="pdAddCartBtn" class="flex-1 py-2.5 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/30 active:scale-95 transition-all">
+          <i class="ph-bold ph-shopping-bag"></i> କାର୍ଟରେ ଯୋଡ଼ନ୍ତୁ
+        </button>
+        <!-- Buy Now -->
+        <button onclick="detailBuyNow()" id="pdBuyBtn" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/30 active:scale-95 transition-all">
+          <i class="ph-bold ph-lightning"></i> କିଣନ୍ତୁ
+        </button>
+      </div>
+    </div>
+  </div>
+

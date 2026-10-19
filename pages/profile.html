@@ -1,0 +1,59 @@
+  <!-- ================= PROFILE SCREEN ================= -->
+  <div id="profileScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
+    <div class="screen-header">
+      <button onclick="closeScreen('profile')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
+      <h3 class="font-extrabold text-sm">Profile (ପ୍ରୋଫାଇଲ୍)</h3>
+    </div>
+    <div class="screen-body">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+        <div id="profAvatar" class="w-14 h-14 rounded-full bg-[#ffd43b] text-slate-900 font-black text-2xl flex items-center justify-center">M</div>
+        <div>
+          <h4 id="profName" class="font-black text-slate-800">Customer</h4>
+          <p id="profPhone" class="text-xs text-slate-500"></p>
+          <p id="profId" class="text-[10px] text-slate-400"></p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5" id="authRowCard"></div>
+
+      <!-- Language selector (moved from the header) -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-xs font-bold text-slate-700">
+          <i class="ph-bold ph-globe-hemisphere-west text-[#1864ab] text-lg"></i>
+          <span>Language (ଭାଷା)</span>
+        </div>
+        <div class="flex gap-1.5">
+          <button id="langBtnOD" onclick="setLang(false)" class="px-3 py-1.5 rounded-lg text-[11px] font-black border transition-all">OD</button>
+          <button id="langBtnEN" onclick="setLang(true)" class="px-3 py-1.5 rounded-lg text-[11px] font-black border transition-all">EN</button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-100">
+        <button onclick="showScreen('orders')" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-receipt text-[#1864ab] text-lg"></i> My Orders (ମୋ ଅର୍ଡର)</button>
+        <button onclick="showScreen('address')" class="w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-map-pin text-[#1864ab] text-lg"></i> Saved Addresses (ଠିକଣା)</button>
+        <!-- Admin Panel tile: HIDDEN by default — only visible when the
+             admin session (isAdminLoggedIn) is active on this device. -->
+        <button id="profAdminTile" onclick="openAdminModal()" class="hidden w-full flex items-center gap-3 p-3.5 text-left text-xs font-bold text-slate-700"><i class="ph-bold ph-shield-check text-[#1864ab] text-lg"></i> Admin Panel (ଆଡମିନ୍)</button>
+      </div>
+
+      <!-- Admin Login portal (10-digit username + password, Sheet-backed) -->
+      <div id="profAdminPortalCard" class="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 space-y-2">
+        <div class="flex items-center gap-2 text-xs font-black text-slate-700">
+          <i class="ph-bold ph-lock-key text-amber-500"></i>
+          <span>Admin Login Portal</span>
+        </div>
+        <p class="text-[10px] text-slate-400 leading-snug">10-ଅଙ୍କ Username / Password ଦେଇ ଆଡମିନ୍ ପ୍ୟାନେଲ୍ ଖୋଲନ୍ତୁ।</p>
+        <button id="profAdminLoginBtn" onclick="openAdminModal()" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-shield-check"></i> Admin Login
+        </button>
+        <button id="profAdminLogoutBtn" onclick="logoutAdmin()" class="hidden w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-extrabold flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-sign-out"></i> Logout Admin
+        </button>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 text-[11px] text-slate-500 space-y-1">
+        <div class="flex justify-between"><span>Total Orders</span><span id="profOrderCount" class="font-black text-slate-800">0</span></div>
+        <div class="flex justify-between"><span>Saved Addresses</span><span id="profAddrCount" class="font-black text-slate-800">0</span></div>
+      </div>
+    </div>
+  </div>
+

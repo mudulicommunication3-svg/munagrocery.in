@@ -1,0 +1,23 @@
+  <!-- ================= ADDRESS SCREEN ================= -->
+  <div id="addressScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
+    <div class="screen-header">
+      <button onclick="closeScreen('address')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
+      <h3 class="font-extrabold text-sm">My Addresses (ମୋ ଠିକଣା)</h3>
+      <button onclick="openAddressForm()" class="ml-auto px-3 py-1.5 rounded-lg bg-[#ffd43b] text-slate-900 text-xs font-black">+ Add</button>
+    </div>
+    <div class="screen-body">
+      <div id="addressForm" class="hidden bg-white p-3 rounded-2xl border border-slate-200 shadow-xs mb-3 space-y-2">
+        <input type="hidden" id="addrEditId">
+        <input type="text" id="addrName" placeholder="Name (ନାମ)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200">
+        <input type="tel" id="addrPhone" placeholder="Phone (ଫୋନ୍)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200">
+        <textarea id="addrText" rows="2" placeholder="Full address (ସମ୍ପୂର୍ଣ୍ଣ ଠିକଣା)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200"></textarea>
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-600"><input type="checkbox" id="addrDefault" class="accent-[#1864ab]"> Default (ମୁଖ୍ୟ)</label>
+        <div class="flex gap-2">
+          <button onclick="closeAddressForm()" class="px-4 py-2 rounded-lg bg-slate-200 text-xs font-bold">Cancel</button>
+          <button onclick="saveAddressForm()" class="flex-1 py-2 rounded-lg bg-[#1864ab] text-white text-xs font-black">Save</button>
+        </div>
+      </div>
+      <div id="addressList" class="space-y-2"></div>
+    </div>
+  </div>
+

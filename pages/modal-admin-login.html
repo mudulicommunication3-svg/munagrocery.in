@@ -1,0 +1,18 @@
+  <!-- ================= ADMIN LOGIN MODAL (10-digit username + password) ================= -->
+  <div id="adminPinModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-xs rounded-2xl p-5 shadow-2xl text-center">
+      <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-2">
+        <i class="ph-bold ph-shield-check text-xl"></i>
+      </div>
+      <h3 class="font-extrabold text-slate-900 text-sm">Admin Login</h3>
+      <p class="text-[11px] text-slate-500 mt-0.5">10-ଅଙ୍କ Username ଓ Password ଦିଅନ୍ତୁ</p>
+      <input type="text" id="adminPinInput" maxlength="10" inputmode="numeric" placeholder="Username (10 digits)" class="my-2 w-full text-center tracking-widest text-sm font-bold py-1.5 border-b-2 border-amber-500 outline-none">
+      <input type="password" id="adminPassInput" maxlength="10" inputmode="numeric" placeholder="Password (10 digits)" class="mb-3 w-full text-center tracking-widest text-sm font-bold py-1.5 border-b-2 border-amber-500 outline-none">
+      <p id="adminLoginHint" class="hidden text-[11px] text-rose-600 font-bold mb-2"></p>
+      <div class="flex items-center gap-2">
+        <button onclick="closeAdminPinModal()" class="w-1/2 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">ବାତିଲ୍</button>
+        <button onclick="verifyAdminPin()" class="w-1/2 py-2 rounded-xl bg-[#1864ab] text-white text-xs font-extrabold">ଲଗଇନ୍</button>
+      </div>
+    </div>
+  </div>
+

@@ -1,0 +1,41 @@
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Oriya:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Noto Sans Oriya', 'Plus Jakarta Sans', system-ui, sans-serif; background: #f1f3f6; color: #111; touch-action: pan-y; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Host badge hide (any deploy badge) */
+  [class*="deploy-badge"], div[style*="z-index: 10000"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 5-Slide Carousel Styling */
+  .carousel-slides { display: flex; transition: transform 0.4s ease-in-out; }
+  .carousel-slide { min-width: 100%; height: 140px; position: relative; }
+  .carousel-slide img { width: 100%; height: 100%; object-fit: cover; }
+  .dot.active { background: #fff; width: 16px; border-radius: 4px; }
+
+  /* Stepper styling for Live Order Tracking */
+  .stepper { position: relative; padding-left: 24px; }
+  .stepper-line { position: absolute; left: 7px; top: 10px; bottom: 10px; width: 2px; background: #e2e8f0; }
+  .step-item { position: relative; margin-bottom: 14px; }
+  .step-dot { position: absolute; left: -24px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #cbd5e1; border: 2px solid #fff; }
+  .step-item.done .step-dot { background: #16a34a; }
+  .step-item.active .step-dot { background: #1864ab; box-shadow: 0 0 0 3px rgba(24,100,171,0.25); }
+
+  /* STANDARDIZED SCREEN LAYOUT TEMPLATE — reusable across EVERY screen
+     (Cart, Orders, Address, Profile, and any future page). Gives every
+     screen the exact same margins, safe-area padding, and spacing as the
+     Home page so cards never clip under the header or bottom nav.
+     Usage: <div class="screen-body ...screen-specific extras">
+     Inside, wrap content blocks in: bg-white rounded-2xl border border-slate-200
+     (matching the Home product cards). */
+  .screen-body { max-width: 28rem; margin-left: auto; margin-right: auto; padding-left: 14px; padding-right: 14px; padding-top: 12px; padding-bottom: 128px; display: flex; flex-direction: column; gap: 12px; }
+  /* Standardized screen header — same brand-blue bar + back button on all screens */
+  .screen-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px; background: #1864ab; color: #fff; padding: 10px 16px; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+  /* Display cutout / notch support: keep the brand header + action buttons
+     safely below the notch (safe-area-inset-top) on every screen while the
+     brand-blue background extends all the way to the top edge. */
+  header { padding-top: calc(env(safe-area-inset-top, 24px) + 6px) !important; }
+  .screen-header { padding-top: calc(env(safe-area-inset-top, 24px) + 6px) !important; }

@@ -1,49 +1,31 @@
 {
-  "name": "ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ - MUNNA MOBILE & GROCERY",
+  "name": "MUNNA MOBILE & GROCERY",
   "short_name": "MUNNA GROCERY",
-  "description": "ମୋବାଇଲ୍ • ଆକ୍ସେସୋରିଜ୍ • ସଉଦା — MUNNA MOBILE & Grocery online store (Niali, Odisha).",
+  "description": "ଅର୍ଡର କରନ୍ତୁ ଗ୍ରୋସରୀ ଏବଂ ମୋବାଇଲ୍ ସାମଗ୍ରୀ ସୁଲଭ ମୂଲ୍ୟରେ",
   "lang": "or",
   "dir": "ltr",
-  "id": "/",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#f1f3f6",
   "theme_color": "#1864ab",
-  "categories": ["shopping", "food"],
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
   ],
   "shortcuts": [
-    {
-      "name": "ମୋ ଅର୍ଡର (My Orders)",
-      "short_name": "Orders",
-      "url": "/?screen=orders",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
-    },
-    {
-      "name": "କାର୍ଟ (Cart)",
-      "short_name": "Cart",
-      "url": "/?screen=cart",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
-    }
+    { "name": "ମୋ ଅର୍ଡର", "short_name": "Orders", "url": "./?screen=orders",
+      "description": "ଅର୍ଡର ଟ୍ରାକିଂ ଖୋଲନ୍ତୁ" },
+    { "name": "କାର୍ଟ", "short_name": "Cart", "url": "./?screen=cart",
+      "description": "କାର୍ଟ ଓ ଚେକଆଉଟ୍" },
+    { "name": "ଠିକଣା", "short_name": "Address", "url": "./?screen=address",
+      "description": "ସଞ୍ଚିତ ଠିକଣା" },
+    { "name": "ପ୍ରୋଫାଇଲ୍", "short_name": "Profile", "url": "./?screen=profile",
+      "description": "ପ୍ରୋଫାଇଲ୍ ଓ ସେଟିଂସ୍" }
   ]
 }

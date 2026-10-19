@@ -1,0 +1,410 @@
+  <!-- ================= LIVE APP SYNC STATUS (admin/full-store devices) ================= -->
+  <div id="adminSyncStatus" class="hidden fixed left-3 z-[75] bg-slate-950/85 text-white rounded-full px-3 py-1.5 text-[10px] font-black shadow-xl border border-white/10" style="bottom: calc(62px + env(safe-area-inset-bottom, 0px));">
+    <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 align-middle"></span><span id="adminSyncStatusText">Live sync ready</span>
+  </div>
+
+  <!-- ================= FULL ADMIN DASHBOARD ================= -->
+  <div id="adminDashboard" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 hidden overflow-y-auto">
+    <div class="min-h-full max-w-md mx-auto bg-slate-50 border-x border-slate-200 flex flex-col pb-10">
+      <div class="bg-[#1864ab] text-white px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow-md">
+        <div class="flex items-center gap-2">
+          <i class="ph-bold ph-gear text-amber-400"></i>
+          <span class="font-bold text-xs">MUNNA Store Admin Panel</span>
+        </div>
+        <button onclick="closeAdminDashboard()" class="w-6 h-6 rounded bg-blue-900 text-white flex items-center justify-center">
+          <i class="ph-bold ph-x text-xs"></i>
+        </button>
+      </div>
+
+      <!-- Admin Top Nav Tabs -->
+      <div class="flex bg-white border-b border-slate-200 text-[10px] font-bold text-slate-600 sticky top-12 z-20 overflow-x-auto no-scrollbar">
+        <button onclick="switchAdminTab('orders')" id="admTabBtn-orders" class="flex-1 py-2.5 text-center border-b-2 border-[#1864ab] text-[#1864ab] whitespace-nowrap px-1">📦 Orders</button>
+        <button onclick="switchAdminTab('users')" id="admTabBtn-users" class="flex-1 py-2.5 text-center border-b-2 border-transparent whitespace-nowrap px-1">👥 Users</button>
+        <button onclick="switchAdminTab('stock')" id="admTabBtn-stock" class="flex-1 py-2.5 text-center border-b-2 border-transparent whitespace-nowrap px-1">🏷️ Catalog</button>
+        <button onclick="switchAdminTab('banners')" id="admTabBtn-banners" class="flex-1 py-2.5 text-center border-b-2 border-transparent">📢 Banners</button>
+        <button onclick="switchAdminTab('sync')" id="admTabBtn-sync" class="flex-1 py-2.5 text-center border-b-2 border-transparent">⚙️ Sheets</button>
+        <button onclick="switchAdminTab('settings')" id="admTabBtn-settings" class="flex-1 py-2.5 text-center border-b-2 border-transparent">🛒 Shop</button>
+      </div>
+
+      <!-- MASTER SAVE BAR — pushes EVERYTHING (trending + banners + settings) to the shared Google Sheet -->
+      <div class="bg-amber-50 border-b border-amber-200 px-3.5 py-2 flex items-center justify-between sticky top-[84px] z-20">
+        <span class="text-[10px] font-black text-amber-800 leading-tight">📤 ପରିବର୍ତ୍ତନ ଶେଷରେ ସେଭ୍ କରନ୍ତୁ</span>
+        <button onclick="saveAllToSheet()" id="saveAllBtn" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black rounded-lg flex items-center gap-1 shadow-xs">
+          <i class="ph-bold ph-floppy-disk"></i> 💾 Save All to Sheet
+        </button>
+      </div>
+
+      <div class="p-3.5 space-y-3 flex-1">
+        <!-- Tab 1: Orders (5-Stage Fulfillment & Live Item Editing) -->
+        <div id="admTab-orders" class="space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="text-xs font-black text-slate-700">📦 Customer Orders (5-Stage Dispatch)</h4>
+            <div class="flex items-center gap-2">
+              <button onclick="openScanner('quickbill')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-lg flex items-center gap-1 shadow-xs">
+                <i class="ph-bold ph-barcode"></i> ⚡ Quick Bill
+              </button>
+              <button onclick="manualFullOrderSync()" id="adminFullSyncBtn" class="px-2 py-1.5 bg-[#1864ab] hover:bg-blue-800 text-white text-[10px] font-black rounded-lg flex items-center gap-1 shadow-xs">
+                <i class="ph-bold ph-cloud-arrow-down"></i> Full Live Sync
+              </button>
+              <button onclick="renderAdminOrders()" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1">
+                <i class="ph-bold ph-arrows-clockwise"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div id="adminOrdersContainer" class="space-y-3"></div>
+        </div>
+
+        <!-- Tab: ALL CUSTOMERS (every user from Orders + Addresses, Sheet-shared) -->
+        <div id="admTab-users" class="hidden space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-black text-slate-700">👥 ସମସ୍ତ ଗ୍ରାହକ (All Users)</h4>
+            <button onclick="syncUsersFromSheet()" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1">
+              <i class="ph-bold ph-arrows-clockwise"></i> Sync
+            </button>
+          </div>
+          <div id="adminUserStats" class="flex gap-2 text-[10px] font-bold flex-wrap"></div>
+          <div class="bg-white p-2.5 rounded-2xl border border-slate-200">
+            <div class="relative">
+              <i class="ph-bold ph-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <input type="text" id="adminUserSearch" oninput="renderAdminUsers()" placeholder="🔍 ନାଁ / ଫୋନ୍ / ଠିକଣା ରୁ ଖୋଜନ୍ତୁ..."
+                     class="w-full text-xs pl-8 pr-2.5 py-2 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            </div>
+          </div>
+          <div id="adminUsersList" class="space-y-2"></div>
+        </div>
+
+        <!-- Tab 2: Catalog Manager (Smart Search & Edit) -->
+        <div id="admTab-stock" class="hidden space-y-3">
+          <!-- 📊 Stock Health Engine: auto low-stock / out-of-stock report -->
+          <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-black text-slate-700">📊 Stock Health (Auto Engine)</h4>
+              <button onclick="renderStockHealth(); renderAdminList();" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1"><i class="ph-bold ph-arrows-clockwise"></i> Refresh</button>
+            </div>
+            <div id="stockHealthChips" class="flex gap-2 text-[10px] font-bold flex-wrap"></div>
+            <div id="stockHealthList" class="mt-2 space-y-1 max-h-44 overflow-y-auto no-scrollbar"></div>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs" id="adminFormCard">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-black uppercase text-slate-700 flex items-center gap-1" id="formHeaderTitle">
+                <i class="ph-bold ph-plus-circle text-emerald-600"></i> 
+                <span>+ Add / Smart Search Product</span>
+              </h4>
+              <button onclick="resetAdminForm()" id="cancelEditBtn" class="hidden text-[10px] bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded-md font-bold">
+                Cancel Edit
+              </button>
+            </div>
+
+            <div class="bg-blue-50/70 border border-blue-200 p-2.5 rounded-xl mb-3 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-extrabold text-blue-900 flex items-center gap-1">
+                  <i class="ph-bold ph-magnifying-glass text-[#1864ab]"></i> Search Source
+                </span>
+                <div class="flex items-center bg-white p-0.5 rounded-lg border border-blue-300 text-[10px] font-bold">
+                  <button type="button" id="toggleJioBtn" onclick="setSearchSource('jiomart')" class="px-2 py-0.5 rounded-md bg-[#1864ab] text-white">JioMart</button>
+                  <button type="button" id="toggleWebBtn" onclick="setSearchSource('web')" class="px-2 py-0.5 rounded-md text-slate-600">Other API</button>
+                </div>
+              </div>
+              <div id="pincodeWrapper" class="flex items-center gap-1.5 pt-1 border-t border-blue-200/60">
+                <span class="text-[10px] font-bold text-blue-800 shrink-0">Pincode:</span>
+                <input type="number" id="searchPincode" value="752106" class="w-24 text-xs px-2 py-1 bg-white border border-blue-300 rounded-md outline-none font-bold text-[#1864ab]">
+                <span class="text-[9px] text-slate-500">(Niali 752106)</span>
+              </div>
+            </div>
+
+            <form onsubmit="handleAdminFormSubmit(event)" class="space-y-2.5">
+              <input type="hidden" id="editEan" value="">
+              <input type="hidden" id="editRowIndex" value="">
+
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">Product Name</label>
+                <div class="flex gap-1 mt-0.5">
+                  <input type="text" id="newProdName" required placeholder="e.g. Fortune Oil, Atta" class="w-full text-xs px-2.5 py-2 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                  <button type="button" onclick="triggerLiveSearch()" id="smartSearchBtn" class="px-3 py-1.5 bg-[#1864ab] hover:bg-blue-800 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                    <i class="ph-bold ph-magnifying-glass"></i> Search
+                  </button>
+                </div>
+              </div>
+
+              <div id="imageDropdownContainer" class="hidden bg-slate-50 border-2 border-dashed border-blue-300 rounded-2xl p-3 my-2 transition-all">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <span class="text-xs font-extrabold text-[#1864ab] flex items-center gap-1" id="resultsHeaderTitle">JioMart Results:</span>
+                  <button type="button" onclick="closeImageDropdown()" class="text-slate-400 hover:text-rose-500"><i class="ph-bold ph-x-circle text-base"></i></button>
+                </div>
+                <div id="imageGridResults" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 max-h-60 overflow-y-auto pr-1"></div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[11px] font-bold text-slate-700">MRP</label>
+                  <input type="number" id="newProdMRP" required placeholder="0" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                </div>
+                <div>
+                  <label class="text-[11px] font-bold text-slate-700">Selling Price</label>
+                  <input type="number" id="newProdSP" required placeholder="0" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[11px] font-bold text-slate-700">Stock Qty</label>
+                  <input type="number" id="newProdStock" required placeholder="10" value="10" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                </div>
+                <div>
+                  <label class="text-[11px] font-bold text-slate-700">Category</label>
+                  <input type="text" id="newProdCat" required placeholder="Grocery, Oil..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                </div>
+              </div>
+
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">EAN / ବାରକୋଡ୍ (ଗ୍ରାହକ ସ୍କାନ୍ ପାଇଁ)</label>
+                <div class="flex gap-1.5">
+                  <input type="text" id="newProdEan" placeholder="ଯେପରି 8901234567890 — ଖାଲି ରଖିଲେ auto" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                  <button type="button" onclick="openScanner('admin')" title="ବାରକୋଡ୍ ସ୍କାନ୍" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                    <i class="ph-bold ph-barcode"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">Image URL</label>
+                <input type="url" id="newProdImg" oninput="updateImagePreview(this.value)" placeholder="https://... କିମ୍ବା JioMart ସର୍ଚ୍ଚରୁ ବାଛନ୍ତୁ" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                <button type="button" onclick="switchAdminTab('banners')" class="mt-1 text-[10px] text-[#1864ab] font-bold hover:underline">🖼️ ନିଜ ଫଟୋର ଲିଙ୍କ୍ ତିଆରି କରନ୍ତୁ (Image Link Generator)</button>
+                <div id="imgPreviewBox" class="hidden mt-2 p-1.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
+                  <img id="imgPreviewTag" src="" class="w-10 h-10 object-contain bg-white rounded border border-slate-100" alt="Preview">
+                  <span class="text-[10px] text-emerald-600 font-bold">Image Ready!</span>
+                </div>
+              </div>
+
+              <button type="submit" id="adminFormSubmitBtn" class="w-full py-2.5 bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5">
+                <i class="ph-bold ph-floppy-disk"></i>
+                <span id="submitBtnLabel">Save & Publish to Sheet</span>
+              </button>
+            </form>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-black uppercase text-slate-500">Live Inventory</h4>
+              <span id="adminTotalItems" class="text-xs font-bold text-[#1864ab]">0 Items</span>
+            </div>
+            <!-- Database Search & Edit: find an existing product to edit -->
+            <div class="flex items-center gap-1.5 mb-2">
+              <div class="relative flex-1">
+                <i class="ph-bold ph-magnifying-glass absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="dbSearchInput" oninput="renderAdminList()"
+                       placeholder="🔍 ଡାଟାବେସ୍‌ରୁ ଖୋଜନ୍ତୁ (ନାଁ / EAN / ବର୍ଗ)..."
+                       class="w-full text-xs pl-7 pr-8 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                <button type="button" onclick="openScanner('admin')" title="EAN ସ୍କାନ୍ କରନ୍ତୁ" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#1864ab]">
+                  <i class="ph-bold ph-barcode text-sm"></i>
+                </button>
+              </div>
+              <button type="button" onclick="clearDbSearch()" id="dbSearchClearBtn"
+                      class="hidden px-2 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg shrink-0">
+                Clear
+              </button>
+            </div>
+            <div id="adminInventoryList" class="space-y-2 max-h-72 overflow-y-auto no-scrollbar"></div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Promotional Banners (Max 5) + Image Link Generator -->
+        <div id="admTab-banners" class="hidden space-y-3">
+          <!-- Image Link Generator: upload an image -> get a public URL -->
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+              <i class="ph-bold ph-image text-[#1864ab]"></i> 🖼️ Image Link Generator (ମ୍ୟାନୁଆଲ୍ ପ୍ରୋଡକ୍ଟ / ଅଫର୍ ବ୍ୟାନର୍)
+            </h4>
+            <p class="text-[10px] text-slate-500 leading-snug">
+              ଏକ ଫଟୋ ଅପଲୋଡ୍ କରନ୍ତୁ — ସର୍ଭରରେ ସେଭ୍ ହୋଇ ଏକ <b>ସିଧା ଇମେଜ୍ ଲିଙ୍କ୍ (URL)</b> ମିଳିବ, ଯାହା ଉଭୟ ପ୍ରୋଡକ୍ଟ ଓ ବ୍ୟାନର୍ ରେ ବ୍ୟବହାର କରିପାରିବେ।
+            </p>
+            <div class="flex items-center gap-1.5">
+              <input type="file" id="imgLinkFile" accept="image/*"
+                     class="flex-1 text-[10px] text-slate-600 file:mr-2 file:py-1.5 file:px-2 file:rounded-lg file:border-0 file:bg-blue-50 file:text-[#1864ab] file:font-bold file:text-[10px]">
+              <button type="button" onclick="generateImageLink()" id="imgLinkGenBtn"
+                      class="px-3 py-1.5 bg-[#1864ab] hover:bg-blue-800 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                <i class="ph-bold ph-link-simple"></i> Generate Link
+              </button>
+            </div>
+            <div id="imgLinkResult" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-2.5 space-y-1.5">
+              <div class="flex items-center gap-2">
+                <img id="imgLinkPreview" src="" alt="preview" class="w-12 h-12 object-contain bg-white rounded border border-slate-200">
+                <div class="flex-1 min-w-0">
+                  <p class="text-[10px] font-bold text-emerald-600">✅ ଲିଙ୍କ୍ ତିଆରି ହେଲା!</p>
+                  <p class="text-[9px] text-slate-500">ଲିଙ୍କ୍ କପି କରି ବ୍ୟବହାର କରନ୍ତୁ।</p>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                <input type="text" id="imgLinkOutput" readonly class="flex-1 text-[10px] px-2 py-1 bg-white border border-slate-200 rounded-lg outline-none text-slate-700">
+                <button type="button" onclick="copyImgLink()" class="px-2.5 py-1 bg-slate-900 text-white text-[10px] font-bold rounded-lg shrink-0">Copy</button>
+                <button type="button" onclick="useImgLinkForBanner()" class="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-lg shrink-0">→ Banner</button>
+              </div>
+            </div>
+            <p class="text-[9px] text-slate-400 leading-snug">
+              ✅ ଥରେ ବି ସେଟଅପ୍ ବିନା କାମ କରେ (କୀ built-in ଅଛି)। ନିଜ କୀ ବ୍ୟବହାର କରିବାକୁ ଚାହିଁଲେ → <a href="https://api.imgbb.com/" target="_blank" class="text-[#1864ab] font-bold">api.imgbb.com</a> ରୁ ଫ୍ରି key ନେଇ Admin → Sheets ଟ୍ୟାବ୍ ରେ ସେଭ୍ କରନ୍ତୁ।
+            </p>
+          </div>
+
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <h4 class="text-xs font-black text-slate-700">📢 ୫-ସ୍ଲାଇଡ୍ ପ୍ରମୋସନ୍ ବ୍ୟାନର୍ ମ୍ୟାନେଜର୍</h4>
+            <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+              <span class="text-[10px] font-bold text-emerald-800">Shared — ଆପଣ ଯୋଡ଼ିଲେ ସମସ୍ତ ଗ୍ରାହକଙ୍କ ଫୋନ୍ ରେ ଦେଖାଯିବ</span>
+            </div>
+            <input type="text" id="newBannerImg" placeholder="Image URL (https://...) — ଉପରର Generator ରୁ ପାଇପାରିବେ" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+            <input type="text" id="newBannerTitle" placeholder="Banner Title / Offer Text" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+            <button onclick="addBanner()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg">+ Add Banner</button>
+          </div>
+          <div id="adminBannerList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+        </div>
+
+        <!-- Tab 4: Google Sheets Live Sync -->
+        <div id="admTab-sync" class="hidden space-y-3">
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <label class="text-[11px] font-bold text-slate-700">Google Sheet Apps Script Webhook</label>
+            <div class="flex gap-1.5">
+              <input type="text" id="webhookInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+              <button onclick="saveWebhook()" class="px-2.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">Save</button>
+              <button onclick="manualSync()" id="syncNowBtn" class="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg shrink-0">Sync</button>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-snug">🔍 JioMart search କ୍ରମ: <b>Bot Search Bus</b> (ବଟ୍ PC ର ସିଧା JioMart engine — Sheet ଦେଇ, କୌଣସି ପ୍ରକ୍ସି ଲାଗେ ନାହିଁ) → Apps Script → Relay → OpenFoodFacts । ବଟ୍ (python main.py) ଚାଲୁଥିଲେ Smart Search ଅସଲି JioMart ଡାଟା ଦେବ ।</p>
+            <label class="text-[11px] font-bold text-slate-700 block pt-1">🖼️ ImgBB API Key (built-in କୀ ଅଛି — ବଦଳାଇବାକୁ ଚାହିଁଲେ ନୂଆ key ଦିଅନ୍ତୁ)</label>
+            <div class="flex gap-1.5">
+              <input type="text" id="imgbbKeyInput" placeholder="ImgBB API key ପେଷ୍ଟ କରନ୍ତୁ..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none">
+              <button onclick="saveImgbbKey()" class="px-2.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">Save</button>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-snug">📤 built-in କୀ ପୂର୍ବରୁ ସେଟ୍ ଅଛି — Banners ଟ୍ୟାବ୍ ର Image Link Generator ତୁରନ୍ତ କାମ କରିବ।</p>
+          </div>
+        </div>
+
+        <!-- Tab 5: Shop Settings — delivery charge + coupon (shared: admin sets ONCE, every customer sees it) -->
+        <div id="admTab-settings" class="hidden space-y-3">
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+              <i class="ph-bold ph-truck text-[#1864ab]"></i> 🚚 ଡେଲିଭରୀ ଚାର୍ଜ ସେଟିଂସ୍
+            </h4>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">Delivery Charge (₹)</label>
+                <input type="number" id="setDeliveryFee" placeholder="ଯେପରି 30" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">Free Delivery Above (₹)</label>
+                <input type="number" id="setFreeAbove" placeholder="ଯେପରି 500" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-snug">ବିଲ୍ ଏହାଠୁ କମ୍ ହେଲେ ଡେଲିଭରୀ ଚାର୍ଜ ଲାଗିବ; ଏହାଠୁ ଅଧିକ ହେଲେ ମାଗଣା।</p>
+
+            <h4 class="text-xs font-black text-slate-700 pt-1 flex items-center gap-1">
+              <i class="ph-bold ph-ticket text-amber-500"></i> 🎟️ କୁପନ୍ ସେଟିଂସ୍ (Coupon)
+            </h4>
+            <input type="text" id="setCouponCode" placeholder="Coupon Code (ଯେପରି MUNNA10)" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg uppercase outline-none focus:border-[#1864ab]">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">% ଛାଡ଼ (%)</label>
+                <input type="number" id="setCouponPercent" placeholder="ଯେପରି 10" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-700">Min Bill (₹)</label>
+                <input type="number" id="setCouponMinBill" placeholder="ଯେପରି 300" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              </div>
+            </div>
+            <button onclick="saveShopSettings()" class="w-full py-2 bg-[#1864ab] hover:bg-blue-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1">
+              <i class="ph-bold ph-floppy-disk"></i> 💾 ସେଭ୍ କରନ୍ତୁ (ସମସ୍ତ ଗ୍ରାହକ ପାଇଁ)
+            </button>
+            <p class="text-[10px] text-slate-400 leading-snug">✅ ଥରେ ସେଭ୍ କଲେ ସମସ୍ତଙ୍କ ଫୋନ୍ ରେ ଲାଗୁ (Config tab)। Cart ରେ ଗ୍ରାହକ କୁପନ୍ apply କରିପାରିବେ।</p>
+          </div>
+
+          <!-- Checkout & Delivery Settings: COD + Store Pickup toggles (shared Config) -->
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+              <i class="ph-bold ph-timer text-emerald-600"></i> 🛵 Checkout &amp; Delivery Settings
+            </h4>
+
+            <!-- (a) COD Toggle + notice -->
+            <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200">
+              <div class="flex items-center gap-2">
+                <i class="ph-bold ph-cash text-emerald-600"></i>
+                <span class="text-xs font-bold text-slate-700">Cash on Delivery (COD)</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="setCodActive" class="sr-only peer" checked>
+                <div class="w-9 h-5 bg-slate-300 peer-checked:bg-emerald-500 rounded-full transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+              </label>
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">COD Notice / Comment</label>
+              <input type="text" id="setCodNotice" placeholder="Coming Soon" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              <p class="text-[10px] text-slate-400 leading-snug mt-0.5">COD OFF ଥିଲେ ଏହି ମେସେଜ୍ ଗ୍ରାହକ Checkout ରେ ତଳେ ଦେଖିବେ (default: Coming Soon)।</p>
+            </div>
+
+            <!-- (b) Store Pickup Toggle + note + slot choices -->
+            <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 pt-2 mt-1">
+              <div class="flex items-center gap-2">
+                <i class="ph-bold ph-storefront text-[#1864ab]"></i>
+                <span class="text-xs font-bold text-slate-700">Store Pickup</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="setPickupActive" class="sr-only peer" checked>
+                <div class="w-9 h-5 bg-slate-300 peer-checked:bg-[#1864ab] rounded-full transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+              </label>
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">Pickup Note / Badge</label>
+              <input type="text" id="setPickupNote" placeholder="Free Pickup" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">Pickup Slot Choices</label>
+              <div class="flex flex-wrap gap-2 mt-1">
+                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer">
+                  <input type="checkbox" id="slotChk_30_min" class="accent-[#1864ab]" checked> 30 min
+                </label>
+                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer">
+                  <input type="checkbox" id="slotChk_1_hour" class="accent-[#1864ab]" checked> 1 hour
+                </label>
+                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer">
+                  <input type="checkbox" id="slotChk_2_hour" class="accent-[#1864ab]" checked> 2 hour
+                </label>
+              </div>
+              <p class="text-[10px] text-slate-400 leading-snug mt-0.5">Checkout ରେ ଏହି slot ଗୁଡ଼ିକ ଦେଖାଯିବ; ଗ୍ରାହକ ଗୋଟିଏ ବାଛିବା ବାଧ୍ୟତାମୂଳକ।</p>
+            </div>
+
+            <button onclick="saveShopSettings()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1">
+              <i class="ph-bold ph-floppy-disk"></i> 💾 ସେଭ୍ କରନ୍ତୁ (Checkout &amp; Delivery)
+            </button>
+          </div>
+
+          <!-- Security: Change Admin Password + Logout Admin -->
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+              <i class="ph-bold ph-shield-check text-rose-500"></i> 🔐 Admin Security
+            </h4>
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">Current Password (10 digits)</label>
+              <input type="password" id="admCurPass" maxlength="10" inputmode="numeric" placeholder="Current Password" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">New Password (10 digits)</label>
+              <input type="password" id="admNewPass" maxlength="10" inputmode="numeric" placeholder="New Password" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">New Username (10 digits, optional — ଛାଡ଼ିଲେ ପୁରୁଣା ରହିବ)</label>
+              <input type="password" id="admNewUser" maxlength="10" inputmode="numeric" placeholder="New Username (optional)" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            </div>
+            <p id="admPassHint" class="hidden text-[11px] font-bold text-rose-600"></p>
+            <button onclick="changeAdminPassword()" class="w-full py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1">
+              <i class="ph-bold ph-key"></i> Change Admin Password
+            </button>
+            <button onclick="logoutAdmin()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg flex items-center justify-center gap-1 border border-slate-200">
+              <i class="ph-bold ph-sign-out"></i> Logout Admin
+            </button>
+            <p class="text-[10px] text-slate-400 leading-snug">Session ଏହି ଡିଭାଇସ୍ ରେ ସେଭ୍ ଅଛି (isAdminLoggedIn) — ପୁଣି ପାସୱାର୍ଡ ଦେବାକୁ ପଡ଼ିବ ନାହିଁ।</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+

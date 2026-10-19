@@ -1,0 +1,40 @@
+  <!-- ================= LOGIN / SIGN-UP MODAL (mobile + password) ================= -->
+  <div id="loginModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[65] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto no-scrollbar">
+      <div class="bg-[#1864ab] text-white px-4 py-3 flex items-center gap-2">
+        <i class="ph-fill ph-lock-key text-lg"></i>
+        <span class="font-extrabold text-sm">ଲଗଇନ୍ / Sign Up</span>
+        <button onclick="closeLoginModal()" class="ml-auto w-7 h-7 rounded-full bg-white/15 flex items-center justify-center"><i class="ph-bold ph-x"></i></button>
+      </div>
+
+      <!-- Tabs: Login / Sign Up -->
+      <div class="flex bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500">
+        <button id="loginTabPw" onclick="switchLoginTab('pw')" class="flex-1 py-2.5 text-center border-b-2 border-[#1864ab] text-[#1864ab]">ଲଗଇନ୍ (Login)</button>
+        <button id="loginTabSignup" onclick="switchLoginTab('signup')" class="flex-1 py-2.5 text-center border-b-2 border-transparent">Sign Up (Register)</button>
+      </div>
+
+      <div class="p-4 space-y-2.5">
+        <!-- Name (Sign Up only) -->
+        <div id="fName" class="hidden">
+          <input type="text" id="loginName" placeholder="ଆପଣଙ୍କ ନାଁ" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
+        </div>
+        <input type="tel" id="loginPhone" maxlength="10" inputmode="numeric" placeholder="10-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
+        <input type="password" id="loginPassword" placeholder="ପାସୱାର୍ଡ (min 6 chars)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
+        <!-- Address (Sign Up only) -->
+        <div id="fAddr" class="hidden">
+          <input type="text" id="loginAddr" placeholder="ଠିକଣା (ଐଚ୍ଛିକ)" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-[#1864ab]">
+        </div>
+
+        <button id="btnLogin" onclick="loginPassword_()" class="w-full py-2.5 bg-[#1864ab] hover:bg-blue-800 text-white text-xs font-extrabold rounded-lg flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-check"></i> ଲଗଇନ୍ କରନ୍ତୁ
+        </button>
+        <button id="btnSignup" onclick="registerUser_()" class="hidden w-full py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-extrabold rounded-lg flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-user-plus"></i> Account ତିଆରି କରନ୍ତୁ
+        </button>
+        <p id="otpHint" class="hidden text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 font-bold"></p>
+
+        <p class="text-[10px] text-slate-400 leading-snug text-center px-1 pb-1">🔒 ଅର୍ଡର ପାଇଁ ଲଗଇନ୍ ବାଧ୍ୟତାମୂଳକ — ମୋବାଇଲ୍ ନମ୍ବର + ପାସୱାର୍ଡ ଦେଇ ଲଗଇନ୍ କରନ୍ତୁ।</p>
+      </div>
+    </div>
+  </div>
+

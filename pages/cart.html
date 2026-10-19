@@ -1,0 +1,153 @@
+  <!-- ================= CART PAGE (SEPARATE SCREEN WITH FULL CHECKOUT FLOW) ================= -->
+  <div id="cartScreen" class="screen fixed inset-0 z-50 bg-[#f1f3f6] hidden overflow-y-auto">
+    <div class="screen-header z-10">
+      <button onclick="closeScreen('cart')" class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center"><i class="ph-bold ph-arrow-left"></i></button>
+      <h3 class="font-extrabold text-sm flex items-center gap-1.5">
+        <i class="ph-bold ph-shopping-cart"></i>
+        <span>କାର୍ଟ ଓ ଚେକଆଉଟ୍ (Cart & Checkout)</span>
+      </h3>
+      <button onclick="renderCartDrawer()" class="ml-auto text-[11px] font-bold flex items-center gap-1"><i class="ph-bold ph-arrows-clockwise"></i> Refresh</button>
+    </div>
+
+    <div class="screen-body">
+      <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+        <div id="cartItemsContainer" class="space-y-2.5"></div>
+      </div>
+
+      <div id="cartFooterView" class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+        <div class="space-y-1 text-xs font-semibold text-slate-600 pb-2 border-b border-slate-200">
+        <div class="flex justify-between">
+          <span>ସର୍ବମୋଟ ସାମଗ୍ରୀ (Subtotal):</span>
+          <span id="summarySubtotal">Rs.0</span>
+        </div>
+        <div class="flex justify-between text-emerald-700" id="summaryDeliveryRow">
+          <span>🚚 ଡେଲିଭରୀ ଚାର୍ଜ:</span>
+          <span id="summaryDelivery">Rs.0</span>
+        </div>
+        <div class="flex justify-between text-rose-600 hidden" id="summaryDiscountRow">
+          <span>🎟️ କୁପନ୍ ଛାଡ଼:</span>
+          <span id="summaryDiscount">-Rs.0</span>
+        </div>
+        <div class="flex justify-between pt-1 border-t border-slate-200">
+          <span>ସର୍ବମୋଟ (Total):</span>
+          <span id="summaryTotal" class="text-sm font-extrabold text-[#1864ab]">Rs.0</span>
+        </div>
+      </div>
+
+      <!-- Coupon + delivery address quick row (billing page essentials) -->
+      <div class="flex gap-1.5 mt-2.5">
+        <input id="couponInput" type="text" placeholder="🎟️ Coupon Code (ଯେପରି MUNNA10)" class="flex-1 text-[11px] px-2.5 py-1.5 border border-slate-200 rounded-lg uppercase outline-none focus:border-amber-400">
+        <button onclick="applyCoupon()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-lg">Apply</button>
+      </div>
+      <div class="flex items-center justify-between mt-2 text-[11px] bg-slate-100 rounded-lg px-2.5 py-1.5">
+        <span class="flex items-center gap-1 font-bold text-slate-600 min-w-0">
+          <i class="ph-bold ph-map-pin shrink-0"></i>
+          <span id="cartAddrText" class="line-clamp-1">📍 ଡେଲିଭରୀ ଠିକଣା ଯୋଡ଼ନ୍ତୁ</span>
+        </span>
+        <button onclick="showScreen('address');" class="text-[#1864ab] font-bold shrink-0 ml-2">➕ Add / Change</button>
+      </div>
+
+      <!-- Step 1: Cart Summary View -->
+      <div id="stepCart">
+        <button onclick="goCheckoutAddress()" class="mt-3 w-full py-2.5 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs shadow-md shadow-blue-600/30 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+          <span>Checkout କରନ୍ତୁ (Proceed)</span>
+          <i class="ph-bold ph-arrow-right"></i>
+        </button>
+      </div>
+
+      <!-- Step 2: Address & 3 KM Map Selection -->
+      <div id="stepAddress" class="hidden">
+        <div class="flex items-center justify-between mt-2 mb-1.5">
+          <span class="text-xs font-black text-slate-700">📍 ଡେଲିଭରୀ ଲୋକେସନ୍ (୩ କି.ମି. ଭିତରେ)</span>
+          <button onclick="locateUserGPS()" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1">
+            <i class="ph-bold ph-crosshair"></i> GPS Auto-Locate
+          </button>
+        </div>
+
+        <!-- Interactive Map Container -->
+        <div id="checkoutDeliveryMap" class="w-full h-36 rounded-xl border border-slate-200 my-1.5 z-10"></div>
+        <div id="mapStatusPill" class="text-[10px] font-bold p-1.5 rounded-lg mb-2 text-center bg-emerald-50 text-emerald-800 border border-emerald-200">
+          ମ୍ୟାପ୍ ଯାଞ୍ଚ ହେଉଛି...
+        </div>
+
+        <div id="savedAddressPick" class="space-y-1.5 mb-2"></div>
+        <div class="space-y-2">
+          <input type="text" id="orderCustName" placeholder="ଆପଣଙ୍କ ନାମ (Name)" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white outline-none">
+          <input type="tel" id="orderCustPhone" placeholder="ଫୋନ୍ ନମ୍ବର (Phone)" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white outline-none">
+          <textarea id="orderCustAddress" rows="2" placeholder="ଘର ଠିକଣା / Landmark" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white outline-none"></textarea>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button onclick="backToCart()" class="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Back</button>
+          <button id="btnProceedToPayment" onclick="goCheckoutPayment()" class="flex-1 py-2.5 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs">Payment କରନ୍ତୁ</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Payment Selection + Delivery Method (Home Delivery / Store Pickup) -->
+      <div id="stepPayment" class="hidden">
+        <span class="text-xs font-black text-slate-700 block mt-2 mb-1.5">🛍️ ଡେଲିଭରୀ ମାଧ୍ୟମ (Delivery Method)</span>
+        <div class="space-y-1.5">
+          <!-- Option 1: Home Delivery (Cash on Delivery only) -->
+          <div id="optHomeDelivery" class="rounded-xl border border-slate-200 bg-white p-2.5">
+            <div class="text-[11px] font-black text-slate-600 mb-1.5 flex items-center gap-1">
+              <i class="ph-bold ph-house"></i> Home Delivery (Cash on Delivery)
+            </div>
+            <div class="space-y-1.5" id="payMethodBox">
+              <label id="codOptionLabel" class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer">
+                <input type="radio" name="payMethod" id="payCodRadio" value="COD" checked class="accent-emerald-600">
+                <i class="ph-bold ph-truck text-emerald-600"></i>
+                <div><span class="text-xs font-bold block">Cash on Delivery</span><span class="text-[10px] text-slate-500">ପହଞ୍ଚିଲେ ଟଙ୍କା ଦିଅନ୍ତୁ</span></div>
+              </label>
+              <!-- COD disabled notice (shown only when admin turned COD OFF) -->
+              <div id="codNoticeBar" class="hidden text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
+                <i class="ph-bold ph-info"></i> <span id="codNoticeText">Coming Soon</span>
+              </div>
+              <!-- UPI option removed — Home Delivery = Cash on Delivery only -->
+            </div>
+          </div>
+
+          <!-- Option 2: Store Pickup -->
+          <div id="optStorePickup" class="rounded-xl border border-slate-200 bg-white p-2.5">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="payMethod" id="payPickupRadio" value="STORE_PICKUP" class="accent-[#1864ab]">
+              <i class="ph-bold ph-storefront text-[#1864ab]"></i>
+              <div class="flex-1">
+                <span class="text-xs font-bold block">Store Pickup</span>
+                <span class="text-[10px] text-slate-500">ଦୋକାନରୁ ନିଜେ ନେବେ</span>
+              </div>
+              <!-- Comment badge/bar (default: Free Pickup) -->
+              <span id="pickupNoteBadge" class="text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">Free Pickup</span>
+            </label>
+
+            <!-- Interactive pickup time slot selector (required before order) -->
+            <div id="pickupSlotWrap" class="hidden mt-2 pt-2 border-t border-slate-100">
+              <div class="text-[11px] font-black text-slate-600 mb-1.5">⏳ ପିକଅପ୍ ସମୟ ବାଛନ୍ତୁ (Pickup Slot)</div>
+              <div id="pickupSlotBox" class="flex flex-wrap gap-1.5"></div>
+              <p class="text-[10px] text-slate-400 leading-snug mt-1">Order ଦେବା ପୂର୍ବରୁ ଗୋଟିଏ slot ବାଛିବା ବାଧ୍ୟତାମୂଳକ।</p>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button onclick="backToAddress()" class="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Back</button>
+          <button onclick="placeMiniOrder()" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-paper-plane-tilt"></i><span>Order ନିଶ୍ଚିତ କରନ୍ତୁ</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 4: Success View -->
+      <div id="stepSuccess" class="hidden text-center py-2">
+        <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
+          <i class="ph-bold ph-check-circle text-2xl"></i>
+        </div>
+        <h4 class="font-black text-slate-800 text-sm">ଅର୍ଡର ସଫଳ ହେଲା!</h4>
+        <p class="text-xs text-slate-500 mt-0.5">Order ID: <span id="successOrderId" class="font-bold text-[#1864ab]"></span></p>
+        <p class="text-xs text-slate-600 mt-1 font-bold">ଦେବାକୁ ଥିବା ଟଙ୍କା: <span id="successOrderPay" class="font-black text-emerald-700">Rs.0</span></p>
+        <div class="flex gap-2 mt-3">
+          <button onclick="showScreen('orders')" class="flex-1 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Track Order</button>
+          <button onclick="showScreen('home')" class="flex-1 py-2.5 rounded-xl bg-[#1864ab] text-white font-bold text-xs">Continue Shopping</button>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+

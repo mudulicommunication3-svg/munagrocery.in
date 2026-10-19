@@ -1,0 +1,49 @@
+  <!-- ================= PRODUCT SCANNER (EAN/QR CAMERA + PHOTO + MANUAL) ================= -->
+  <div id="scannerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div class="bg-[#1864ab] text-white px-4 py-2.5 flex items-center justify-between shrink-0">
+        <span class="font-extrabold text-sm flex items-center gap-1.5"><i class="ph-bold ph-barcode"></i> ସ୍କାନ୍ କରନ୍ତୁ (Scan)</span>
+        <button onclick="closeScanner()" class="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center"><i class="ph-bold ph-x"></i></button>
+      </div>
+
+      <!-- Scan result banner + actions -->
+      <div id="scanResultBanner" class="hidden px-3 pt-3 space-y-2 shrink-0"></div>
+
+      <!-- Store-side Quick Bill (POS): running scanned lines -->
+      <div id="quickBillBox" class="hidden px-3 pt-3 space-y-2 shrink-0">
+        <div class="flex items-center justify-between text-xs font-black text-slate-800">
+          <span>⚡ Quick Bill</span>
+          <span id="qbTotal" class="text-[#1864ab]">Rs.0</span>
+        </div>
+        <div id="qbItems" class="space-y-1.5 max-h-36 overflow-y-auto no-scrollbar"></div>
+        <input id="qbName" type="text" placeholder="ଗ୍ରାହକ ନାଁ (ଐଚ୍ଛିକ)" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+        <input id="qbPhone" type="tel" placeholder="ଫୋନ୍ ନମ୍ବର (ଐଚ୍ଛିକ)" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+        <button onclick="saveQuickBill()" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-floppy-disk"></i> ବିଲ୍ ସେଭ୍ କରନ୍ତୁ (Save Order)
+        </button>
+      </div>
+
+      <!-- Live camera view -->
+      <div id="scannerReader" class="mx-3 mt-3 rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center" style="min-height:170px">
+        <span id="scannerIdleHint" class="text-[11px] text-slate-300 p-4 text-center">📷 Camera ଆରମ୍ଭ ହେଉଛି...<br>ବାରକୋଡ୍ / QR ଆଗରେ ଧରନ୍ତୁ</span>
+      </div>
+
+      <div class="p-3 space-y-2 shrink-0">
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="startCameraScan()" id="camBtn" class="py-2 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white text-xs font-extrabold flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-camera"></i> Camera ଚାଲାନ୍ତୁ
+          </button>
+          <button onclick="document.getElementById('scanPhotoInput').click()" class="py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-extrabold flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-image"></i> ଫଟୋରୁ ସ୍କାନ୍
+          </button>
+        </div>
+        <input type="file" id="scanPhotoInput" accept="image/*" class="hidden">
+        <div class="flex gap-1.5">
+          <input id="scanManualInput" type="text" placeholder="EAN / QR ଟେକ୍ସଟ୍ ଲେଖି ଖୋଜନ୍ତୁ..." onkeydown="if(event.key==='Enter') manualScanGo()" class="flex-1 text-xs px-2.5 py-2 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab] uppercase">
+          <button onclick="manualScanGo()" class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold rounded-lg shrink-0">ଖୋଜନ୍ତୁ</button>
+        </div>
+        <p class="text-[10px] text-slate-400 text-center leading-snug">📸 Camera · 🖼️ ଫଟୋରେ ବାରକୋଡ୍ · କିମ୍ବା ହାତରେ EAN ଲେଖନ୍ତୁ</p>
+      </div>
+    </div>
+  </div>
+
