@@ -348,7 +348,8 @@
     function vibrateNewOrder_() {
       try {
         if (!navigator.vibrate) return;
-        navigator.vibrate([500, 250, 500, 250, 700]);
+        // Phone-call style ring: long ring, pause, long ring, pause, long ring
+        navigator.vibrate([1000, 500, 1000, 500, 1000]);
       } catch (e) {}
     }
 
@@ -491,7 +492,7 @@
       }
       if (idx < 0) { syncOrdersFromSheet(); return; }
       if (kind === 'accept') { adminAcceptOrder(idx); }
-      else if (kind === 'reject') { adminRejectOrder(idx); }
+      else if (kind === 'reject' || kind === 'decline') { adminRejectOrder(idx); }
       else { // review: keep status pending, just open the Orders tab
         switchAdminTab('orders');
         syncOrdersFromSheet();
