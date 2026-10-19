@@ -1,2 +1,0 @@
-$errorActionPreference = `Hard`n$f = $args[0]`n$p = $args[1]`n$c = [IO.File]::ReadAllText($f)`n$l = $c -split "?
-"`n$found = $false`n$start = 0`nfor($i=0;$i -lt $l.Count;$i++){`n  if($l[$i] -match $p){`n    $start = $i`n    $found = $true`n    break`n  }`n}`nif(-not $found){Write-Host "NOT FOUND"; exit}`nfor($i=$start;$i -lt $l.Count;$i++){`n  Write-Host $l[$i]`n}`n

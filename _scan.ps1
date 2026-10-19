@@ -1,1 +1,0 @@
-param($f,$p)`n$lines = [IO.File]::ReadAllText($f) -split "\r?\n`nfor($i=0;$i -lt $lines.Count;$i++){`n  if($lines[$i] -match $p){`n    Write-Host "L$($i+1): " + $lines[$i]`n  }`n}`n
