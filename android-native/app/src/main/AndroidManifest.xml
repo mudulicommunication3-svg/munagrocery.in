@@ -32,6 +32,17 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Verified App Links: tapping https://munagrocery.in anywhere
+                 (WhatsApp, browser, Telegram) opens THIS app instead of Chrome.
+                 Verified against /.well-known/assetlinks.json, which already
+                 carries this APK's signing-cert SHA-256 fingerprint. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="munagrocery.in" />
+            </intent-filter>
         </activity>
 
         <!-- FileProvider: ShareBridge product photo -> WhatsApp/Facebook/Gmail -->

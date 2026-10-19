@@ -198,7 +198,41 @@ public class MainActivity extends Activity {
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState);
         } else {
-            webView.loadUrl(HOME_URL);
+            // Verified App Link launch -> open THAT munagrocery.in page,
+            // otherwise the normal home URL.
+            String startUrl = deepLinkUrl(getIntent());
+            webView.loadUrl(startUrl != null ? startUrl : HOME_URL);
+        }
+    }
+
+    /**
+     * ACTION_VIEW entry point: return the munagrocery.in https URL that
+     * launched us, or null for a normal launcher start (so we fall back to
+     * HOME_URL). Only https + munagrocery.in host is honoured.
+     */
+    private String deepLinkUrl(Intent intent) {
+        try {
+            Uri data = (intent != null) ? intent.getData() : null;
+            if (data != null
+                    && "https".equalsIgnoreCase(data.getScheme())
+                    && "munagrocery.in".equalsIgnoreCase(data.getHost())) {
+                return data.toString();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    // launchMode=singleTask: a tap on another munagrocery.in link reuses this
+    // activity, so the new URL arrives here instead of onCreate().
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String url = deepLinkUrl(intent);
+        if (url != null && webView != null) {
+            final String target = url;
+            runOnUiThread(() -> webView.loadUrl(target));
         }
     }
 
