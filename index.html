@@ -4661,7 +4661,21 @@
 
 
     function sendToBot(payload) {
-      if (tg && tg.sendData) { try { tg.sendData(JSON.stringify(payload)); return true; } catch(e){} }
+      // ROOT-CAUSE FIX (orders never reached the Sheet in a normal browser):
+      // the Telegram SDK's sendData() does NOT throw OUTSIDE Telegram —
+      // WebView.postEvent() silently no-ops ({notAvailable:true}) — so the old
+      // `if (tg && tg.sendData)` check returned TRUE everywhere and
+      // placeMiniOrder skipped the webhook write entirely (success screen, but
+      // no row, no error). Only trust the bot path when a REAL Telegram Mini
+      // App session is present (non-empty initData); in every normal browser we
+      // now return false so the Apps Script webhook writes the order.
+      var inTelegram = false;
+      try {
+        inTelegram = !!(tg && typeof tg.initData === 'string' && tg.initData.length > 0);
+      } catch (eTG) {}
+      if (inTelegram && tg && tg.sendData) {
+        try { tg.sendData(JSON.stringify(payload)); return true; } catch (e) {}
+      }
       return false;
     }
 
