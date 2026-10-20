@@ -20,6 +20,36 @@
       }
       setTimeout(() => { checkoutMap.invalidateSize(); }, 300);
       updateMapDistance(STORE_LAT, STORE_LNG);
+      // Show the customer's CURRENT LOCATION point automatically (blue dot +
+      // pin) the first time the map opens. Silent on permission denial — the
+      // shop marker + draggable pin stay usable; the GPS button retries.
+      if (!window._munnaGeoTried) {
+        window._munnaGeoTried = true;
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(function (pos) {
+            var la = pos.coords.latitude, ln = pos.coords.longitude;
+            if (checkoutMap) checkoutMap.setView([la, ln], 15);
+            markCurrentLocation_(la, ln);
+            updateMapDistance(la, ln);
+          }, function () { /* denied — keep shop default view */ },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+        }
+      }
+    }
+
+    // Blue "current location" dot (separate from the draggable delivery pin).
+    function markCurrentLocation_(la, ln) {
+      try {
+        if (!checkoutMap) return;
+        if (window._munnaGeoDot) {
+          window._munnaGeoDot.setLatLng([la, ln]);
+        } else {
+          window._munnaGeoDot = L.circleMarker([la, ln], {
+            radius: 8, color: '#1d4ed8', fillColor: '#3b82f6',
+            fillOpacity: 0.9, weight: 2
+          }).addTo(checkoutMap).bindPopup('<b>ଆପଣଙ୍କ ବର୍ତ୍ତମାନର ଲୋକେସନ୍</b><br>Current location');
+        }
+      } catch (eDot) {}
     }
 
     function updateMapDistance(lat, lng) {
@@ -49,6 +79,7 @@
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(pos => {
           checkoutMap.setView([pos.coords.latitude, pos.coords.longitude], 15);
+          markCurrentLocation_(pos.coords.latitude, pos.coords.longitude);
           updateMapDistance(pos.coords.latitude, pos.coords.longitude);
         }, () => { alert("GPS ଅନୁମତି ମିଳିଲା ନାହିଁ। ମ୍ୟାପ୍‌ରେ ପିନ୍ ଟାଣି ରଖନ୍ତୁ।"); });
       }
@@ -134,16 +165,12 @@
       var b = cartBilling();
       var set = function (id, v) { var el = document.getElementById(id); if (el) el.innerText = v; };
       set('summarySubtotal', 'Rs.' + money(b.subtotal));
-      var dRow = document.getElementById('summaryDeliveryRow');
-      if (dRow) dRow.classList.toggle('hidden', b.subtotal <= 0);
-      set('summaryDelivery', b.delivery > 0 ? ('Rs.' + money(b.delivery)) : 'ମାଗଣା ✅');
-      var pRow = document.getElementById('summaryPickupRow');
-      if (pRow) pRow.classList.toggle('hidden', !(b.pickup > 0));
-      set('summaryPickup', 'Rs.' + money(b.pickup || 0));
+      // First bill (cart page) = items ONLY (− coupon). The delivery/pickup
+      // charge is shown on the FINAL Payment step only, after the address.
       var disRow = document.getElementById('summaryDiscountRow');
       if (disRow) disRow.classList.toggle('hidden', b.discount <= 0);
       set('summaryDiscount', '-Rs.' + money(b.discount));
-      set('summaryTotal', 'Rs.' + money(b.total));
+      set('summaryTotal', 'Rs.' + money(Math.max(0, b.subtotal - b.discount)));
       updatePaymentBill();
     }
 
@@ -192,8 +219,14 @@
         if (el) el.textContent = txt;
       };
       set('deliveryTimingText'); // Home page strip (header ke neeche)
+      set('homeBoxTiming');      // Home page square box: Home Delivery + time
       set('cartTimingText');     // Cart page summary card
       set('payTimingText');      // Cart page -> Payment step (Home Delivery option)
+      // Home page square box: Store Pickup availability (admin toggle).
+      var pkBox = document.getElementById('homePickupBox');
+      var pkState = document.getElementById('homePickupState');
+      if (pkState) pkState.textContent = (shopConfig.pickupActive === false) ? 'ଏବେ ବନ୍ଦ ❌' : 'ଉପଲବ୍ଧ ✅';
+      if (pkBox) pkBox.classList.toggle('opacity-50', shopConfig.pickupActive === false);
     }
 
     function applyCoupon() {

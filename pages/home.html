@@ -30,6 +30,22 @@
       <span id="deliveryTimingText" class="text-yellow-200 font-extrabold">ଆଜି · 1 hour</span>
     </div>
 
+    <!-- 2 option boxes: Home Delivery (with time) + Store Pickup availability -->
+    <div class="max-w-md mx-auto mt-2 grid grid-cols-2 gap-2">
+      <div class="rounded-xl bg-white border border-emerald-200 p-2.5 flex flex-col items-center justify-center text-center shadow-xs aspect-square">
+        <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center"><i class="ph-bold ph-truck text-xl"></i></div>
+        <span class="mt-1.5 text-[11px] font-black text-slate-800">Home Delivery</span>
+        <span id="homeBoxTiming" class="text-[10px] font-bold text-emerald-700 mt-0.5">ଆଜି · 1 hour</span>
+        <span class="text-[9px] text-slate-400 mt-0.5">ଡେଲିଭରୀ ଚାର୍ଜ ସହ</span>
+      </div>
+      <div id="homePickupBox" class="rounded-xl bg-white border border-blue-200 p-2.5 flex flex-col items-center justify-center text-center shadow-xs aspect-square">
+        <div class="w-10 h-10 rounded-full bg-blue-100 text-[#1864ab] flex items-center justify-center"><i class="ph-bold ph-storefront text-xl"></i></div>
+        <span class="mt-1.5 text-[11px] font-black text-slate-800">Store Pickup</span>
+        <span id="homePickupState" class="text-[10px] font-bold text-[#1864ab] mt-0.5">ଉପଲବ୍ଧ ✅</span>
+        <span class="text-[9px] text-slate-400 mt-0.5">ଦୋକାନରୁ ନିଜେ ନେବେ</span>
+      </div>
+    </div>
+
     <!-- Live Search Input -->
     <div class="max-w-md mx-auto mt-2">
       <div class="relative">
