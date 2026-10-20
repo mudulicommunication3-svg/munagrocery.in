@@ -288,15 +288,15 @@
         var el = document.getElementById(id);
         if (el) el.textContent = txt;
       };
-      set('deliveryTimingText'); // Home page strip (header ke neeche)
-      set('homeBoxTiming');      // Home page square box: Home Delivery + time
+      set('homeBoxTiming');      // Home page chip: Home Delivery + time
       set('cartTimingText');     // Cart page summary card
       set('payTimingText');      // Cart page -> Payment step (Home Delivery option)
-      // Home page square box: Store Pickup availability (admin toggle).
+      // Home page chips: HIDE a box entirely when the admin turned that option
+      // OFF (COD off -> no Home Delivery chip; pickup off -> pickup chip gone).
+      var delBox = document.getElementById('homeDeliveryBox');
+      if (delBox) delBox.classList.toggle('hidden', shopConfig.codActive === false);
       var pkBox = document.getElementById('homePickupBox');
-      var pkState = document.getElementById('homePickupState');
-      if (pkState) pkState.textContent = (shopConfig.pickupActive === false) ? 'ଏବେ ବନ୍ଦ ❌' : 'ଉପଲବ୍ଧ ✅';
-      if (pkBox) pkBox.classList.toggle('opacity-50', shopConfig.pickupActive === false);
+      if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false);
     }
 
     function applyCoupon() {
