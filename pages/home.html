@@ -15,16 +15,13 @@
         </div>
       </div>
       <!-- Right: Download App button (webpage only — hidden inside the native
-           app). Shop logo image + label, opposite the brand logo.
-           Direct <a> to the APK at the site root; onclick JS still runs so an
-           admin-set Sheet link can override, and the anchor's href is the
-           guaranteed no-JS fallback. -->
-      <a id="appDownloadBtn" href="/munagrocery.apk" download="munagrocery.apk" class="hidden items-center gap-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-full pl-1.5 pr-2.5 py-1.5 cursor-pointer active:scale-95 transition-all shrink-0 no-underline" onclick="downloadAndroidApp(); return false;">
-        <img src="icon-192.png" alt="App" class="w-7 h-7 object-cover rounded-full shadow-xs">
-        <div class="leading-tight">
-          <span class="block text-[10px] font-extrabold text-white">Download App</span>
-          <span class="block text-[8px] text-blue-100 font-semibold">Android APK</span>
-        </div>
+           app). Compact pill so the store brand name on the left stays fully
+           visible even on narrow phones. Direct <a> to the APK at the site
+           root; onclick JS still runs so an admin-set Sheet link can override,
+           and the anchor's href is the guaranteed no-JS fallback. -->
+      <a id="appDownloadBtn" href="/munagrocery.apk" download="munagrocery.apk" class="hidden items-center gap-1 bg-white/15 hover:bg-white/25 border border-white/20 rounded-full px-2 py-1 cursor-pointer active:scale-95 transition-all shrink-0 no-underline" onclick="downloadAndroidApp(); return false;">
+        <img src="icon-192.png" alt="App" class="w-4.5 h-4.5 object-cover rounded-full shadow-xs">
+        <span class="text-[9px] font-extrabold text-white leading-tight">Download App</span>
       </a>
       <!-- Clean header: store identity ONLY — Language / Login / Admin lock
            all moved to the Profile screen (see #profileScreen below). -->
