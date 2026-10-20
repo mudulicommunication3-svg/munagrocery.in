@@ -94,8 +94,28 @@
           .filter(function (x) { return ['30 min', '1 hour', '2 hour'].indexOf(x) >= 0; });
         if (slots.length) shopConfig.pickupSlots = slots;
       }
+      // Home-delivery timing (Home + Cart strip): ONE day + ONE slot.
+      if (cfg.delivery_day !== undefined) {
+        shopConfig.deliveryDay =
+          (String(cfg.delivery_day || '').trim().toLowerCase() === 'tomorrow') ? 'Tomorrow' : 'Today';
+      }
+      if (cfg.delivery_slot !== undefined) {
+        var dSlot = String(cfg.delivery_slot || '').trim();
+        if (['30 min', '1 hour', '2 hour', '3 hour', '5 hour'].indexOf(dSlot) >= 0) {
+          shopConfig.deliverySlot = dSlot;
+        }
+      }
+      // Store Pickup charge toggle + amount.
+      if (cfg.pickup_charge_on !== undefined) {
+        shopConfig.pickupChargeOn = !(String(cfg.pickup_charge_on) === '0' ||
+          String(cfg.pickup_charge_on).toLowerCase() === 'false' ||
+          String(cfg.pickup_charge_on).toLowerCase() === 'inactive');
+      }
+      var pcfFee = parseFloat(cfg.pickup_charge_fee);
+      if (!isNaN(pcfFee)) shopConfig.pickupChargeFee = Math.max(0, pcfFee);
       renderTrending();
       updateBillingSummary();
+      try { renderDeliveryTiming(); } catch (eDT) {}
       // Re-render the checkout payment card so a toggle change (COD off / or
       // pickup off) is reflected the next time the customer opens Payment.
       try { if (document.getElementById('stepPayment') && !document.getElementById('stepPayment').classList.contains('hidden')) renderDeliveryOptions(); } catch (e) {}
@@ -121,6 +141,12 @@
         var cb = document.getElementById('slotChk_' + s.replace(/\s+/g, '_'));
         if (cb) cb.checked = (shopConfig.pickupSlots || []).indexOf(s) >= 0;
       });
+      // Delivery timing (Home + Cart) + Store Pickup charge.
+      f('setDeliveryDay', shopConfig.deliveryDay === 'Tomorrow' ? 'Tomorrow' : 'Today');
+      f('setDeliverySlot', shopConfig.deliverySlot || '1 hour');
+      var pcT = document.getElementById('setPickupChargeOn');
+      if (pcT) pcT.checked = !!shopConfig.pickupChargeOn;
+      f('setPickupChargeFee', shopConfig.pickupChargeFee || 0);
     }
 
     // Read the Checkout & Delivery Settings card into shopConfig.
@@ -139,6 +165,18 @@
       });
       // Keep at least one slot so Store Pickup always has a selectable option.
       shopConfig.pickupSlots = picked.length ? picked : ['30 min', '1 hour', '2 hour'];
+      // Delivery timing (day + slot shown on Home & Cart).
+      var dDay = document.getElementById('setDeliveryDay');
+      if (dDay) shopConfig.deliveryDay = (dDay.value === 'Tomorrow') ? 'Tomorrow' : 'Today';
+      var dSlot = document.getElementById('setDeliverySlot');
+      if (dSlot && ['30 min', '1 hour', '2 hour', '3 hour', '5 hour'].indexOf(dSlot.value) >= 0) {
+        shopConfig.deliverySlot = dSlot.value;
+      }
+      // Store Pickup charge toggle + amount.
+      var pcT = document.getElementById('setPickupChargeOn');
+      if (pcT) shopConfig.pickupChargeOn = !!pcT.checked;
+      var pcF = document.getElementById('setPickupChargeFee');
+      if (pcF) shopConfig.pickupChargeFee = Math.max(0, parseFloat(pcF.value) || 0);
     }
 
     function saveShopSettings(quiet) {
@@ -164,7 +202,13 @@
       ok = pushConfigToSheet('pickup_active', shopConfig.pickupActive ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_note', shopConfig.pickupNote || 'Free Pickup') && ok;
       ok = pushConfigToSheet('pickup_slots', (shopConfig.pickupSlots || []).join(',')) && ok;
+      // Delivery timing (Home + Cart) + Store Pickup charge -> shared Config.
+      ok = pushConfigToSheet('delivery_day', shopConfig.deliveryDay === 'Tomorrow' ? 'Tomorrow' : 'Today') && ok;
+      ok = pushConfigToSheet('delivery_slot', shopConfig.deliverySlot || '1 hour') && ok;
+      ok = pushConfigToSheet('pickup_charge_on', shopConfig.pickupChargeOn ? '1' : '0') && ok;
+      ok = pushConfigToSheet('pickup_charge_fee', shopConfig.pickupChargeFee || 0) && ok;
       updateBillingSummary();
+      try { renderDeliveryTiming(); } catch (eDT) {}
       renderTrending();
       if (quiet) return ok;
       alert(ok ? '✅ ସବୁ ସେଟିଂସ୍ ସେଭ୍ ହେଲା — ସମସ୍ତ ଗ୍ରାହକଙ୍କ ଫୋନ୍ ରେ ଲାଗୁ!'
@@ -182,13 +226,14 @@
         t = setTimeout(function () { saveShopSettings(true); }, 1500);
       };
       ['setDeliveryFee', 'setFreeAbove', 'setCouponCode', 'setCouponPercent', 'setCouponMinBill',
-       'setCodNotice', 'setPickupNote'].forEach(function (id) {
+       'setCodNotice', 'setPickupNote', 'setPickupChargeFee'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el || !el.addEventListener) return;
         el.addEventListener('input', schedule);
       });
       // Toggles + slot checkboxes save on change (they are not text fields).
-      ['setCodActive', 'setPickupActive',
+      ['setCodActive', 'setPickupActive', 'setPickupChargeOn',
+       'setDeliveryDay', 'setDeliverySlot',
        'slotChk_30_min', 'slotChk_1_hour', 'slotChk_2_hour'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el || !el.addEventListener) return;
@@ -213,6 +258,7 @@
       } catch (e) {}
       cacheShopConfig_();
       updateBillingSummary();
+      try { renderDeliveryTiming(); } catch (eDT) {}
 
       var btn = document.getElementById('saveAllBtn');
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Saving…'; }
@@ -230,6 +276,11 @@
       ok = pushConfigToSheet('pickup_active', shopConfig.pickupActive ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_note', shopConfig.pickupNote || 'Free Pickup') && ok;
       ok = pushConfigToSheet('pickup_slots', (shopConfig.pickupSlots || []).join(',')) && ok;
+      // Delivery timing (Home + Cart) + Store Pickup charge -> shared Config.
+      ok = pushConfigToSheet('delivery_day', shopConfig.deliveryDay === 'Tomorrow' ? 'Tomorrow' : 'Today') && ok;
+      ok = pushConfigToSheet('delivery_slot', shopConfig.deliverySlot || '1 hour') && ok;
+      ok = pushConfigToSheet('pickup_charge_on', shopConfig.pickupChargeOn ? '1' : '0') && ok;
+      ok = pushConfigToSheet('pickup_charge_fee', shopConfig.pickupChargeFee || 0) && ok;
       // Banners too (if any) so the carousel also syncs.
       try { ok = pushBannersToSheet() && ok; } catch (e) {}
 

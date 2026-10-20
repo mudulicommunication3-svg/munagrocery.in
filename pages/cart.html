@@ -24,6 +24,10 @@
           <span>🚚 ଡେଲିଭରୀ ଚାର୍ଜ:</span>
           <span id="summaryDelivery">Rs.0</span>
         </div>
+        <div class="flex justify-between text-indigo-600 hidden" id="summaryPickupRow">
+          <span>🛍️ Pickup ଚାର୍ଜ:</span>
+          <span id="summaryPickup">Rs.0</span>
+        </div>
         <div class="flex justify-between text-rose-600 hidden" id="summaryDiscountRow">
           <span>🎟️ କୁପନ୍ ଛାଡ଼:</span>
           <span id="summaryDiscount">-Rs.0</span>
@@ -32,6 +36,12 @@
           <span>ସର୍ବମୋଟ (Total):</span>
           <span id="summaryTotal" class="text-sm font-extrabold text-[#1864ab]">Rs.0</span>
         </div>
+      </div>
+
+      <!-- Delivery timing (admin-set: Today/Tomorrow · 30 min…5 hour) -->
+      <div class="flex items-center justify-between mt-2 text-[11px] bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5">
+        <span class="flex items-center gap-1 font-bold text-emerald-700"><i class="ph-bold ph-truck"></i> ଡେଲିଭରି ସମୟ</span>
+        <span id="cartTimingText" class="font-black text-emerald-800">ଆଜି · 1 hour</span>
       </div>
 
       <!-- Coupon + delivery address quick row (billing page essentials) -->
@@ -88,8 +98,9 @@
         <div class="space-y-1.5">
           <!-- Option 1: Home Delivery (Cash on Delivery only) -->
           <div id="optHomeDelivery" class="rounded-xl border border-slate-200 bg-white p-2.5">
-            <div class="text-[11px] font-black text-slate-600 mb-1.5 flex items-center gap-1">
-              <i class="ph-bold ph-house"></i> Home Delivery (Cash on Delivery)
+            <div class="text-[11px] font-black text-slate-600 mb-1.5 flex items-center justify-between gap-1">
+              <span class="flex items-center gap-1"><i class="ph-bold ph-house"></i> Home Delivery (Cash on Delivery)</span>
+              <span id="payTimingText" class="text-[10px] font-black text-emerald-600">ଆଜି · 1 hour</span>
             </div>
             <div class="space-y-1.5" id="payMethodBox">
               <label id="codOptionLabel" class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer">

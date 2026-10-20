@@ -49,7 +49,14 @@
       // Checkout & Delivery Settings (admin-configurable)
       codActive: true, codNotice: 'Coming Soon',
       pickupActive: true, pickupNote: 'Free Pickup',
-      pickupSlots: ['30 min', '1 hour', '2 hour']
+      pickupSlots: ['30 min', '1 hour', '2 hour'],
+      // Home-delivery timing shown on the Home + Cart pages — the admin picks
+      // ONE day and ONE slot (30 min / 1 hour / 2 hour / 3 hour / 5 hour).
+      deliveryDay: 'Today',            // 'Today' | 'Tomorrow'
+      deliverySlot: '1 hour',
+      // Store Pickup charge (admin toggle; added to the bill when the customer
+      // picks Store Pickup at checkout; OFF = free pickup).
+      pickupChargeOn: false, pickupChargeFee: 0
     };
     let appliedCoupon = ''; // coupon code applied inside the cart
     try {
@@ -69,6 +76,11 @@
         if (Array.isArray(cachedCfg.pickupSlots) && cachedCfg.pickupSlots.length) {
           shopConfig.pickupSlots = cachedCfg.pickupSlots;
         }
+        if (typeof cachedCfg.deliveryDay === 'string') shopConfig.deliveryDay = cachedCfg.deliveryDay;
+        if (typeof cachedCfg.deliverySlot === 'string') shopConfig.deliverySlot = cachedCfg.deliverySlot;
+        if (typeof cachedCfg.pickupChargeOn === 'boolean') shopConfig.pickupChargeOn = cachedCfg.pickupChargeOn;
+        var pcf = parseFloat(cachedCfg.pickupChargeFee);
+        if (!isNaN(pcf)) shopConfig.pickupChargeFee = Math.max(0, pcf);
       }
     } catch (e) {}
 

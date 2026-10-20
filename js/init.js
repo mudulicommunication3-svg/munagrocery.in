@@ -30,6 +30,7 @@
       prefillOrderForm();
       renderProfile();
       updateCartBadge();
+      try { renderDeliveryTiming(); } catch (eDT) {} // admin-set timing on Home + Cart
       renderScanHistory();
       // Fetch + render live inventory (localStorage webhook).
       syncFromGoogleSheet();

@@ -114,12 +114,17 @@
       });
       var freeAbove = shopConfig.freeAbove || 0;
       var delivery = (subtotal > 0 && (freeAbove <= 0 || subtotal < freeAbove)) ? (shopConfig.deliveryFee || 0) : 0;
+      // Store Pickup charge (admin toggle ON) — only while Store Pickup is the
+      // selected delivery method; switching back to Home Delivery drops it.
+      var pickup = (shopConfig.pickupChargeOn && selectedDeliveryType === 'pickup' && subtotal > 0)
+        ? Math.max(0, shopConfig.pickupChargeFee || 0) : 0;
       var discount = 0;
       var code = String(appliedCoupon || '').trim().toUpperCase();
       if (code && subtotal >= (shopConfig.couponMinBill || 0)) {
         discount = Math.round(subtotal * (shopConfig.couponPercent || 0)) / 100;
       }
-      return { subtotal: subtotal, delivery: delivery, discount: discount, total: Math.max(0, subtotal + delivery - discount) };
+      return { subtotal: subtotal, delivery: delivery, pickup: pickup, discount: discount,
+               total: Math.max(0, subtotal + delivery + pickup - discount) };
     }
 
     function updateBillingSummary() {
@@ -129,10 +134,27 @@
       var dRow = document.getElementById('summaryDeliveryRow');
       if (dRow) dRow.classList.toggle('hidden', b.subtotal <= 0);
       set('summaryDelivery', b.delivery > 0 ? ('Rs.' + money(b.delivery)) : 'ମାଗଣା ✅');
+      var pRow = document.getElementById('summaryPickupRow');
+      if (pRow) pRow.classList.toggle('hidden', !(b.pickup > 0));
+      set('summaryPickup', 'Rs.' + money(b.pickup || 0));
       var disRow = document.getElementById('summaryDiscountRow');
       if (disRow) disRow.classList.toggle('hidden', b.discount <= 0);
       set('summaryDiscount', '-Rs.' + money(b.discount));
       set('summaryTotal', 'Rs.' + money(b.total));
+    }
+
+    // Home + Cart: show the admin-set home-delivery timing
+    // (Today/Tomorrow · 30 min | 1 hour | 2 hour | 3 hour | 5 hour).
+    function renderDeliveryTiming() {
+      var day = (shopConfig.deliveryDay === 'Tomorrow') ? 'ଆଉକାଲି' : 'ଆଜି';
+      var txt = day + ' · ' + (shopConfig.deliverySlot || '1 hour');
+      var set = function (id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = txt;
+      };
+      set('deliveryTimingText'); // Home page strip (header ke neeche)
+      set('cartTimingText');     // Cart page summary card
+      set('payTimingText');      // Cart page -> Payment step (Home Delivery option)
     }
 
     function applyCoupon() {
@@ -238,6 +260,8 @@
       // Slot buttons for the currently selected delivery type.
       renderPickupSlots_();
       updateSlotVisibility_();
+      // Admin-set delivery timing badge on the Home Delivery option.
+      renderDeliveryTiming();
     }
 
     // Draw the [ 30 min ] [ 1 hour ] [ 2 hour ] slot buttons (admin-configured).
@@ -264,6 +288,8 @@
       selectedDeliveryType = (checked && checked.value === 'STORE_PICKUP') ? 'pickup' : 'home';
       var wrap = document.getElementById('pickupSlotWrap');
       if (wrap) wrap.classList.toggle('hidden', selectedDeliveryType !== 'pickup');
+      // The pickup-charge row on the bill follows the chosen method.
+      try { updateBillingSummary(); } catch (eUB) {}
     }
 
     // Wire radio changes -> re-render (COD/Pickup toggles + slot visibility).
@@ -347,6 +373,11 @@
       });
       if (!lines.length) { alert("Cart ଖାଲି ଅଛି!"); return; }
       if (outOfStock) { alert("ସ୍ଟକ୍ ନାହିଁ (Out of stock): " + outOfStock); return; }
+      // Store Pickup charge (admin toggle ON): added to the order total only
+      // when the customer actually selects Store Pickup at checkout.
+      if (isPickup && shopConfig.pickupChargeOn && (shopConfig.pickupChargeFee > 0)) {
+        total += Math.max(0, shopConfig.pickupChargeFee || 0);
+      }
 
       var tgUser = getTgUser();
       var orderObj = {
