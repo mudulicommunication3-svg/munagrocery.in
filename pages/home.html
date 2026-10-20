@@ -14,6 +14,15 @@
           </p>
         </div>
       </div>
+      <!-- Right: Download App button (webpage only — hidden inside the native
+           app). Shop logo image + label, opposite the brand logo. -->
+      <div id="appDownloadBtn" class="hidden items-center gap-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-full pl-1.5 pr-2.5 py-1.5 cursor-pointer active:scale-95 transition-all shrink-0" onclick="downloadAndroidApp()">
+        <img src="icon-192.png" alt="App" class="w-7 h-7 object-cover rounded-full shadow-xs">
+        <div class="leading-tight">
+          <span class="block text-[10px] font-extrabold text-white">Download App</span>
+          <span class="block text-[8px] text-blue-100 font-semibold">Android APK</span>
+        </div>
+      </div>
       <!-- Clean header: store identity ONLY — Language / Login / Admin lock
            all moved to the Profile screen (see #profileScreen below). -->
     </div>
@@ -147,17 +156,6 @@
       <p class="text-xs text-slate-400 mt-1">ଅନ୍ୟ କିଛି ଶବ୍ଦ ଖୋଜନ୍ତୁ।</p>
     </div>
   </main>
-
-  <!-- ================= APP DOWNLOAD FLOATING BUTTON (webpage only — hidden inside the native app) ================= -->
-  <div id="appDownloadBtn" class="hidden fixed right-3 z-[65] flex items-center gap-2.5 bg-[#0c5273] text-white rounded-full pl-2 pr-4 py-2 shadow-xl border border-white/10 active:scale-95 transition-all" style="bottom: calc(66px + env(safe-area-inset-bottom, 0px));" onclick="downloadAndroidApp()">
-    <div class="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center shrink-0 overflow-hidden">
-      <img src="icon-192.png" alt="App" class="w-9 h-9 object-cover rounded-full">
-    </div>
-    <div class="leading-tight">
-      <span class="block text-[11px] font-extrabold">Download App</span>
-      <span class="block text-[9px] text-blue-200 font-semibold">Android APK · ମାଗଣା</span>
-    </div>
-  </div>
 
   <!-- ================= FLOATING CART BAR (JioMart-style, only when items) ================= -->
   <div id="floatingCartBar" class="hidden fixed left-0 right-0 z-[45] mx-3 bg-[#0c5273] shadow-xl" style="bottom: calc(58px + env(safe-area-inset-bottom, 0px)); border-radius: 16px;">

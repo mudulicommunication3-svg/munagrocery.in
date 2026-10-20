@@ -431,10 +431,10 @@
               <p class="text-[10px] text-slate-400 leading-snug mt-0.5">Toggle ON କଲେ ଗ୍ରାହକ Store Pickup ବାଛିଲେ ଏହି ଅଙ୍କ ବିଲ୍ ରେ ଯୋଡ଼ାଯିବ; OFF ଥିଲେ ମାଗଣା (Free Pickup)।</p>
             </div>
 
-            <!-- ===== Notification & Ring toggles (admin) ===== -->
+            <!-- ===== Notification & Ring toggles (admin) — DEFAULT OFF ===== -->
             <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2 mb-3">
               <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
-                <i class="ph-bold ph-bell text-[#1864ab]"></i> 🔔 Notification & Ring
+                <i class="ph-bold ph-bell text-[#1864ab]"></i> 🔔 Notification & Ring <span class="text-[9px] font-bold text-slate-400">(ଡିଫଲ୍ଟ OFF)</span>
               </h4>
               <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200">
                 <div class="flex items-center gap-2">
@@ -443,8 +443,7 @@
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" id="setNotifOn" class="sr-only peer"
-                    onclick="munnaSetNotifOn(this.checked)"
-                    ${window.munnaGetNotifOn ? (window.munnaGetNotifOn() ? 'checked' : '') : 'checked'}>
+                    onchange="munnaSetNotifOn(this.checked)">
                   <div class="w-9 h-5 bg-slate-300 peer-checked:bg-[#1864ab] rounded-full transition-colors"></div>
                   <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
                 </label>
@@ -458,8 +457,7 @@
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" id="setRingOn" class="sr-only peer"
-                    onclick="munnaSetRingOn(this.checked)"
-                    ${window.munnaGetRingOn ? (window.munnaGetRingOn() ? 'checked' : '') : 'checked'}>
+                    onchange="munnaSetRingOn(this.checked)">
                   <div class="w-9 h-5 bg-slate-300 peer-checked:bg-[#1864ab] rounded-full transition-colors"></div>
                   <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
                 </label>

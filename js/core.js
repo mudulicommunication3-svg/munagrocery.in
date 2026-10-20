@@ -459,8 +459,10 @@
       var btn = document.getElementById('appDownloadBtn');
       if (!btn) return;
       // Hidden inside the native app; shown only in a normal browser/PWA tab.
-      if (isNativeApp_()) { btn.classList.add('hidden'); return; }
+      // The button lives in the header (flex row), so toggle flex/hidden.
+      if (isNativeApp_()) { btn.classList.add('hidden'); btn.classList.remove('flex'); return; }
       btn.classList.remove('hidden');
+      btn.classList.add('flex');
     }
 
     function downloadAndroidApp() {
@@ -482,8 +484,8 @@
           var v = String(cfg.app_version || '').trim();
           if (v) {
             _apkVersion = v;
-            var sub = document.querySelector('#appDownloadBtn .text-\\[9px\\]');
-            if (sub) sub.innerText = 'Android APK · v' + v + ' · ମାଗଣା';
+            var sub = document.querySelector('#appDownloadBtn span:last-child');
+            if (sub) sub.innerText = 'Android APK · v' + v;
           }
         })
         .catch(function () {});

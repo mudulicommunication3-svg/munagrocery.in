@@ -154,6 +154,7 @@
       document.getElementById('imgbbKeyInput').value = localStorage.getItem('munna_imgbb_key') || '';
       fillShopSettingsInputs();
       renderStockHealth();
+      try { syncNotifRingToggles_(); } catch (eT) {}
       startAdminOrderPolling_();
       renderAdminSyncStatus_('Admin live sync started', true);
     }
@@ -328,16 +329,27 @@
     var _lastServerSyncOkAt = 0;
     var _lastSyncReason = '';
     // ===== Notification / Ring toggles (admin panel) =====
-    // Default ON; persisted per-device in localStorage.
-    var _notifOn = (localStorage.getItem('munna_admin_notif_on') !== '0');
-    var _ringOn  = (localStorage.getItem('munna_admin_ring_on')  !== '0');
+    // Default OFF; persisted per-device in localStorage.
+    // Admin must turn them ON to get new-order ring + notification.
+    var _notifOn = (localStorage.getItem('munna_admin_notif_on') === '1');
+    var _ringOn  = (localStorage.getItem('munna_admin_ring_on')  === '1');
     function setNotifOn(v) { _notifOn = !!v; try { localStorage.setItem('munna_admin_notif_on', _notifOn ? '1' : '0'); } catch (e) {} }
     function setRingOn(v)  { _ringOn  = !!v; try { localStorage.setItem('munna_admin_ring_on',  _ringOn  ? '1' : '0'); } catch (e) {} }
-    // Expose for inline HTML onclick in admin.html
+    // Expose for inline HTML onchange in admin.html
     window.munnaSetNotifOn = setNotifOn;
     window.munnaSetRingOn  = setRingOn;
     window.munnaGetNotifOn = function () { return _notifOn; };
     window.munnaGetRingOn  = function () { return _ringOn; };
+    // Sync the Settings-tab checkboxes with the saved values every time the
+    // admin dashboard opens (plain HTML has no template binding).
+    function syncNotifRingToggles_() {
+      try {
+        var n = document.getElementById('setNotifOn');
+        if (n) n.checked = _notifOn;
+        var r = document.getElementById('setRingOn');
+        if (r) r.checked = _ringOn;
+      } catch (eT) {}
+    }
     // Desktop/in-page browser notification used ONLY when the native Android
     // bridge (MunnaOrderBridge.showNotification) is not available — e.g. a
     // normal Chrome tab. In the native app the bridge posts a system tray
@@ -496,8 +508,12 @@
     }
 
     // Show the 🚨 modal for an unseen pending order + start the ring.
+    // Respects the admin toggles: BOTH OFF -> silent (nothing shows, nothing
+    // rings); notification ON -> modal pops with Accept/Reject/Review buttons
+    // for quick response; ring ON -> 15 s sound on top of it.
     function showNewOrderAlert_(o) {
       if (!o) return;
+      if (!_notifOn && !_ringOn) return; // both toggles OFF -> stay silent
       _activeNewOrderId = String(o.order_id || o.id || '');
       var isPickup = String(o.delivery_type || '') === 'Store Pickup';
       var badge = document.getElementById('newOrderTypeBadge');
