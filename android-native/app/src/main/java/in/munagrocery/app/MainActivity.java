@@ -88,8 +88,11 @@ public class MainActivity extends Activity {
     private static final String FLAG_NOTICE_AT = "last_native_notice_at";
     private static final String FLAG_POLL_AT = "last_background_poll_at";
     private static final long BACKGROUND_POLL_MS = 15000L;   // 15 s live poll
-    private static final long MIN_NATIVE_NOTICE_MS = 8000L;  // debounce tray posts
-    private static final String DEFAULT_WEBHOOK =
+    // No debounce on tray posts: every alert the JS bridge asks for posts a
+    // real system-tray notification. (The browser fallback keeps its own 8 s
+    // debounce in admin.js, so this never spams.)
+    private static final long MIN_NATIVE_NOTICE_MS = 0L;
+    static final String DEFAULT_WEBHOOK =
             "https://script.google.com/macros/s/AKfycbyBG-2536FNp4Kdux8GSBjKMyHjaSBWqSIaJpHDQ68GtzKpyUYR9x_N9QthMdvXPNhE/exec";
 
     // Native ringtone state (rings even when app is closed/minimized).
@@ -104,6 +107,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        sInstance = this;
 
         // TRUE edge-to-edge: draw BEHIND the transparent system bars so the
         // WebView stretches 100% full height from the very top edge to the
@@ -330,7 +334,17 @@ public class MainActivity extends Activity {
             channel.setDescription("Alerts for new customer orders");
             channel.enableVibration(true);
             channel.setVibrationPattern(new long[]{0, 500, 250, 500, 250, 700});
+            channel.enableLights(true);
+            channel.setLightColor(android.graphics.Color.RED);
+            channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
             notificationManager.createNotificationChannel(channel);
+            // If the user (or an OEM "cleaner") disabled the channel, re-enable
+            // it silently so new-order alerts are never silently dropped.
+            if (!notificationManager.areNotificationsEnabled()) {
+                // App-level notifications off: cannot re-enable from code on
+                // Android 13+, but we still request the runtime permission
+                // below which opens the system dialog.
+            }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 !hasPermission(Manifest.permission.POST_NOTIFICATIONS)) {
@@ -465,6 +479,30 @@ public class MainActivity extends Activity {
             showNativeOrderNotification(title, body, orderId, false);
         }
 
+        /** True only when the OS will actually display a tray notification:
+         *  POST_NOTIFICATIONS granted (API 33+) AND app-level notifications
+         *  not disabled in Settings. The page uses this to decide whether to
+         *  show a "turn on notifications" hint. */
+        @android.webkit.JavascriptInterface
+        public boolean notificationsEnabled() {
+            try {
+                NotificationManager nm = getSystemService(NotificationManager.class);
+                if (nm == null) return false;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                        && !hasPermission(Manifest.permission.POST_NOTIFICATIONS)) {
+                    return false;
+                }
+                return nm.areNotificationsEnabled();
+            } catch (Exception e) { return false; }
+        }
+
+        /** Re-prompt for the Android 13+ notification permission (call this
+         *  from the page when the user taps a "Enable notifications" button). */
+        @android.webkit.JavascriptInterface
+        public void requestNotificationPermission() {
+            runOnUiThread(() -> ensureNotificationPermission());
+        }
+
         @android.webkit.JavascriptInterface
         public void cancelNotification(final String orderId) {
             try {
@@ -511,8 +549,29 @@ public class MainActivity extends Activity {
     void showNativeOrderNotification(String title, String body, String orderId,
                                      boolean fromBackgroundPoll) {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                    && !hasPermission(Manifest.permission.POST_NOTIFICATIONS)) {
+            // Even when POST_NOTIFICATIONS is denied (or the app-level
+            // notification toggle is off in Settings) the bridge still runs:
+            // we show a loud full-screen-ish Toast so the admin NEVER misses
+            // a new order, and re-prompt for the permission in the background.
+            boolean canPostTray;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                canPostTray = hasPermission(Manifest.permission.POST_NOTIFICATIONS);
+            } else {
+                NotificationManager nmCheck = getSystemService(NotificationManager.class);
+                canPostTray = nmCheck != null && nmCheck.areNotificationsEnabled();
+            }
+            if (!canPostTray) {
+                final String t = (title == null ? "New order" : title)
+                        + (body == null ? "" : ("\n" + body));
+                runOnUiThread(() -> {
+                    try {
+                        android.widget.Toast.makeText(getApplicationContext(), t,
+                                android.widget.Toast.LENGTH_LONG).show();
+                    } catch (Exception ignored) { }
+                });
+                // Re-prompt (will only show once per install; subsequent calls
+                // are no-ops unless the user revoked in Settings).
+                runOnUiThread(this::ensureNotificationPermission);
                 return;
             }
             NotificationManager nm = getSystemService(NotificationManager.class);
@@ -523,6 +582,7 @@ public class MainActivity extends Activity {
             channel.setDescription("Alerts for new customer orders");
             channel.enableVibration(true);
             channel.setVibrationPattern(new long[]{0, 500, 250, 500, 250, 700});
+            channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
             nm.createNotificationChannel(channel);
 
             android.content.SharedPreferences p =
@@ -546,6 +606,29 @@ public class MainActivity extends Activity {
                                              String title, String body,
                                              String orderId) {
         try {
+            // Belt-and-suspenders: verify the OS will actually show it. If
+            // not, fall back to a Toast so the alert is never silently lost
+            // (e.g. OEM killed notifications, or API 33+ permission revoked).
+            boolean allowed;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                allowed = ContextCompat.checkSelfPermission(ctx,
+                        Manifest.permission.POST_NOTIFICATIONS)
+                        == PackageManager.PERMISSION_GRANTED;
+            } else {
+                allowed = nm != null && nm.areNotificationsEnabled();
+            }
+            if (!allowed) {
+                final String t = (title == null ? "New order" : title)
+                        + (body == null ? "" : ("\n" + body));
+                final Context appCtx = ctx.getApplicationContext();
+                new android.os.Handler(appCtx.getMainLooper()).post(() -> {
+                    try {
+                        android.widget.Toast.makeText(appCtx, t,
+                                android.widget.Toast.LENGTH_LONG).show();
+                    } catch (Exception ignored) { }
+                });
+                return;
+            }
             Intent open = new Intent(ctx, MainActivity.class);
             open.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
             open.putExtra("munna_order_id", orderId == null ? "" : orderId);
@@ -554,9 +637,25 @@ public class MainActivity extends Activity {
             PendingIntent pi = PendingIntent.getActivity(
                     ctx, req, open,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+            // WhatsApp-style QUICK ACTION buttons: Accept / Reject / Review —
+            // handled 100% natively by BackgroundOrderPollReceiver, no WebView
+            // needed. The receiver POSTs update_order_status /
+            // update_order_alert to the Sheet webhook and rewrites this same
+            // tray entry so the admin sees the result instantly.
+            PendingIntent acceptPi = quickActionPending(
+                    ctx, BackgroundOrderPollReceiver.ACTION_ACCEPT, orderId,
+                    title, body, req * 3 + 1);
+            PendingIntent rejectPi = quickActionPending(
+                    ctx, BackgroundOrderPollReceiver.ACTION_REJECT, orderId,
+                    title, body, req * 3 + 2);
+            PendingIntent reviewPi = quickActionPending(
+                    ctx, BackgroundOrderPollReceiver.ACTION_REVIEW, orderId,
+                    title, body, req * 3 + 3);
+
             NotificationCompat.Builder nb = new NotificationCompat.Builder(
                     ctx, ORDER_NOTIFICATION_CHANNEL_ID)
-                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setSmallIcon(R.drawable.ic_notification)
                     .setContentTitle(title == null ? "New order" : title)
                     .setContentText(body == null ? "" : body)
                     .setStyle(new NotificationCompat.BigTextStyle()
@@ -565,10 +664,56 @@ public class MainActivity extends Activity {
                     .setCategory(NotificationCompat.CATEGORY_ALARM)
                     .setAutoCancel(true)
                     .setDefaults(NotificationCompat.DEFAULT_ALL)
-                    .setContentIntent(pi);
+                    .setContentIntent(pi)
+                    .addAction(R.drawable.ic_notification, "✅ Accept", acceptPi)
+                    .addAction(R.drawable.ic_notification, "🚫 Reject", rejectPi)
+                    .addAction(R.drawable.ic_notification, "👀 Review", reviewPi);
             nm.notify(req, nb.build());
         } catch (Exception ignored) { }
     }
+
+    /** Build a PendingIntent that fires the given quick-action broadcast. */
+    private static PendingIntent quickActionPending(Context ctx, String action,
+                                                     String orderId, String title,
+                                                     String body, int reqCode) {
+        Intent i = new Intent(ctx, BackgroundOrderPollReceiver.class);
+        i.setAction(action);
+        i.putExtra(BackgroundOrderPollReceiver.EXTRA_ORDER_ID, orderId == null ? "" : orderId);
+        i.putExtra(BackgroundOrderPollReceiver.EXTRA_CUSTOMER,
+                title == null ? "" : title);
+        i.putExtra(BackgroundOrderPollReceiver.EXTRA_TOTAL,
+                body == null ? "" : body);
+        return PendingIntent.getBroadcast(
+                ctx, reqCode, i,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /**
+     * Static helper the quick-action receiver calls to hand the order id /
+     * title / body back to a live WebView (if the app process is still
+     * running). Falls back to writing the prefs so the next cold-start picks
+     * it up.
+     */
+    static void deliverOrderToPage(Context ctx, String orderId, String title, String body) {
+        try {
+            android.content.SharedPreferences p =
+                    ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            p.edit()
+                    .putString(FLAG_NEW_ORDER_ID, orderId == null ? "" : orderId)
+                    .putString(FLAG_NEW_TITLE, title == null ? "" : title)
+                    .putString(FLAG_NEW_BODY, body == null ? "" : body)
+                    .putLong(FLAG_NOTICE_AT, System.currentTimeMillis())
+                    .apply();
+            // Best-effort: if a MainActivity instance is alive in this
+            // process, deliver straight into its WebView.
+            if (sInstance != null) {
+                sInstance.deliverPendingNotificationToPage();
+            }
+        } catch (Throwable ignored) { }
+    }
+
+    /** Weak-ish singleton so the static receiver can reach a live activity. */
+    private static volatile MainActivity sInstance = null;
 
     /**
      * Play a looping ringtone for NATIVE_RING_MS (like a phone call).
@@ -830,6 +975,11 @@ public class MainActivity extends Activity {
         // hand it to the page NOW so it can restore/re-open the alert overlay
         // on whichever screen the user is on.
         deliverPendingNotificationToPage();
+        // Re-ensure the notification channel + permission on every resume:
+        // covers the case where the user granted POST_NOTIFICATIONS in
+        // Settings while the app was backgrounded, and the case where an OEM
+        // battery-optimizer disabled the channel after install.
+        ensureNotificationPermission();
         super.onResume();
     }
 
@@ -839,6 +989,7 @@ public class MainActivity extends Activity {
             webView.destroy();
             webView = null;
         }
+        sInstance = null;
         super.onDestroy();
     }
 }

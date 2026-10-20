@@ -10,26 +10,33 @@ android {
         applicationId 'in.munagrocery.app'
         minSdkVersion 24
         targetSdkVersion 36
-        versionCode 15
-        versionName '1.2.0'
+        versionCode 16
+        versionName '1.2.1'
     }
 
-    signingConfigs {
-        release {
-            storeFile file('../../munagrocery.keystore')
-            storePassword 'storepassword123'
-            keyAlias 'munagrocery'
-            keyPassword 'storepassword123'
-        }
+    packagingOptions {
+        // Exclude junk java resources that old transitive deps smuggle in with
+        // backslash separators (breaks zip alignment / strict installers).
+        excludes += [
+            'kotlin/**',
+            'DebugProbesKt.bin',
+            'META-INF/versions/**',
+            'META-INF/com/**',
+            'META-INF/*.kotlin_module',
+            'META-INF/*.version',
+            'META-INF/services/**'
+        ]
     }
+
+    // NOTE: keystore is currently unreadable (wrong password in repo). Build
+    // produces an unsigned APK; it is then signed out-of-band with the working
+    // keystore via apksigner. Re-enable signingConfig once keystore is fixed.
 
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.release
         }
         debug {
-            signingConfig signingConfigs.release
         }
     }
 

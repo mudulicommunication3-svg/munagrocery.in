@@ -441,7 +441,7 @@
     // anytime via the Sheet webhook (action=GET_CONFIG -> app_download_url).
     // Fallback: built-in GitHub Pages APK URL.
     // ====================================================================
-    var MUNNA_DEFAULT_APK_URL = 'https://munagrocery.in/munagrocery.apk';
+    var MUNNA_DEFAULT_APK_URL = '/munagrocery.apk';
     var _apkUrl = MUNNA_DEFAULT_APK_URL;
     var _apkVersion = '';
     // Restore the locally-cached APK link so the button works even offline.
@@ -466,7 +466,9 @@
     }
 
     function downloadAndroidApp() {
-      try { window.open(_apkUrl, '_blank'); } catch (e) { window.location.href = _apkUrl; }
+      // Always serve the APK from THIS site's root so the newest build is
+      // one tap away — same as <a href="/munagrocery.apk" download>.
+      try { window.open('/munagrocery.apk', '_blank'); } catch (e) { window.location.href = '/munagrocery.apk'; }
     }
 
     // Fetch the admin-updated APK link from the Sheet Config tab

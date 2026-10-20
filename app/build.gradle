@@ -73,6 +73,22 @@ android {
         
 
         
+    // Release APK must be signed so Android accepts install/update.
+    signingConfigs {
+        release {
+            storeFile file("../munagrocery.keystore")
+            storePassword "storepassword123"
+            keyAlias "munagrocery"
+            keyPassword "storepassword123"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            signingConfig signingConfigs.release
+        }
+    }
             // The URL the Web Manifest for the Progressive Web App that the TWA points to. This
             // is used by Chrome OS and Meta Quest to open the Web version of the PWA instead of
             // the TWA, as it will probably give a better user experience for non-mobile devices.
