@@ -249,7 +249,8 @@
         t = setTimeout(function () { saveShopSettings(true); }, 1500);
       };
       ['setDeliveryFee', 'setFreeAbove', 'setCouponCode', 'setCouponPercent', 'setCouponMinBill',
-       'setCodNotice', 'setPickupNote', 'setPickupChargeFee'].forEach(function (id) {
+       'setCodNotice', 'setPickupNote', 'setPickupChargeFee',
+       'setStoreOpenTime', 'setStoreCloseTime'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el || !el.addEventListener) return;
         el.addEventListener('input', schedule);
@@ -257,7 +258,8 @@
       // Toggles + slot checkboxes save on change (they are not text fields).
       ['setCodActive', 'setPickupActive', 'setPickupChargeOn',
        'setDeliveryDay', 'setDeliverySlot',
-       'slotChk_30_min', 'slotChk_1_hour', 'slotChk_2_hour'].forEach(function (id) {
+       'slotChk_30_min', 'slotChk_1_hour', 'slotChk_2_hour',
+       'setStoreOpen'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el || !el.addEventListener) return;
         el.addEventListener('change', schedule);
