@@ -362,18 +362,22 @@
     var _adminNoticeSeenTs = 0;
 
     function fetchAdminNotice() {
+      // The notice is stored in the shared Config tab (key: customer_notice,
+      // JSON) — pick it up via the normal GET_CONFIG read (same poll that
+      // refills banners/shop settings), so NO extra backend action is needed.
       var hook = window.munnaHookBase ? window.munnaHookBase() : '';
       if (!hook) return;
-      fetch(hook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'GET_CUSTOMER_NOTICE', _: Date.now() })
-      }).then(function (r) { return r.json(); }).then(function (d) {
-        if (!d || !d.ok) return;
-        var n = d.notice || {};
-        if (!n.image_url && !n.text) return;
-        var nTs = parseInt(n.ts || 0, 10) || 0;
-        if (nTs && nTs === _adminNoticeSeenTs) return; // already shown
+      fetch(hook + (hook.indexOf('?') >= 0 ? '&' : '?') + 'action=GET_CONFIG&_=' + Date.now(),
+            { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var cfg = (d && d.config) || {};
+          var raw = cfg.customer_notice || '';
+          var n = {};
+          try { n = (typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {})) || {}; } catch (eP) { n = {}; }
+          if (!n.image_url && !n.text && !n.title) return;
+          var nTs = parseInt(n.ts || 0, 10) || 0;
+          if (nTs && nTs === _adminNoticeSeenTs) return; // already shown
         _adminNotice = {
           img: n.image_url || '',
           text: n.text || '',

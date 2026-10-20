@@ -863,6 +863,21 @@ function doPost(e) {
       return jsonResponse(writeNewOrder_(ss, data));
     }
 
+    // 📢 Admin -> customer broadcast notice (image + text, clickable card on Home).
+    //   {"action":"SEND_CUSTOMER_NOTICE","title","body","image_url","click_url","ts"}
+    // Saves to the shared Config tab (key: customer_notice, JSON value) so EVERY
+    // customer phone picks it up via GET_CONFIG. Returns {ok:true}.
+    if (data.action === "SEND_CUSTOMER_NOTICE") {
+      var noticeObj = {
+        title: String(data.title || data.text || data.body || "ନୂତନ ଅଫର୍ / ଅପଡେଟ୍"),
+        text: String(data.body || data.text || ""),
+        image_url: String(data.image_url || data.img || ""),
+        click_url: String(data.click_url || data.url || ""),
+        ts: data.ts ? Number(data.ts) : Date.now()
+      };
+      return jsonResponse(saveConfig_(ss, "customer_notice", JSON.stringify(noticeObj)));
+    }
+
     // Shared config (Config tab): admin sets ONCE -> every customer sees it
     // (offer banners, store name, delivery fee, notices...).
     if (data.action === "SAVE_CONFIG") {
