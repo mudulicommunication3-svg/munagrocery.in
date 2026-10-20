@@ -311,6 +311,7 @@
         return;
       }
       appliedCoupon = code;
+      cacheCart_(); // items + coupon survive a refresh (local mirror)
       scheduleCartSync_(); // keep server CartJSON consistent (coupon only lives in-memory)
       renderCartDrawer();
       alert('✅ Coupon ଲାଗିଗଲା! Rs.' + money(cartBilling().discount) + ' ଛାଡ଼ ମିଳିଲା।');
@@ -670,6 +671,9 @@
       cart = {};
       appliedCoupon = '';
       clearCartCache_();
+      // Clear the SERVER basket too — otherwise the next refresh would hydrate
+      // the just-placed order's items straight back into the cart.
+      try { pushCartToCloud_(); } catch (ePC) {}
       render();
       renderBar();
       updateCartBadge();

@@ -181,56 +181,73 @@
 
     // =========================================================================
     // CART — IN-MEMORY ONLY (no localStorage persistence).
-    // The basket lives in the `cart` variable and is the single source of
-    // truth for this page session. Persistence is delegated to the server:
-    //   * every change -> debounced SAVE_USER_CART POST (see below)
-    //   * every login/app-boot -> hydrateCartFromCloud_() pulls the saved
-    //     basket from the Users sheet (CartJSON column) and REPLACES `cart`.
-    // The legacy localStorage 'munna_cart' key is no longer read or written;
-    // the first load after this change migrates it to the server once and
-    // then purges it so it can never be trusted again.
+    // The basket lives in the `cart` variable with TWO persistence layers so a
+    // REFRESH can never empty it:
+    //   1) LOCAL copy (uidKey 'munna_cart') — written on every change, restored
+    //      instantly at boot (works logged-out / offline too).
+    //   2) SERVER copy (Users-tab CartJSON, debounced SAVE_USER_CART) — the
+    //      cross-device source of truth. hydrateCartFromCloud_() pulls it at
+    //      boot; the server WINS only when it actually holds items — an empty
+    //      server cart never wipes a non-empty local basket (the local basket
+    //      is then pushed back up instead).
     // =========================================================================
     function cacheCart_() {
-      // No-op kept so existing callers don't break. Cart is not persisted
-      // locally anymore — server sync happens in setQty() / applyCoupon().
-      try { localStorage.removeItem(uidKey('munna_cart')); } catch (e) {}
+      try {
+        localStorage.setItem(uidKey('munna_cart'),
+          JSON.stringify({ items: cart, coupon: appliedCoupon }));
+      } catch (e) {}
     }
     function loadCart_() {
-      // One-time migration: if a legacy local basket exists, push it to the
-      // server (so it survives the switch) and then purge the local copy.
+      // 1) LOCAL copy first: a refresh restores the basket instantly even when
+      //    logged out or offline. Accepts {items,coupon} AND the legacy bare
+      //    {ean: qty} map.
       try {
-        var legacy = JSON.parse(localStorage.getItem(uidKey('munna_cart')) || 'null');
-        if (legacy) {
-          var migrated = (legacy.items && typeof legacy.items === 'object') ? legacy.items : legacy;
-          if (typeof migrated === 'object' && !Array.isArray(migrated)) {
-            Object.keys(migrated).forEach(function (ean) {
-              var q = parseInt(migrated[ean], 10);
-              if (q > 0 && q <= 99) cart[ean] = q;
-            });
-            if (typeof legacy.coupon === 'string') appliedCoupon = legacy.coupon;
-            localStorage.removeItem(uidKey('munna_cart'));
-            scheduleCartSync_(); // push migrated basket to the server
-          }
+        var saved = JSON.parse(localStorage.getItem(uidKey('munna_cart')) || 'null');
+        var src = (saved && saved.items && typeof saved.items === 'object') ? saved.items : saved;
+        if (src && typeof src === 'object' && !Array.isArray(src)) {
+          Object.keys(src).forEach(function (ean) {
+            var q = parseInt(src[ean], 10);
+            if (q > 0 && q <= 99) cart[ean] = q;
+          });
+          if (saved && typeof saved.coupon === 'string' && saved.coupon) appliedCoupon = saved.coupon;
         }
       } catch (e) {}
-      // Always hydrate from the cloud (logged-in users only; see below).
+      // 2) Then hydrate the SERVER copy (logged-in): it wins when it has
+      //    items; when empty the local basket is kept and pushed back up.
       hydrateCartFromCloud_();
     }
     function clearCartCache_() {
-      try { localStorage.removeItem(uidKey('munna_cart')); } catch (e) {}
       cart = {};
       appliedCoupon = '';
+      // Persist the EMPTY basket too — a refresh right after a placed order
+      // must never resurrect it from the local copy.
+      try {
+        localStorage.setItem(uidKey('munna_cart'), JSON.stringify({ items: {}, coupon: '' }));
+      } catch (e) {}
     }
     // Replace the in-memory cart with the server's saved basket (source of
     // truth). Used on login and on app boot when a session already exists.
     function applyCloudCart_(cloud) {
       try {
         if (!cloud || typeof cloud !== 'object' || Array.isArray(cloud)) return false;
-        cart = {};
+        var cloudItems = {};
         Object.keys(cloud).forEach(function (ean) {
           var q = parseInt(cloud[ean], 10);
-          if (q > 0) cart[ean] = Math.min(99, q);
+          if (q > 0) cloudItems[ean] = Math.min(99, q);
         });
+        if (Object.keys(cloudItems).length > 0) {
+          cart = cloudItems; // server holds a basket -> cross-device truth wins
+        } else if (Object.keys(cart).length > 0) {
+          // Server EMPTY + local basket present -> NEVER wipe it (refresh /
+          // offline / login after local shopping). Push it back up instead so
+          // the next refresh and the next device both see it.
+          cacheCart_();
+          pushCartToCloud_();
+          return true;
+        } else {
+          cart = {};
+        }
+        cacheCart_(); // keep the local mirror in step with the server
         updateCartBadge();
         renderBar();
         renderCartDrawer();
