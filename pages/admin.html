@@ -431,6 +431,35 @@
               <p class="text-[10px] text-slate-400 leading-snug mt-0.5">Toggle ON କଲେ ଗ୍ରାହକ Store Pickup ବାଛିଲେ ଏହି ଅଙ୍କ ବିଲ୍ ରେ ଯୋଡ଼ାଯିବ; OFF ଥିଲେ ମାଗଣା (Free Pickup)।</p>
             </div>
 
+            <!-- ===== Store Service Hours — Open / Close toggle + time ===== -->
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2 mb-3">
+              <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+                <i class="ph-bold ph-clock text-orange-600"></i> 🕒 Store Service Hours
+              </h4>
+              <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-orange-200">
+                <div class="flex items-center gap-2">
+                  <i class="ph-bold ph-power text-orange-600"></i>
+                  <span class="text-xs font-bold text-slate-700">Store Open / Closed</span>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="setStoreOpen" class="sr-only peer" checked>
+                  <div class="w-9 h-5 bg-slate-300 peer-checked:bg-orange-500 rounded-full transition-colors"></div>
+                  <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-2 mt-1">
+                <div>
+                  <label class="text-[11px] font-bold text-slate-700 block mb-1">Open Time</label>
+                  <input type="time" id="setStoreOpenTime" value="10:00" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                </div>
+                <div>
+                  <label class="text-[11px] font-bold text-slate-700 block mb-1">Close Time</label>
+                  <input type="time" id="setStoreCloseTime" value="22:00" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                </div>
+              </div>
+              <p class="text-[10px] text-slate-400 leading-snug">ଡିଫଲ୍ଟ ସକାଳ 10 ଟାରୁ ରାତି 10 ଟା ପର୍ଯ୍ୟନ୍ତ (ସବୁ ଦିନ)। ବନ୍ଦ ଥିଲେ ଗ୍ରାହକ Home ସ୍କ୍ରିନରେ ଏକ ବନ୍ଦ ଆଇକନ୍ ଦେଖିବେ ଏବଂ ଡେଲିଭରୀ / ପିକଅପ୍ ବନ୍ଦ ରହିବ।</p>
+            </div>
+
             <!-- ===== Notification & Ring toggles (admin) — DEFAULT OFF ===== -->
             <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2 mb-3">
               <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">

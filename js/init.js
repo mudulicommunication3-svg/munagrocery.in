@@ -44,6 +44,9 @@
       updateAppDownloadVisibility_();
       fetchApkLink_();
       setInterval(function () { syncBannersFromSheet(); syncFromGoogleSheet(); fetchAdminNotice(); fetchApkLink_(); }, 120000);
+      // Keep the store open/closed icon + delivery/pickup times fresh every
+      // minute so it auto-changes exactly when the store opens/closes.
+      setInterval(function () { try { renderDeliveryTiming(); } catch (e) {} }, 60000);
       // Shared-database sync: Telegram (bot) orders + saved addresses, then
       // keep refreshing so stage/status changes made in the bot show up here.
       // Admin/full-store devices use a faster sync managed by
