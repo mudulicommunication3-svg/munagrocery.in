@@ -299,6 +299,57 @@
       if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false);
     }
 
+    // --- CUSTOMER CLOCK (AM/PM) + EXPECTED-BY HELPERS -------------------------
+    function fmtClock_(d) {
+      var h = d.getHours(), m = d.getMinutes();
+      var ap = h >= 12 ? 'PM' : 'AM';
+      var h12 = h % 12; if (h12 === 0) h12 = 12;
+      return h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + ap;
+    }
+    // "30 min" | "1 hour" | "2 hour" | "3 hour" | "5 hour" -> minutes.
+    function slotToMinutes_(slot) {
+      var s = String(slot || '').toLowerCase().trim();
+      if (s.indexOf('30') === 0) return 30;
+      if (s.indexOf('2') === 0) return 120;
+      if (s.indexOf('5') === 0) return 300;
+      if (s.indexOf('3') === 0) return 180;
+      if (s.indexOf('1') === 0) return 60;
+      return 60;
+    }
+    // Robust order-timestamp parse: Sheet Date strings, GMT strings and
+    // "yyyy-MM-dd HH:mm:ss" all work (Safari needs the T-separator fallback).
+    function parseOrderTs_(o) {
+      var t = (o && (o.date || o.timestamp)) || '';
+      if (!t) return 0;
+      try {
+        var d = new Date(t);
+        if (isNaN(d.getTime())) d = new Date(String(t).replace(' ', 'T'));
+        return isNaN(d.getTime()) ? 0 : d.getTime();
+      } catch (eT) { return 0; }
+    }
+    // "ଆଜି 3:45 PM" (or the full date) for an order card.
+    function orderPlacedText_(o) {
+      var ts = parseOrderTs_(o);
+      if (!ts) return '—';
+      var d = new Date(ts), now = new Date();
+      var sameDay = d.getDate() === now.getDate() && d.getMonth() === now.getMonth() &&
+                    d.getFullYear() === now.getFullYear();
+      return (sameDay ? 'ଆଜି ' : d.toLocaleDateString('en-IN') + ' ') + fmtClock_(d);
+    }
+    // Expected completion time = placed time + the admin slot
+    // (Home Delivery Timing for COD orders, the pickup slot for Store Pickup).
+    function orderExpectedText_(o) {
+      var ts = parseOrderTs_(o);
+      if (!ts) return '—';
+      var isPk = String((o && o.delivery_type) || (o && o.payment) || '')
+        .toLowerCase().indexOf('pickup') >= 0;
+      var mins = slotToMinutes_(isPk ? ((o && o.pickup_slot) || '30 min')
+                                     : (shopConfig.deliverySlot || '1 hour'));
+      var exp = new Date(ts + mins * 60000), now = new Date();
+      var crosses = exp.getDate() !== now.getDate() || exp.getMonth() !== now.getMonth();
+      return fmtClock_(exp) + (crosses ? ' (ଆଉକାଲି)' : '') + ' · ' + mins + ' ମିନିଟ୍';
+    }
+
     function applyCoupon() {
       var input = document.getElementById('couponInput');
       var code = String(input ? input.value : '').trim().toUpperCase();
@@ -688,6 +739,16 @@
         ? ('🏪 Store Pickup' + (pickupSlot ? ' — ' + pickupSlot : ''))
         : ('🚚 Home Delivery (COD)' +
            (shopConfig.deliveryDay === 'Tomorrow' ? ' — ଆଉକାଲି' : ' — ଆଜି')));
+      // Placed-at + expected-by clocks (AM/PM): COD uses the admin Home
+      // Delivery Timing slot, Store Pickup uses the chosen pickup slot.
+      var placedMs = Date.now();
+      var expMins = isPickup ? slotToMinutes_(pickupSlot || '30 min')
+                              : slotToMinutes_(shopConfig.deliverySlot || '1 hour');
+      var expDate = new Date(placedMs + expMins * 60000);
+      var crossesMidnight = expDate.getDate() !== new Date(placedMs).getDate();
+      sSet('successPlacedAt', 'ଆଜି ' + fmtClock_(new Date(placedMs)));
+      sSet('successExpectedAt', fmtClock_(expDate) +
+        (crossesMidnight ? ' (ଆଉକାଲି)' : '') + ' · ' + expMins + ' ମିନିଟ୍ ଭିତରେ');
       setStep('Success');
       scrollToStep_('stepSuccess');
     }

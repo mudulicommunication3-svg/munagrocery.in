@@ -89,6 +89,9 @@
         orders = orders.filter(o => String(o.phone || '').includes(filterPhone));
       }
 
+      // LATEST ORDER FIRST — newest placed orders on top of the list.
+      orders.sort(function (a, b) { return parseOrderTs_(b) - parseOrderTs_(a); });
+
       if (!orders.length) {
         box.innerHTML = '<div class="text-center py-16"><i class="ph-bold ph-receipt text-5xl text-slate-300"></i><p class="text-xs text-slate-400 mt-2">କୌଣସି ଅର୍ଡର ମିଳିଲା ନାହିଁ।</p></div>';
         return;
@@ -119,7 +122,8 @@
               <span class="font-black text-slate-800 text-xs">#${o.id}</span>
               <span class="text-[9px] bg-blue-100 text-blue-800 font-extrabold px-2 py-0.5 rounded-full">Stage ${stNum}/5</span>
             </div>
-            <p class="text-[10px] text-slate-400 mt-0.5">${new Date(o.date).toLocaleString()} · ${o.payment}</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">🕐 ଅର୍ଡର୍ ସମୟ: ${orderPlacedText_(o)} · ${o.payment}</p>
+            <p class="text-[10px] font-bold text-emerald-700 mt-0.5">⏳ ଆଶାିତ ସମୟ: ${orderExpectedText_(o)}</p>
             <div class="my-2 p-2 bg-slate-50 rounded-xl space-y-1">
               ${(o.items||[]).map(i => `<div class="flex justify-between text-[11px]"><span class="text-slate-600">${i.name} x${i.qty}</span><span class="font-bold">Rs.${money((parseFloat(i.price)||0)*i.qty)}</span></div>`).join('')}
             </div>
