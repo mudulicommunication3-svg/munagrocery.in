@@ -11,11 +11,22 @@
         // 3 KM Zone
         L.circle([STORE_LAT, STORE_LNG], { color: '#16a34a', fillColor: '#86efac', fillOpacity: 0.2, radius: 3000 }).addTo(checkoutMap);
 
-        // Draggable Customer Marker
-        deliveryMarker = L.marker([STORE_LAT, STORE_LNG], { draggable: true }).addTo(checkoutMap);
-        deliveryMarker.on('dragend', function(e) {
-          var pos = e.target.getLatLng();
-          updateMapDistance(pos.lat, pos.lng);
+        // PIN-IN-CENTRE PICKER: the map itself is the chooser. The red pin
+        // overlay stays fixed in the CENTRE; panning the map moves the point.
+        // Every pan/zoom ends -> the centre lat/lng is auto-read and the ROAD
+        // distance is recalculated automatically (see updateMapDistance).
+        deliveryMarker = L.marker([STORE_LAT, STORE_LNG], { opacity: 0, draggable: false }).addTo(checkoutMap);
+        var pinHost = document.getElementById('checkoutDeliveryMap');
+        if (pinHost && !document.getElementById('mapCenterPin')) {
+          var pin = document.createElement('div');
+          pin.id = 'mapCenterPin';
+          pin.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);pointer-events:none;z-index:1000;';
+          pin.innerHTML = '<svg viewBox="0 0 24 24" width="30" height="30" fill="#dc2626" stroke="#7f1d1d" stroke-width="1"><path d="M12 2C7.9 2 4.5 5.3 4.5 9.4 4.5 14.6 12 22 12 22s7.5-7.4 7.5-12.6C19.5 5.3 16.1 2 12 2z"/><circle cx="12" cy="9.3" r="2.8" fill="#fff"/></svg>';
+          pinHost.appendChild(pin);
+        }
+        checkoutMap.on('moveend', function () {
+          var c = checkoutMap.getCenter();
+          updateMapDistance(c.lat, c.lng);
         });
 
         // GPS locate CONTROL (crosshair icon, top-right ON the map) — one tap
