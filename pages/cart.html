@@ -137,6 +137,15 @@
             </div>
           </div>
         </div>
+
+        <!-- Live bill for the CHOSEN method (COD -> admin delivery fee; Pickup -> admin pickup fee) -->
+        <div class="mt-3 bg-white rounded-2xl border border-slate-200 p-3 space-y-1 text-[11px] font-semibold text-slate-600">
+          <div class="flex justify-between"><span>ସାମଗ୍ରୀ (Subtotal):</span><span id="paySubtotal">Rs.0</span></div>
+          <div class="flex justify-between text-emerald-700"><span id="payChargeLabel">🚚 ଡେଲିଭରୀ ଚାର୍ଜ:</span><span id="payCharge">ମାଗଣା ✅</span></div>
+          <div class="flex justify-between text-rose-600 hidden" id="payDiscountRow"><span>🎟️ କୁପନ୍ ଛାଡ଼:</span><span id="payDiscount">-Rs.0</span></div>
+          <div class="flex justify-between pt-1 border-t border-slate-200"><span class="font-black text-slate-800">ମୋଟ ଦେବାକୁ ଥିବା (Total):</span><span id="payTotal" class="font-black text-sm text-[#1864ab]">Rs.0</span></div>
+        </div>
+
         <div class="flex gap-2 mt-3">
           <button onclick="backToAddress()" class="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Back</button>
           <button onclick="placeMiniOrder()" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5">
@@ -150,12 +159,32 @@
         <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
           <i class="ph-bold ph-check-circle text-2xl"></i>
         </div>
-        <h4 class="font-black text-slate-800 text-sm">ଅର୍ଡର ସଫଳ ହେଲା!</h4>
+        <h4 class="font-black text-slate-800 text-sm">ଅର୍ଡର ସଫଳ ହେଲା! ✅</h4>
         <p class="text-xs text-slate-500 mt-0.5">Order ID: <span id="successOrderId" class="font-bold text-[#1864ab]"></span></p>
         <p class="text-xs text-slate-600 mt-1 font-bold">ଦେବାକୁ ଥିବା ଟଙ୍କା: <span id="successOrderPay" class="font-black text-emerald-700">Rs.0</span></p>
+        <!-- Full order details (filled after the Sheet confirmation) -->
+        <div class="mt-2 bg-slate-50 rounded-xl border border-slate-200 p-2.5 space-y-1 text-[11px] text-left font-semibold text-slate-600">
+          <div class="flex justify-between gap-2"><span>👤</span><span id="successName" class="text-right font-bold text-slate-800 line-clamp-1"></span></div>
+          <div class="flex justify-between gap-2"><span>📍</span><span id="successAddr" class="text-right font-bold text-slate-800 line-clamp-2"></span></div>
+          <div class="flex justify-between gap-2"><span>🛍️</span><span id="successItems" class="text-right font-bold text-slate-800"></span></div>
+          <div class="flex justify-between gap-2"><span>🚛</span><span id="successMethod" class="text-right font-bold text-slate-800"></span></div>
+        </div>
         <div class="flex gap-2 mt-3">
           <button onclick="showScreen('orders')" class="flex-1 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Track Order</button>
           <button onclick="showScreen('home')" class="flex-1 py-2.5 rounded-xl bg-[#1864ab] text-white font-bold text-xs">Continue Shopping</button>
+        </div>
+      </div>
+
+      <!-- ============ ORDER WAITING OVERLAY (Sheet save + verification) ============ -->
+      <div id="orderLoadingOverlay" class="hidden fixed inset-0 z-[80] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6">
+        <div class="bg-white rounded-2xl shadow-2xl px-6 py-7 w-full max-w-xs text-center">
+          <div class="w-14 h-14 rounded-2xl bg-[#1864ab] text-[#ffd43b] font-black text-3xl flex items-center justify-center mx-auto shadow-md animate-pulse">M</div>
+          <div class="mt-3 flex items-center justify-center gap-2 text-[#1864ab]">
+            <i class="ph-bold ph-spinner animate-spin text-lg"></i>
+            <span class="font-black text-sm">ଅର୍ଡର୍ ନିଶ୍ଚିତ କରୁଛୁ...</span>
+          </div>
+          <p id="orderLoadingStep" class="text-[11px] text-slate-500 font-semibold mt-1">Please wait — order confirmation in progress</p>
+          <p class="text-[10px] text-slate-400 mt-2 leading-snug">Google Sheet ରେ ସେଭ୍ ହେବା ପର୍ଯ୍ୟନ୍ତ ଅପେକ୍ଷା କରନ୍ତୁ — app ବନ୍ଦ କରନ୍ତୁ ନାହିଁ।</p>
         </div>
       </div>
       </div>

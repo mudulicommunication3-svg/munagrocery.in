@@ -113,10 +113,13 @@
         if (p) subtotal += (parseFloat(p.selling_price) || 0) * cart[ean];
       });
       var freeAbove = shopConfig.freeAbove || 0;
-      var delivery = (subtotal > 0 && (freeAbove <= 0 || subtotal < freeAbove)) ? (shopConfig.deliveryFee || 0) : 0;
-      // Store Pickup charge (admin toggle ON) — only while Store Pickup is the
-      // selected delivery method; switching back to Home Delivery drops it.
-      var pickup = (shopConfig.pickupChargeOn && selectedDeliveryType === 'pickup' && subtotal > 0)
+      var isPickupSel = selectedDeliveryType === 'pickup';
+      // Method-aware admin charges: Home Delivery = delivery fee (free above
+      // the admin threshold); Store Pickup = pickup fee when the toggle is ON.
+      // Never both — the chosen method decides which charge applies.
+      var delivery = (!isPickupSel && subtotal > 0 && (freeAbove <= 0 || subtotal < freeAbove))
+        ? (shopConfig.deliveryFee || 0) : 0;
+      var pickup = (isPickupSel && shopConfig.pickupChargeOn && subtotal > 0)
         ? Math.max(0, shopConfig.pickupChargeFee || 0) : 0;
       var discount = 0;
       var code = String(appliedCoupon || '').trim().toUpperCase();
@@ -141,6 +144,42 @@
       if (disRow) disRow.classList.toggle('hidden', b.discount <= 0);
       set('summaryDiscount', '-Rs.' + money(b.discount));
       set('summaryTotal', 'Rs.' + money(b.total));
+      updatePaymentBill();
+    }
+
+    // Payment step (Step 3): live bill for the CHOSEN delivery method —
+    // COD -> admin delivery charge; Store Pickup -> admin pickup charge.
+    function updatePaymentBill() {
+      var b = cartBilling();
+      var set = function (id, v) { var el = document.getElementById(id); if (el) el.innerText = v; };
+      set('paySubtotal', 'Rs.' + money(b.subtotal));
+      var charge = selectedDeliveryType === 'pickup' ? (b.pickup || 0) : (b.delivery || 0);
+      set('payChargeLabel', selectedDeliveryType === 'pickup' ? '🛍️ Pickup ଚାର୍ଜ:' : '🚚 ଡେଲିଭରୀ ଚାର୍ଜ:');
+      set('payCharge', charge > 0 ? ('Rs.' + money(charge)) : 'ମାଗଣା ✅');
+      var disRow = document.getElementById('payDiscountRow');
+      if (disRow) disRow.classList.toggle('hidden', !(b.discount > 0));
+      set('payDiscount', '-Rs.' + money(b.discount));
+      set('payTotal', 'Rs.' + money(b.total));
+    }
+
+    // Full-screen waiting screen while the order save + Sheet verification
+    // round-trip runs (can take several seconds — never hang silently).
+    function showOrderLoading_(on, msg) {
+      var ov = document.getElementById('orderLoadingOverlay');
+      if (!ov) return;
+      ov.classList.toggle('hidden', !on);
+      try { document.documentElement.style.overflow = on ? 'hidden' : ''; } catch (e) {}
+      var st = document.getElementById('orderLoadingStep');
+      if (st && msg) st.textContent = msg;
+      if (window._munnaOrderLoadTimer) {
+        clearTimeout(window._munnaOrderLoadTimer);
+        window._munnaOrderLoadTimer = null;
+      }
+      if (on) {
+        if (navigator.vibrate) { try { navigator.vibrate(30); } catch (eV) {} }
+        // Safety net: never leave the overlay stuck if something throws.
+        window._munnaOrderLoadTimer = setTimeout(function () { showOrderLoading_(false); }, 90000);
+      }
     }
 
     // Home + Cart: show the admin-set home-delivery timing
@@ -373,11 +412,13 @@
       });
       if (!lines.length) { alert("Cart ଖାଲି ଅଛି!"); return; }
       if (outOfStock) { alert("ସ୍ଟକ୍ ନାହିଁ (Out of stock): " + outOfStock); return; }
-      // Store Pickup charge (admin toggle ON): added to the order total only
-      // when the customer actually selects Store Pickup at checkout.
-      if (isPickup && shopConfig.pickupChargeOn && (shopConfig.pickupChargeFee > 0)) {
-        total += Math.max(0, shopConfig.pickupChargeFee || 0);
-      }
+      // AUTHORITATIVE total = exactly what the bill on screen shows:
+      // items + the chosen method's admin charge (delivery OR pickup) − coupon.
+      try { updateSlotVisibility_(); } catch (eSync) {}
+      total = cartBilling().total;
+      // Waiting screen (store logo + spinner) while the Sheet save + verify
+      // round-trip runs — hidden again on every exit path below.
+      showOrderLoading_(true, 'ଅର୍ଡର୍ ନିଶ୍ଚିତ କରୁଛୁ... (order confirmation in progress)');
 
       var tgUser = getTgUser();
       var orderObj = {
@@ -445,6 +486,7 @@
         if (hookMissing) {
           renderAdminSyncStatus_('Sheet webhook ସେଟ୍ କରନ୍ତୁ — order ସେଭ୍ ହେଲା ନାହିଁ', false);
           alert('❌ Google Sheet webhook ସେଟ୍ ହୋଇନାହିଁ! Admin → Sheets ଟ୍ୟାବ୍ ରେ Webhook URL ଲଗାନ୍ତୁ, ତା\'ପରେ ପୁଣି order କରନ୍ତୁ।');
+          showOrderLoading_(false);
           return;
         }
         renderAdminSyncStatus_('Saving order to Google Sheet...', true);
@@ -465,6 +507,7 @@
           // never rendered as history, so Orders still shows only Sheet rows.
           try { markPendingSheetOrder_(orderObj); resendPendingSheetOrders_().catch(function () {}); } catch (eOut) {}
           alert('❌ Order Sheet କୁ ଗଲା ନାହିଁ: ' + failMsg + '। ଇଣ୍ଟରନେଟ୍ / webhook ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ — ଏହି order ସ୍ୱୟଂଚାଳିତ ଭାବେ retry ହେବ (ଡୁପ୍ଲିକେଟ୍ ହେବ ନାହିଁ)।');
+          showOrderLoading_(false);
           return; // cart + form stay intact so the customer can retry safely
         }
         // Server accepted it — now PROVE the row physically exists before
@@ -479,6 +522,7 @@
         if (!verified) {
           renderAdminSyncStatus_('Sheet save pending — retry from Orders', false);
           alert('⚠️ Order Sheet ରେ ଦେଖାଯାଉ ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ — ଦୁଇଥର ଟଙ୍କା/ଷ୍ଟକ୍ କଟିବ ନାହିଁ (order ID ସମାନ ରହିବ)।');
+          showOrderLoading_(false);
           return;
         }
         renderAdminSyncStatus_('Order saved to Google Sheet', true);
@@ -513,13 +557,12 @@
         } catch (e) {}
       }
 
-      // FULL payable bill (items + delivery − coupon) on the success screen.
-      var payInfo = (function () {
-        var b = cartBilling();
-        var note = b.delivery > 0 ? (' + ଡେଲିଭରୀ Rs.' + money(b.delivery)) : ' (ଡେଲିଭରୀ ମାଗଣା)';
-        if (b.discount > 0) note += ' − କୁପନ୍ Rs.' + money(b.discount);
-        return 'Rs.' + money(b.total) + note;
-      })();
+      // Order CONFIRMED — hide the waiting screen and show the FULL order
+      // details on the success card (id, name/phone, address, items, method).
+      showOrderLoading_(false);
+      var payInfo = 'Rs.' + money(orderObj.total) +
+        (isPickup ? (' · Store Pickup' + (pickupSlot ? ' — ' + pickupSlot : ''))
+                  : ' · ଡେଲିଭରୀ (COD)');
 
       cart = {};
       appliedCoupon = '';
@@ -528,8 +571,16 @@
       renderBar();
       updateCartBadge();
       renderCartDrawer();
-      document.getElementById('successOrderId').innerText = orderObj.order_id;
-      document.getElementById('successOrderPay').innerText = payInfo;
+      var sSet = function (id, v) { var el = document.getElementById(id); if (el) el.innerText = v; };
+      sSet('successOrderId', orderObj.order_id);
+      sSet('successOrderPay', payInfo);
+      sSet('successName', (name || '') + (phone ? ' · ' + phone : ''));
+      sSet('successAddr', address || '—');
+      sSet('successItems', orderObj.items || '—');
+      sSet('successMethod', isPickup
+        ? ('🏪 Store Pickup' + (pickupSlot ? ' — ' + pickupSlot : ''))
+        : ('🚚 Home Delivery (COD)' +
+           (shopConfig.deliveryDay === 'Tomorrow' ? ' — ଆଉକାଲି' : ' — ଆଜି')));
       setStep('Success');
       scrollToStep_('stepSuccess');
     }
