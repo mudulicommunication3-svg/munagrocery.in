@@ -327,6 +327,17 @@
     var _lastServerSyncAt = 0;
     var _lastServerSyncOkAt = 0;
     var _lastSyncReason = '';
+    // ===== Notification / Ring toggles (admin panel) =====
+    // Default ON; persisted per-device in localStorage.
+    var _notifOn = (localStorage.getItem('munna_admin_notif_on') !== '0');
+    var _ringOn  = (localStorage.getItem('munna_admin_ring_on')  !== '0');
+    function setNotifOn(v) { _notifOn = !!v; try { localStorage.setItem('munna_admin_notif_on', _notifOn ? '1' : '0'); } catch (e) {} }
+    function setRingOn(v)  { _ringOn  = !!v; try { localStorage.setItem('munna_admin_ring_on',  _ringOn  ? '1' : '0'); } catch (e) {} }
+    // Expose for inline HTML onclick in admin.html
+    window.munnaSetNotifOn = setNotifOn;
+    window.munnaSetRingOn  = setRingOn;
+    window.munnaGetNotifOn = function () { return _notifOn; };
+    window.munnaGetRingOn  = function () { return _ringOn; };
     // Desktop/in-page browser notification used ONLY when the native Android
     // bridge (MunnaOrderBridge.showNotification) is not available — e.g. a
     // normal Chrome tab. In the native app the bridge posts a system tray
@@ -347,6 +358,7 @@
 
     function vibrateNewOrder_() {
       try {
+        if (!_ringOn) return;            // Ring toggle OFF -> no vibrate/ring
         if (!navigator.vibrate) return;
         // Phone-call style ring: long ring, pause, long ring, pause, long ring
         navigator.vibrate([1000, 500, 1000, 500, 1000]);
@@ -354,6 +366,7 @@
     }
 
     function showBrowserNewOrderNotice_(o) {
+      if (!_notifOn) return;                // Notification toggle OFF -> no alert
       var msg = (o.customer_name || 'Customer') + ' · Rs.' + money(o.total || 0) +
         (String(o.delivery_type || '') === 'Store Pickup' ? ' · Store Pickup' : ' · Home Delivery');
       // 1) NATIVE app: prefer the Android bridge — it posts a REAL system
@@ -379,7 +392,47 @@
       try { if (window.munnaShowOrderNotification) window.munnaShowOrderNotification('🚨 New Order #' + (o.order_id || ''), msg); } catch (e) {}
     }
 
+    // ====================================================================
+    // 📢 SEND IMAGE + TEXT NOTIFICATION TO ALL CUSTOMERS (admin broadcast)
+    // POSTs to the Sheet webhook (action=SEND_CUSTOMER_NOTICE). Customers who
+    // are logged in / have the webhook see it as a clickable card on Home.
+    // Tapping opens the given URL in the same app page (overlay image view).
+    // ====================================================================
+    function sendCustomerNotification() {
+      if (!isAdmin_()) { openAdminModal(); return; }
+      var img  = document.getElementById('adminNoticeImg')  ? document.getElementById('adminNoticeImg').value.trim()  : '';
+      var text = document.getElementById('adminNoticeText') ? document.getElementById('adminNoticeText').value.trim() : '';
+      var url  = document.getElementById('adminNoticeUrl')  ? document.getElementById('adminNoticeUrl').value.trim()  : '';
+      if (!text && !img) { alert('ପ୍ରଥମେ Text କିମ୍ବା Image URL ଦିଅନ୍ତୁ!'); return; }
+      if (!url) url = window.location.href;
+      var hook = window.munnaHookBase ? window.munnaHookBase() : '';
+      if (!hook) { alert('⚠️ Sheet Webhook ସେଟ୍ କରନ୍ତୁ (Admin → Sheets ଟ୍ୟାବ୍)।'); return; }
+      var payload = {
+        action: 'SEND_CUSTOMER_NOTICE',
+        title: text || 'ନୂତନ ଅଫର୍ / ଅପଡେଟ୍',
+        body: text || '',
+        image_url: img || '',
+        click_url: url,
+        ts: Date.now()
+      };
+      fetch(hook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.ok) {
+          alert('✅ ଗ୍ରାହକଙ୍କୁ ସୂଚନା ପଠାଯାଇଛି!');
+          document.getElementById('adminNoticeImg').value = '';
+          document.getElementById('adminNoticeText').value = '';
+          document.getElementById('adminNoticeUrl').value = '';
+        } else {
+          alert('❌ ପଠାଇବାକୁ ବିଫଳ ହେଲା: ' + ((d && d.error) || 'unknown'));
+        }
+      }).catch(function (e) { alert('❌ ତ୍ରୁଟି: ' + e.message); });
+    }
+
     function startRing_() {
+      if (!_ringOn) return;                 // Ring toggle OFF -> no sound ring
       stopRing_(); // never stack oscillators
       try {
         var AC = window.AudioContext || window.webkitAudioContext;
@@ -533,7 +586,8 @@
       } catch (eBridgeOn) {}
       var tick = async function () {
         if (!isAdmin_()) { stopAdminOrderPolling_(); return; }
-        if (document.hidden) return;
+        // RING ALL THE TIME: keep polling even when app is minimized /
+        // backgrounded / screen off — do NOT pause on document.hidden.
         if (_adminPollBusy) return;
         _adminPollBusy = true;
         try {
@@ -589,7 +643,8 @@
       // not only the pending alert rows. Always request the full store list for
       // admins so customer webapp orders appear immediately in the Orders tab.
       var syncOrdersTick = function () {
-        if (!isAdmin_() || document.hidden) return;
+        if (!isAdmin_()) return;
+        // Keep syncing even when minimized/backgrounded (ring all the time).
         if (_adminSyncBusy) return;
         _adminSyncBusy = true;
         renderAdminSyncStatus_('Syncing live orders...', true);

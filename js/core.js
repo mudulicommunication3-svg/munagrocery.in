@@ -352,3 +352,82 @@
       renderCartDrawer();
     }
 
+    // ====================================================================
+    // 📢 CUSTOMER-SIDE: SHOW ADMIN BROADCAST NOTICE (image + text, clickable)
+    // Fetches SEND_CUSTOMER_NOTICE from the Sheet webhook and renders it on Home.
+    // Tapping opens the detail overlay; the detail overlay opens click_url in the
+    // same page (admin notice page / offer page / product URL).
+    // ====================================================================
+    var _adminNotice = { img: '', text: '', url: '', title: '', ts: 0 };
+    var _adminNoticeSeenTs = 0;
+
+    function fetchAdminNotice() {
+      var hook = window.munnaHookBase ? window.munnaHookBase() : '';
+      if (!hook) return;
+      fetch(hook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'GET_CUSTOMER_NOTICE', _: Date.now() })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d || !d.ok) return;
+        var n = d.notice || {};
+        if (!n.image_url && !n.text) return;
+        var nTs = parseInt(n.ts || 0, 10) || 0;
+        if (nTs && nTs === _adminNoticeSeenTs) return; // already shown
+        _adminNotice = {
+          img: n.image_url || '',
+          text: n.text || '',
+          url: n.click_url || window.location.href,
+          title: n.title || n.text || 'ନୂତନ ଅଫର୍ / ଅପଡେଟ୍',
+          ts: nTs
+        };
+        renderAdminNotice();
+      }).catch(function () {});
+    }
+
+    function renderAdminNotice() {
+      var sec = document.getElementById('adminNoticeSection');
+      var imgEl = document.getElementById('adminNoticeImgEl');
+      var titleEl = document.getElementById('adminNoticeTitleEl');
+      var textEl = document.getElementById('adminNoticeTextEl');
+      if (!sec || !imgEl || !titleEl || !textEl) return;
+      if (!_adminNotice.img && !_adminNotice.text) {
+        sec.classList.add('hidden'); return;
+      }
+      if (_adminNotice.img) imgEl.src = _adminNotice.img;
+      else imgEl.src = 'https://via.placeholder.com/700x300?text=Notice';
+      imgEl.alt = _adminNotice.title;
+      titleEl.innerText = _adminNotice.title;
+      textEl.innerText = _adminNotice.text;
+      sec.classList.remove('hidden');
+      try { _adminNoticeSeenTs = _adminNotice.ts || Date.now(); } catch (e) {}
+    }
+
+    function openAdminNoticeDetail() {
+      var ov = document.getElementById('adminNoticeDetail');
+      var dImg = document.getElementById('adminNoticeDetailImg');
+      var dTitle = document.getElementById('adminNoticeDetailTitle');
+      var dText = document.getElementById('adminNoticeDetailText');
+      var urlBtn = document.getElementById('adminNoticeUrlLabel');
+      if (!ov) return;
+      if (dImg) dImg.src = _adminNotice.img || 'https://via.placeholder.com/700x300?text=Notice';
+      if (dTitle) dTitle.innerText = _adminNotice.title;
+      if (dText) dText.innerText = _adminNotice.text;
+      if (urlBtn) urlBtn.innerText = (_adminNotice.url ? 'ଲିଙ୍କ୍ ଖୋଲନ୍ତୁ' : 'ଲିଙ୍କ୍ ନାହିଁ');
+      ov.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeAdminNoticeDetail() {
+      var ov = document.getElementById('adminNoticeDetail');
+      if (!ov) return;
+      ov.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    function openAdminNoticeUrl() {
+      if (!_adminNotice.url) return;
+      // Open in the SAME app page (self) so the customer stays inside the shop.
+      window.location.href = _adminNotice.url;
+    }
+

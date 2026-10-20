@@ -409,6 +409,61 @@
               <p class="text-[10px] text-slate-400 leading-snug mt-0.5">Toggle ON କଲେ ଗ୍ରାହକ Store Pickup ବାଛିଲେ ଏହି ଅଙ୍କ ବିଲ୍ ରେ ଯୋଡ଼ାଯିବ; OFF ଥିଲେ ମାଗଣା (Free Pickup)।</p>
             </div>
 
+            <!-- ===== Notification & Ring toggles (admin) ===== -->
+            <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2 mb-3">
+              <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+                <i class="ph-bold ph-bell text-[#1864ab]"></i> 🔔 Notification & Ring
+              </h4>
+              <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="flex items-center gap-2">
+                  <i class="ph-bold ph-bell text-[#1864ab]"></i>
+                  <span class="text-xs font-bold text-slate-700">New-order Notification</span>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="setNotifOn" class="sr-only peer"
+                    onclick="munnaSetNotifOn(this.checked)"
+                    ${window.munnaGetNotifOn ? (window.munnaGetNotifOn() ? 'checked' : '') : 'checked'}>
+                  <div class="w-9 h-5 bg-slate-300 peer-checked:bg-[#1864ab] rounded-full transition-colors"></div>
+                  <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+                </label>
+              </div>
+              <p class="text-[10px] text-slate-400 leading-snug">ON ଥିଲେ ନୂତନ ଅର୍ଡର ଆସିଲେ ନୋଟିଫିକେସନ ଦେଖାଯିବ; OFF ଥିଲେ ଚୁପ୍ ରହିବ।</p>
+
+              <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="flex items-center gap-2">
+                  <i class="ph-bold ph-volume-2 text-[#1864ab]"></i>
+                  <span class="text-xs font-bold text-slate-700">New-order Ring (15s)</span>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="setRingOn" class="sr-only peer"
+                    onclick="munnaSetRingOn(this.checked)"
+                    ${window.munnaGetRingOn ? (window.munnaGetRingOn() ? 'checked' : '') : 'checked'}>
+                  <div class="w-9 h-5 bg-slate-300 peer-checked:bg-[#1864ab] rounded-full transition-colors"></div>
+                  <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+                </label>
+              </div>
+              <p class="text-[10px] text-slate-400 leading-snug">ON ଥିଲେ ନୂତନ ଅର୍ଡର ଆସିଲେ ଆପ୍ ମିନିମାଇଜ୍ / ବନ୍ଦ ଥାଇବା ପରେ ମଧ୍ୟ 15 ସେକେଣ୍ଡ ରିଙ୍ଗ ହେବ; OFF ଥିଲେ କେବଳ ନୋଟିଫିକେସନ ଦେଖାଯିବ।</p>
+            </div>
+
+            <!-- ===== Send Image + Text Notice to Customers (broadcast) ===== -->
+            <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2 mb-3">
+              <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+                <i class="ph-bold ph-megaphone text-amber-600"></i> 📢 Customer Notice (Offer / Update)
+              </h4>
+              <div class="grid grid-cols-1 gap-2">
+                <input type="text" id="adminNoticeImg" placeholder="Image URL (ଅଫର୍ ଫଟୋ ଲିଙ୍କ୍)"
+                  class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                <input type="text" id="adminNoticeText" placeholder="Text ସୂଚନା (ଉଦाହରଣ: ସବୁ ସାମଗ୍ରୀ ଉପରେ 20% ରିହାତି!)"
+                  class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+                <input type="text" id="adminNoticeUrl" placeholder="କ୍ଲିକ୍ କଲେ ଖୋଲିବ URL (ଖାଲି ରହିଲେ Home ପେଜ)"
+                  class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              </div>
+              <button onclick="sendCustomerNotification()" class="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1 shadow-sm">
+                <i class="ph-bold ph-paper-plane"></i> ସମସ୍ତ ଗ୍ରାହକଙ୍କୁ ପଠାନ୍ତୁ
+              </button>
+              <p class="text-[10px] text-slate-400 leading-snug">ଏହା ଗ୍ରାହକଙ୍କ Home ପେଜରେ ଏକ Image + Text କାର୍ଡ ଭାବେ ଦେଖାଯିବ, କ୍ଲିକ୍ କଲେ ଦିଅଯାଇଥିବା URL ସେହି ପେଜରେ ଖୋଲିବ।</p>
+            </div>
+
             <button onclick="saveShopSettings()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1">
               <i class="ph-bold ph-floppy-disk"></i> 💾 ସେଭ୍ କରନ୍ତୁ (Checkout &amp; Delivery)
             </button>

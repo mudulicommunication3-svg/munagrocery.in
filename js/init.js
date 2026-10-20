@@ -37,7 +37,9 @@
       // Admin-set offer banners are shared: Sheet first (ALL customers see the
       // same banners), local cache only until the Sheet answers.
       syncBannersFromSheet();
-      setInterval(function () { syncBannersFromSheet(); syncFromGoogleSheet(); }, 120000);
+      // Customer-side admin broadcast notice (image + text, clickable).
+      fetchAdminNotice();
+      setInterval(function () { syncBannersFromSheet(); syncFromGoogleSheet(); fetchAdminNotice(); }, 120000);
       // Shared-database sync: Telegram (bot) orders + saved addresses, then
       // keep refreshing so stage/status changes made in the bot show up here.
       // Admin/full-store devices use a faster sync managed by
