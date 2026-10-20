@@ -17,9 +17,9 @@
     let checkoutMap = null;
     let deliveryMarker = null;
 
-    // Telegram SDK
-    var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-    if (tg) { tg.ready(); tg.expand(); }
+    // Telegram Mini App SDK REMOVED — the shop is our own HTML (munagrocery.in)
+    // and must NOT depend on Telegram. `tg` is kept as null for legacy callers.
+    var tg = null;
 
     // Dynamic 5-Slide Banners
     let defaultBanners = [

@@ -22,7 +22,7 @@
 
       initCarousel();
       loadCart_(); // restore cart + applied coupon so refresh never empties it
-      autoTelegramLogin_(); // Telegram WebApp -> silent profile login
+      // (Telegram Mini App auto-login removed — shop runs on our own HTML.)
       // Restore the saved language (OD/EN) for the Profile selector.
       try { if (localStorage.getItem('munna_lang') === 'en') setLang(true); } catch (eL) {}
       updateHeaderAuth(); // no-op now (header chip removed) — kept for callers

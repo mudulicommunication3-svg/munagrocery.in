@@ -349,9 +349,29 @@ url_cases = [
 ]
 for _u, _exp in url_cases:
     check(
-        f"webapp URL {(_u or '(empty)')!r} -> {_exp}",
+        f"shop URL {(_u or '(empty)')!r} -> {_exp}",
         storefront._is_valid_webapp_url(_u) is _exp,
     )
+
+# --- Open Shop is a PLAIN URL button (own HTML shop, NOT a Telegram Mini App)
+_start_rows = storefront.start_keyboard().inline_keyboard
+_flat = [b for row in _start_rows for b in row]
+_shop_btns = [b for b in _flat if getattr(b, "text", "") == "🛍️ Open Shop"]
+check(
+    "Open Shop button exists on /start",
+    len(_shop_btns) == 1,
+)
+check(
+    "Open Shop is a normal url button (no Telegram Mini App)",
+    len(_shop_btns) == 1
+    and getattr(_shop_btns[0], "url", None) is not None
+    and getattr(_shop_btns[0], "web_app", None) is None
+    and (storefront.SHOP_SITE_URL in (_shop_btns[0].url or "")),
+)
+check(
+    "no WebAppInfo import (Mini App removed)",
+    not hasattr(storefront, "WebAppInfo"),
+)
 
 check(
     "chat-mode button exists in router pattern",
@@ -385,10 +405,14 @@ try:
     )
 
     storefront.db.get_address = lambda uid: None
+    _base_no_hook = storefront.web_app_url()
+    if os.getenv("SHEET_WEBHOOK_URL"):
+        _base_no_hook += ("&" if "?" in _base_no_hook else "?") + "sheet=" + _urlparse.quote(
+            os.getenv("SHEET_WEBHOOK_URL"), safe=""
+        )
     check(
         "per-user URL falls back to base when nothing saved",
-        storefront.web_app_shop_url_for_user(111)
-        == "https://munagrocery.in",
+        storefront.web_app_shop_url_for_user(111) == _base_no_hook,
     )
 
     def _boom(uid):
@@ -397,8 +421,7 @@ try:
     storefront.db.get_address = _boom
     check(
         "per-user URL never raises when address book fails",
-        storefront.web_app_shop_url_for_user(111)
-        == "https://munagrocery.in",
+        storefront.web_app_shop_url_for_user(111) == _base_no_hook,
     )
 finally:
     storefront.web_app_url = _orig_web_app_url

@@ -35,8 +35,12 @@
 var ORDER_HEADERS = [
   "Timestamp", "Order ID", "Customer Name", "Phone", "Address", "Items",
   "Total", "Channel", "Telegram User ID", "Status", "Status Msg ID",
-  "Location", "Payment", "DeliveryType", "PickupSlot", "PickupExpiryTime",
-  "StockRestored", "AdminAlertStatus"
+  "Location", "Payment",
+  "DeliveryType", "PickupSlot", "PickupExpiryTime",
+  "StockRestored", "AdminAlertStatus",
+  // Live tracking timestamps (shared by customer card / admin / Telegram):
+  "ExpectedBy", "AcceptedAt", "PackedAt", "OutForDeliveryAt", "DeliveredAt",
+  "CancelledAt"
 ];
 var ADDR_HEADERS = [
   "Telegram User ID", "Name", "Address", "Phone", "Location", "Updated At"
@@ -806,6 +810,14 @@ function doPost(e) {
         return jsonResponse({ status: "error", error: "Order not found" });
       }
       shS.getRange(rowS, 10).setValue(st);
+      // Write the live tracking timestamp for the stage just reached (col 19-24).
+      var nowStampS = formatStamp_(new Date());
+      var tsCol = {
+        accepted: 20, packing: 21, out_for_delivery: 22,
+        delivered: 23, cancelled: 24, rejected: 24,
+        "expired / cancelled": 24, "picked up": 23, picked_up: 23
+      }[stLower];
+      if (tsCol) shS.getRange(rowS, tsCol).setValue(nowStampS);
       // Reject (or Cancel) of a Store Pickup order -> IMMEDIATELY give the
       // held stock back to the Products sheet (idempotent via StockRestored).
       var wasPickup = String(shS.getRange(rowS, 14).getValue() || "").trim();
@@ -950,7 +962,14 @@ function rowToOrder_(row) {
     pickup_slot: String(r[14] || "").trim(),
     pickup_expiry_time: String(r[15] || "").trim(),
     stock_restored: String(r[16] || "").trim(),
-    admin_alert_status: String(r[17] || "").trim()
+    admin_alert_status: String(r[17] || "").trim(),
+    // Live tracking timestamps (when each stage was reached):
+    expected_by: String(r[18] || "").trim(),
+    accepted_at: String(r[19] || "").trim(),
+    packed_at: String(r[20] || "").trim(),
+    out_for_delivery_at: String(r[21] || "").trim(),
+    delivered_at: String(r[22] || "").trim(),
+    cancelled_at: String(r[23] || "").trim()
   };
 }
 
@@ -1037,6 +1056,13 @@ function normalizeOrder_(data) {
     pickup_expiry_time: pickupExpiry,
     stock_restored: String(o.stock_restored || "").trim(),
     admin_alert_status: String(o.admin_alert_status || o.adminAlertStatus || "").trim(),
+    // Live tracking timestamps (when each stage was reached):
+    expected_by: String(o.expected_by || o.expectedBy || "").trim(),
+    accepted_at: String(o.accepted_at || o.acceptedAt || "").trim(),
+    packed_at: String(o.packed_at || o.packedAt || "").trim(),
+    out_for_delivery_at: String(o.out_for_delivery_at || o.outForDeliveryAt || "").trim(),
+    delivered_at: String(o.delivered_at || o.deliveredAt || "").trim(),
+    cancelled_at: String(o.cancelled_at || o.cancelledAt || "").trim(),
     lines: lines
   };
 }
@@ -1048,7 +1074,10 @@ function orderRow_(o) {
     o.location, o.payment,
     o.delivery_type || "", o.pickup_slot || "", o.pickup_expiry_time || "",
     o.stock_restored || "",
-    o.admin_alert_status || "Unseen"
+    o.admin_alert_status || "Unseen",
+    // Live tracking timestamps:
+    o.expected_by || "", o.accepted_at || "", o.packed_at || "",
+    o.out_for_delivery_at || "", o.delivered_at || "", o.cancelled_at || ""
   ];
 }
 

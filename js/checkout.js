@@ -341,6 +341,16 @@
     function orderExpectedText_(o) {
       var ts = parseOrderTs_(o);
       if (!ts) return '—';
+      // Live tracking: the server-stored expected_by wins (same value on the
+      // customer card, admin panel and Telegram message); fall back to the
+      // local slot math for old orders that have no expected_by yet.
+      var expRaw = String((o && (o.expected_by || o.expectedBy)) || '').trim();
+      var expTs = expRaw ? parseStampStr_(expRaw) : 0;
+      if (expTs) {
+        var expD = new Date(expTs), nowE = new Date();
+        var crossE = expD.getDate() !== nowE.getDate() || expD.getMonth() !== nowE.getMonth();
+        return fmtClock_(expD) + (crossE ? ' (ଆଉକାଲି)' : '');
+      }
       var isPk = String((o && o.delivery_type) || (o && o.payment) || '')
         .toLowerCase().indexOf('pickup') >= 0;
       var mins = slotToMinutes_(isPk ? ((o && o.pickup_slot) || '30 min')
@@ -348,6 +358,55 @@
       var exp = new Date(ts + mins * 60000), now = new Date();
       var crosses = exp.getDate() !== now.getDate() || exp.getMonth() !== now.getMonth();
       return fmtClock_(exp) + (crosses ? ' (ଆଉକାଲି)' : '') + ' · ' + mins + ' ମିନିଟ୍';
+    }
+
+    // --- LIVE ORDER TRACKING time helpers (shared by Orders + Admin panel) ---
+    // Parse any stamp the Sheet carries: JS "YYYY-MM-DD HH:mm:ss" (what our
+    // sheetTimestamp writes) AND Google-Sheets Date objects that arrive as
+    // "Mon Oct 20 2026 14:35:12 GMT+0530".
+    function parseStampStr_(s) {
+      s = String(s || '').trim();
+      if (!s) return 0;
+      try {
+        var d = new Date(s);
+        if (!isNaN(d.getTime())) return d.getTime();
+        d = new Date(s.replace(' ', 'T'));
+        return isNaN(d.getTime()) ? 0 : d.getTime();
+      } catch (eS) { return 0; }
+    }
+    // "3:45 PM" for a stage timestamp cell (or "" when not yet reached).
+    function fmtStampClock_(s) {
+      var t = parseStampStr_(s);
+      return t ? fmtClock_(new Date(t)) : '';
+    }
+    // One tracking row for the stepper: icon + Odia label + the live time.
+    // `time` is "" while the stage has not been reached yet.
+    function trackRow_(icon, label, time) {
+      return '<div class="flex items-start justify-between gap-2 py-1">' +
+        '<span class="text-[11px] font-bold text-slate-600 shrink-0">' + icon + ' ' + label + '</span>' +
+        '<span class="text-[11px] font-black ' + (time ? 'text-emerald-700' : 'text-slate-300') + '">' +
+        (time || '⏳ ଅପେକ୍ଷା...') + '</span></div>';
+    }
+    // Full tracking UI block (5 stages, every stage time when it exists).
+    function renderOrderTrackHtml_(o) {
+      if (!o) return '';
+      var placed = fmtStampClock_(o.placed_at || o.timestamp || o.date);
+      var expected = orderExpectedText_(o);
+      var accepted = fmtStampClock_(o.accepted_at);
+      var packed = fmtStampClock_(o.packed_at);
+      var outFor = fmtStampClock_(o.out_for_delivery_at);
+      var delivered = fmtStampClock_(o.delivered_at);
+      var cancelled = fmtStampClock_(o.cancelled_at);
+      var isPickup = String(o.delivery_type || '') === 'Store Pickup';
+      return '<div class="bg-slate-50 rounded-xl border border-slate-200 p-2.5 mt-1.5 space-y-0.5">' +
+        trackRow_('🕐', 'ଅର୍ଡର୍ ସମୟ (Ordered)', placed) +
+        trackRow_('⏳', 'ଆଶାିତ ସମୟ (Expected)', expected) +
+        trackRow_('✅', 'ଗ୍ରହଣ ସମୟ (Accepted)', accepted) +
+        trackRow_('📦', 'ପ୍ୟାକିଂ ସମୟ (Packed)', packed) +
+        trackRow_(isPickup ? '🏪' : '🚚', isPickup ? 'ପିକଅପ୍ ସମୟ (Pickup)' : 'ଡେଲିଭରୀ ବାହାରିବା (Out)', outFor) +
+        trackRow_('🎉', isPickup ? 'ପିକଅପ୍ ହେଲା (Delivered)' : 'ଡେଲିଭରୀ ସମୟ (Delivered)', delivered) +
+        (cancelled ? trackRow_('❌', 'ବାତିଲ୍ ସମୟ (Cancelled)', cancelled) : '') +
+        '</div>';
     }
 
     function applyCoupon() {
@@ -552,6 +611,12 @@
       }
       var payment = isPickup ? 'Store Pickup' : (rawMethod || 'COD');
       var deliveryType = isPickup ? 'Store Pickup' : '';
+      // Expected-by: Store Pickup = order time + chosen slot; Home Delivery =
+      // order time + the admin's Home Delivery Timing slot. Stored on the
+      // Sheet row so the customer, admin and Telegram all show the SAME clock.
+      var expectedByStamp = sheetTimestamp(new Date(Date.now() +
+        slotToMinutes_(isPickup ? (pickupSlot || '30 min')
+                                : (shopConfig.deliverySlot || '1 hour')) * 60000));
 
       // Unified line items: EAN+qty (for stock) + name/price (for the bill text)
       var lines = [], total = 0, outOfStock = '';
@@ -593,6 +658,7 @@
         delivery_type: deliveryType,
         pickup_slot: pickupSlot,
         pickup_expiry_time: pickupExpiry,
+        expected_by: expectedByStamp,
         stock_restored: '',
         admin_alert_status: 'Unseen',
         lines: lines
@@ -611,12 +677,10 @@
       var sessU = getSessionUser();
       syncUserToSheet({ name: name, phone: phone, tg_id: (sessU && sessU.tg_id) || '' });
 
-      // ONE path only - never both, or the order would be recorded twice:
-      //  * Inside Telegram the BOT places it (stock deduction + the SAME
-      //    Sheet row + admin alert + live customer status message).
-      //  * In a normal browser the Apps Script webhook writes the SAME Sheet
-      //    row and the bot's web_sync loop alerts Telegram + tracks status.
-      var sentToBot = sendToBot({
+      // ONE path only: the Apps Script webhook writes the Sheet row, and the
+      // bot's web_sync loop alerts Telegram + tracks status. (The Telegram
+      // Mini App sendData() path was REMOVED — this is our own HTML shop.)
+      sendToBot({
         action: 'ORDER',
         orderId: orderObj.order_id,
         customer: name,
@@ -632,11 +696,10 @@
         total: total,
         order: orderObj
       });
-      // Browser/admin webapp orders: write the Sheet row FIRST and wait for the
+      // Browser/webapp orders: write the Sheet row FIRST and wait for the
       // verified server response. NOTHING below (success screen, stock hold,
       // cart clear) runs until the row is confirmed in the Orders tab.
-      // Telegram Mini App orders are handled by the bot through sendData above.
-      if (!sentToBot) {
+      {
         var hookMissing = !sheetHookUrl('action=GET_ORDERS');
         if (hookMissing) {
           renderAdminSyncStatus_('Sheet webhook ସେଟ୍ କରନ୍ତୁ — order ସେଭ୍ ହେଲା ନାହିଁ', false);
@@ -749,6 +812,24 @@
       sSet('successPlacedAt', 'ଆଜି ' + fmtClock_(new Date(placedMs)));
       sSet('successExpectedAt', fmtClock_(expDate) +
         (crossesMidnight ? ' (ଆଉକାଲି)' : '') + ' · ' + expMins + ' ମିନିଟ୍ ଭିତରେ');
+      // Live tracking UI block on the success card.
+      var trackBox = document.getElementById('successTrackBlock');
+      if (trackBox && typeof renderOrderTrackHtml_ === 'function') {
+        var orderForTrack = {
+          id: orderObj.order_id, order_id: orderObj.order_id,
+          timestamp: orderObj.timestamp, date: orderObj.timestamp,
+          placed_at: orderObj.timestamp,
+          expected_by: orderObj.expected_by || '',
+          accepted_at: '', packing: '', packed_at: '',
+          out_for_delivery_at: '', delivered_at: '', cancelled_at: '',
+          status: 'pending', stage: 1,
+          delivery_type: orderObj.delivery_type || '',
+          pickup_slot: orderObj.pickup_slot || '',
+          items: orderObj.items || [],
+          total: orderObj.total
+        };
+        trackBox.innerHTML = renderOrderTrackHtml_(orderForTrack);
+      }
       setStep('Success');
       scrollToStep_('stepSuccess');
     }

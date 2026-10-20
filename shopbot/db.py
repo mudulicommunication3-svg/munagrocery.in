@@ -717,6 +717,13 @@ ORDERS_HEADERS: List[str] = [
     "PickupExpiryTime",
     "StockRestored",
     "AdminAlertStatus",
+    # Live tracking timestamps (shared by customer card / admin / Telegram):
+    "ExpectedBy",
+    "AcceptedAt",
+    "PackedAt",
+    "OutForDeliveryAt",
+    "DeliveredAt",
+    "CancelledAt",
 ]
 # column indexes (0-based) for the status/workflow fields
 COL_ORDER_STATUS = 9
@@ -728,6 +735,13 @@ COL_ORDER_PICKUP_SLOT = 14
 COL_ORDER_PICKUP_EXPIRY = 15
 COL_ORDER_STOCK_RESTORED = 16
 COL_ORDER_ALERT_STATUS = 17
+# Live tracking timestamp columns (0-based) in ORDERS_HEADERS
+COL_ORDER_EXPECTED_BY = 18
+COL_ORDER_ACCEPTED_AT = 19
+COL_ORDER_PACKED_AT = 20
+COL_ORDER_OUT_FOR_DELIVERY_AT = 21
+COL_ORDER_DELIVERED_AT = 22
+COL_ORDER_CANCELLED_AT = 23
 
 # order lifecycle (seller advances these from the Admin Panel)
 ORDER_STATUSES: List[str] = [
@@ -798,14 +812,16 @@ def get_orders_worksheet():
 
 
 def make_order_id() -> str:
-    """Unique order id, e.g. ``MUN-20261010-AB12CD``."""
+    """Unique order id, e.g. ``MUN-20261020-143512-K7QPXZ``."""
     import random
     import string
     from datetime import datetime
 
-    stamp = datetime.now().strftime("%Y%m%d")
+    now = datetime.now()
+    date_part = now.strftime("%Y%m%d")
+    time_part = now.strftime("%H%M%S")
     rand = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    return f"MUN-{stamp}-{rand}"
+    return f"MUN-{date_part}-{time_part}-{rand}"
 
 
 def place_order(
@@ -823,6 +839,7 @@ def place_order(
     pickup_slot="",
     pickup_expiry_time="",
     admin_alert_status="Unseen",
+    expected_by="",
 ):
     """Validate, deduct stock and log an order - the ONE checkout path.
 
@@ -915,6 +932,8 @@ def place_order(
         str(pickup_expiry_time or "").strip(),
         "",         # StockRestored - set to Y when held stock is returned
         str(admin_alert_status or "Unseen").strip() or "Unseen",
+        str(expected_by or "").strip(),                  # ExpectedBy
+        "", "", "", "", "", "",                          # AcceptedAt..CancelledAt not set yet
     ]
     worksheet = get_orders_worksheet()
     _call("Logging order", worksheet.append_row, row)
@@ -967,6 +986,13 @@ def get_recent_orders(limit=20):
                 "pickup_expiry_time": str(padded[COL_ORDER_PICKUP_EXPIRY]).strip() if len(padded) > COL_ORDER_PICKUP_EXPIRY else "",
                 "stock_restored": str(padded[COL_ORDER_STOCK_RESTORED]).strip() if len(padded) > COL_ORDER_STOCK_RESTORED else "",
                 "admin_alert_status": str(padded[COL_ORDER_ALERT_STATUS]).strip() if len(padded) > COL_ORDER_ALERT_STATUS else "",
+                # Live tracking timestamps (shared by customer card / admin / Telegram):
+                "expected_by": str(padded[COL_ORDER_EXPECTED_BY]).strip() if len(padded) > COL_ORDER_EXPECTED_BY else "",
+                "accepted_at": str(padded[COL_ORDER_ACCEPTED_AT]).strip() if len(padded) > COL_ORDER_ACCEPTED_AT else "",
+                "packed_at": str(padded[COL_ORDER_PACKED_AT]).strip() if len(padded) > COL_ORDER_PACKED_AT else "",
+                "out_for_delivery_at": str(padded[COL_ORDER_OUT_FOR_DELIVERY_AT]).strip() if len(padded) > COL_ORDER_OUT_FOR_DELIVERY_AT else "",
+                "delivered_at": str(padded[COL_ORDER_DELIVERED_AT]).strip() if len(padded) > COL_ORDER_DELIVERED_AT else "",
+                "cancelled_at": str(padded[COL_ORDER_CANCELLED_AT]).strip() if len(padded) > COL_ORDER_CANCELLED_AT else "",
             }
         )
     orders.reverse()  # newest first (append-only log)

@@ -2,7 +2,7 @@
 
 Wires everything together:
   * admin_handler  -> auto-stock entry flow + Admin Panel (registered FIRST)
-  * storefront     -> customer shop: Browse Store cart + Mini App (group -1)
+  * storefront     -> customer shop: Browse Store cart + website link (group -1)
   * ai_agent       -> customer assistant + conversational ordering (LAST)
   * /start, /help  -> quick info for everyone
   * /product       -> JioMart live lookup (pincode fallback, image + price)
@@ -28,7 +28,7 @@ import admin_handler  # noqa: E402
 import jiomart_search  # noqa: E402  - JioMart catalog fetcher (replaces Google Custom Search)
 
 import ai_agent  # noqa: E402
-import storefront  # noqa: E402  - customer storefront (chat cart + Mini App)
+import storefront  # noqa: E402  - customer storefront (chat cart + shop link)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,7 +53,7 @@ HELP_TEXT = (
     "View Cart, then send your address + phone to order.\n\n"
     "🔍 *Search* - tap Search, type a product name, and get\n"
     "matching photo cards with an Add to Cart button.\n\n"
-    "🛍️ *Open Shop* - Mini App store; checkout comes back here.\n\n"
+    "🛍️ *Open Shop* - opens our website munagrocery.in (own HTML shop).\n\n"
     "💬 Just type your need, e.g.:\n"
     "• \"I need 2 Fortune oils and 1 Tata salt\"\n"
     "• \"ମୋତେ ୨ ତେଲ ଦରକାର\"\n"
@@ -85,11 +85,11 @@ async def cmd_start(update, context) -> None:
             reply_markup=keyboard,
         )
         return
-    except Exception as exc:  # noqa: BLE001 - e.g. Button_url_invalid (bad WEB_APP_URL)
+    except Exception as exc:  # noqa: BLE001 - e.g. Button_url_invalid (bad shop URL)
         logger.warning(
             "/start with full menu failed (%s); retrying without Open Shop", exc
         )
-    # A bad Mini App URL must never silence /start - drop the Open Shop button.
+    # A bad shop URL must never silence /start - drop the Open Shop button.
     try:
         fallback = storefront.start_keyboard(
             is_admin=is_admin,

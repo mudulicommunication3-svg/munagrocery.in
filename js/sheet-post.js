@@ -1,21 +1,9 @@
 /* munnamobile :: js/sheet-post.js  (extracted from index.html lines 4653-4826)
    posting to Google Sheet webhook (retries, offline queue) */
     function sendToBot(payload) {
-      // ROOT-CAUSE FIX (orders never reached the Sheet in a normal browser):
-      // the Telegram SDK's sendData() does NOT throw OUTSIDE Telegram —
-      // WebView.postEvent() silently no-ops ({notAvailable:true}) — so the old
-      // `if (tg && tg.sendData)` check returned TRUE everywhere and
-      // placeMiniOrder skipped the webhook write entirely (success screen, but
-      // no row, no error). Only trust the bot path when a REAL Telegram Mini
-      // App session is present (non-empty initData); in every normal browser we
-      // now return false so the Apps Script webhook writes the order.
-      var inTelegram = false;
-      try {
-        inTelegram = !!(tg && typeof tg.initData === 'string' && tg.initData.length > 0);
-      } catch (eTG) {}
-      if (inTelegram && tg && tg.sendData) {
-        try { tg.sendData(JSON.stringify(payload)); return true; } catch (e) {}
-      }
+      // TELEGRAM MINI APP REMOVED — the shop is our own HTML served from
+      // munagrocery.in. Orders/addresses always go through the Apps Script
+      // webhook (postToSheet / create_order), never Telegram sendData().
       return false;
     }
 
@@ -175,15 +163,16 @@
         total: order.total
       });
     }
-    // Address book -> bot (Telegram) or the shared Addresses tab (browser).
-    function pushAddressToSheet(addr) {
-      if (!addr) return;
-      if (sendToBot({ action: 'SAVE_ADDRESS', customer: addr.name, name: addr.name, phone: addr.phone, address: addr.address })) return;
-      var u = getTgUser();
-      if (u && u.id) {
-        postToSheet({ action: 'save_address', user_id: String(u.id), name: addr.name, phone: addr.phone, address: addr.address, location: '' });
+      // Address book -> shared Addresses tab (Telegram Mini App path removed;
+      // this is our own HTML shop on munagrocery.in).
+      function pushAddressToSheet(addr) {
+        if (!addr) return;
+        sendToBot({ action: 'SAVE_ADDRESS', customer: addr.name, name: addr.name, phone: addr.phone, address: addr.address }); // no-op (kept for API stability)
+        var u = getTgUser();
+        if (u && u.id) {
+          postToSheet({ action: 'save_address', user_id: String(u.id), name: addr.name, phone: addr.phone, address: addr.address, location: '' });
+        }
       }
-    }
 
     // Pull orders from the shared Sheet: Telegram (chat/miniapp/ai) + browser
     // (webapp) orders all show up here. The Sheet wins on conflicts because

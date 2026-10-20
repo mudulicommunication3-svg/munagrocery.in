@@ -132,6 +132,7 @@ class FakeContext:
 
 def main() -> int:
     db.RETRY_BASE_DELAY = 0
+    print("== test_orders: order layer ==")
 
     # --- parser -----------------------------------------------------------
     lines = orders.parse_order_lines("I need 2 Fortune oils and 1 Tata salt")
@@ -189,6 +190,8 @@ def main() -> int:
     )
     check("place_order total", result["total"] == 2 * 170 + 25)
     check("place_order id shape", result["order_id"].startswith("MUN-"))
+    check("place_order id has date-time format",
+          len(result["order_id"].split("-")) == 4)
     check("place_order deducted oil", ws.updated[0] == ([[13]], "D2"))
     check("place_order deducted salt", ws.updated[1] == ([[4]], "D3"))
     orders_ws = sheet.tabs.get("Orders")
@@ -197,7 +200,7 @@ def main() -> int:
     logged = orders_ws.appended[0]
     check("order row has customer+total",
           logged[2] == "Ravi" and logged[6] == 2 * 170 + 25 and logged[7] == "chat")
-    check("order row has 18 unified columns", len(logged) == len(db.ORDERS_HEADERS) == 18)
+    check("order row matches ORDERS_HEADERS count", len(logged) == len(db.ORDERS_HEADERS))
     check("order row starts Unseen alert", logged[17] == "Unseen")
 
     fresh()
@@ -235,22 +238,15 @@ def main() -> int:
     finally:
         os.environ.pop("ADMIN_ID", None)
 
-    # --- webapp payload shapes --------------------------------------------
+    # --- (REMOVED) Telegram Mini App payload shapes --------------------------
+    # The Mini App / web_app_data checkout was removed — the shop is our own
+    # HTML on munagrocery.in and writes orders via the Apps Script webhook.
     import storefront
 
-    check("webapp list shape",
-          storefront._parse_webapp_payload('[{"ean": "111", "qty": 2}]')
-          == [{"ean": "111", "qty": 2}])
-    check("webapp dict-items shape",
-          storefront._parse_webapp_payload('{"items": [{"ean": "111", "qty": 1}]}')
-          == [{"ean": "111", "qty": 1}])
-    check("webapp cart-map shape",
-          storefront._parse_webapp_payload('{"111": 3}') == [{"ean": "111", "qty": 3}])
-    try:
-        storefront._parse_webapp_payload("not json")
-        check("webapp bad json rejected", False)
-    except ValueError:
-        check("webapp bad json rejected", True)
+    check("mini app payload parser removed",
+          not hasattr(storefront, "_parse_webapp_payload"))
+    check("mini app web_app_data handler removed",
+          not hasattr(storefront, "handle_webapp_data"))
 
     # --- cart helpers -----------------------------------------------------
     ctx2 = FakeContext()

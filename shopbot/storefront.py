@@ -7,11 +7,12 @@ Feature 1 - Inline Chat Ordering (Chat Cart):
   [View Cart] button shows the itemised bill and runs the checkout state
   machine (address -> phone -> place via orders.checkout).
 
-Feature 2 - Telegram Mini App (Web App Store):
-  /start also shows "Open Shop" (a WebApp button opening WEB_APP_URL, the
-  static shop.html Mini App). The Mini App posts its cart back as
-  ``web_app_data``; the bot validates it against the live catalog and runs
-  the same checkout state machine (address -> phone -> place).
+Feature 2 - Own web shop (NO Telegram Mini App):
+  /start also shows "🛍️ Open Shop" as a normal URL button that opens
+  https://munagrocery.in — the shop is plain HTML served from that site.
+  (The Telegram Mini App / ``web_app_data`` checkout was REMOVED: orders are
+  written by the site itself through the Apps Script webhook, and this bot's
+  web_sync loop picks them up from the shared Sheet.)
 
 All reads/writes go through db.py + orders.py, the same central database the
 admin panel and AI agent use. Blocking Sheets calls run via asyncio.to_thread.
@@ -29,11 +30,6 @@ import urllib.parse
 from typing import Any, Dict, List, Optional
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-
-try:
-    from telegram import WebAppInfo
-except ImportError:  # very old PTB builds - Mini App button degrades gracefully
-    WebAppInfo = None  # type: ignore[assignment,misc]
 
 from telegram.constants import ParseMode
 
@@ -397,8 +393,12 @@ PAGE_SIZE = 8  # products listed per category page (photo cards need no paging)
 
 # one DNS label: 1-63 chars, letters/digits/hyphen, not starting with '-'.
 # (GitHub Pages serves munagrocery.in via CNAME - without this guard a bad
-# WEB_APP_URL would make Telegram reject the whole /start menu)
+# shop URL would make Telegram reject the whole /start menu)
 _LABEL_RE = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$")
+
+# The shop is OUR OWN HTML (no Telegram Mini App). This is the only place the
+# shop URL is defined; /start and every menu simply link here.
+SHOP_SITE_URL = "https://munagrocery.in"
 
 
 # --------------------------------------------------------------------------- #
@@ -407,16 +407,16 @@ _LABEL_RE = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$")
 
 
 def web_app_url() -> str:
-    """Public HTTPS URL of the Mini App (empty when not configured)."""
-    return (os.getenv("WEB_APP_URL") or "").strip()
+    """Public HTTPS URL of the shop site (empty when not configured)."""
+    return (os.getenv("WEB_APP_URL") or SHOP_SITE_URL).strip()
 
 
 def web_app_shop_url(url: str = "") -> str:
-    """Mini App URL with the Sheet webhook appended as a ``?sheet=`` param.
+    """Shop URL with the Sheet webhook appended as a ``?sheet=`` param.
 
-    The new Mini App (WEBAPP2.html) reads ``?sheet=<apps-script-url>`` on load
-    and persists it, so the catalog auto-syncs from Google Sheets without any
-    in-app setup. Returns the base URL unchanged when unset.
+    The site reads ``?sheet=<apps-script-url>`` on load and persists it, so
+    the catalog auto-syncs from Google Sheets without any in-app setup.
+    Returns the base URL unchanged when unset.
     """
     base = (url or web_app_url()).strip()
     hook = (os.getenv("SHEET_WEBHOOK_URL") or "").strip()
@@ -427,12 +427,12 @@ def web_app_shop_url(url: str = "") -> str:
 
 
 def web_app_shop_url_for_user(user_id, url: str = "") -> str:
-    """Mini App URL plus the customer's saved name/phone/address for prefill.
+    """Shop URL plus the customer's saved name/phone/address for prefill.
 
-    The Mini App reads ``?name=&phone=&addr=`` and pre-fills its checkout form,
+    The site reads ``?name=&phone=&addr=`` and pre-fills its checkout form,
     so a returning customer never retypes their address. Falls back to the
-    plain shop URL when nothing is saved or the result would be too long for a
-    Telegram ``web_app`` button. Never raises - prefill must not break /start.
+    plain shop URL when nothing is saved or the result would be too long for
+    a Telegram ``url`` button. Never raises - prefill must not break /start.
     """
     base = web_app_shop_url(url)
     if not base or user_id is None:
@@ -460,8 +460,8 @@ def web_app_shop_url_for_user(user_id, url: str = "") -> str:
 def _is_valid_webapp_url(url: str) -> bool:
     """Guard against malformed URLs (e.g. host labels ending in '-') that make
     Telegram reject the whole /start menu with ``Button_url_invalid``. Only a
-    well-formed ``https://host/...`` URL is accepted as a Mini App target."""
-    if not url or WebAppInfo is None:
+    well-formed ``https://host/...`` URL is accepted as a shop link."""
+    if not url:
         return False
     try:
         parsed = urllib.parse.urlsplit(url)
@@ -487,9 +487,11 @@ def start_keyboard(is_admin: bool = False, admin_panel_markup=None,
                    user_id=None):
     """Row layout for /start: Browse + Search + Cart + Chat Mode + Open Shop.
 
-    The Open Shop (Mini App) button is only added when WEB_APP_URL is a valid
-    HTTPS URL, so a bad URL can never break the menu. ``include_webapp=False``
-    drops it entirely (used as a fallback when Telegram rejects the URL).
+    The Open Shop button is a PLAIN URL button opening munagrocery.in (our own
+    HTML shop) - NOT a Telegram Mini App. It is only added when the shop URL is
+    a valid HTTPS URL, so a bad URL can never break the menu.
+    ``include_webapp=False`` drops it entirely (used as a fallback when
+    Telegram rejects the URL).
     """
     rows = [
         [InlineKeyboardButton("📦 Browse Store", callback_data=CB_CATEGORIES)],
@@ -505,14 +507,12 @@ def start_keyboard(is_admin: bool = False, admin_panel_markup=None,
     url = web_app_shop_url_for_user(user_id)
     if url and not _is_valid_webapp_url(url):
         logger.warning(
-            "WEB_APP_URL %r is invalid (e.g. bad hostname); hiding the "
+            "Shop URL %r is invalid (e.g. bad hostname); hiding the "
             "Open Shop button so /start still works.", url
         )
         url = ""
     if url:
-        rows.append(
-            [InlineKeyboardButton("🛍️ Open Shop", web_app=WebAppInfo(url=url))]
-        )
+        rows.append([InlineKeyboardButton("🛍️ Open Shop", url=url)])
     if is_admin and admin_panel_markup is not None:
         for row in admin_panel_markup.inline_keyboard:
             rows.append(list(row))
@@ -1311,8 +1311,8 @@ async def handle_store_callback(update, context) -> None:
             [InlineKeyboardButton(chat_mode_button_label(new_mode), callback_data=CB_CHATMODE)],
         ]
         url = web_app_shop_url()
-        if url and _is_valid_webapp_url(url) and WebAppInfo is not None:
-            rows.append([InlineKeyboardButton("🛍️ Open Shop", web_app=WebAppInfo(url=url))])
+        if url and _is_valid_webapp_url(url):
+            rows.append([InlineKeyboardButton("🛍️ Open Shop", url=url)])
         try:
             await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(rows))
         except Exception:  # noqa: BLE001 - stale/identical markup
@@ -1398,177 +1398,12 @@ async def handle_store_callback(update, context) -> None:
             return
     await query.answer("❌ Unknown action.", show_alert=True)
 # --------------------------------------------------------------------------- #
-# Mini App checkout payload (Telegram Web App -> web_app_data)
+# (REMOVED) Telegram Mini App checkout payload handler (web_app_data).
+# The shop is our own HTML on munagrocery.in — it writes orders straight to the
+# shared Sheet via the Apps Script webhook; web_sync.py alerts this bot. No
+# web_app_data handling exists any more.
 # --------------------------------------------------------------------------- #
 
-
-def _parse_webapp_payload(raw: str) -> List[Dict[str, Any]]:
-    """Parse the Mini App cart JSON into ``[{"ean": qty}]`` items.
-
-    Accepted shapes: ``[{"ean": ..., "qty": ...}]``,
-    ``{"items": [...]}`` or ``{"cart": {ean: qty}}``. Raises ValueError.
-    """
-    try:
-        payload = json.loads(raw or "")
-    except (TypeError, ValueError) as exc:
-        raise ValueError("Could not read the Mini App cart.") from exc
-    if isinstance(payload, dict):
-        wrapped = payload.get("items", payload.get("cart", payload.get("products")))
-        if wrapped is None and all(
-            not isinstance(v, (dict, list)) for v in payload.values()
-        ):
-            wrapped = [{"ean": k, "qty": v} for k, v in payload.items()]
-        payload = wrapped
-    if not isinstance(payload, list) or not payload:
-        raise ValueError("The Mini App cart is empty.")
-    items: List[Dict[str, Any]] = []
-    for entry in payload:
-        if isinstance(entry, dict):
-            ean = entry.get("ean", entry.get("id", entry.get("uid", "")))
-            qty = entry.get("qty", entry.get("quantity", entry.get("count", 1)))
-        elif isinstance(entry, (list, tuple)) and len(entry) >= 2:
-            ean, qty = entry[0], entry[1]
-        else:
-            continue
-        ean = db.normalize_ean(ean)
-        try:
-            qty_n = int(float(qty))
-        except (TypeError, ValueError):
-            qty_n = 1
-        if ean and qty_n > 0:
-            items.append({"ean": ean, "qty": min(qty_n, 99)})
-    if not items:
-        raise ValueError("The Mini App cart has no valid items.")
-    return items
-
-
-async def handle_webapp_data(update, context) -> None:
-    """Mini App payload (SAVE_ADDRESS / ORDER). Orders are placed immediately.
-
-    The Mini App collects the whole checkout (items + address + payment) and
-    posts it back here. We place the order straight through db.place_order so it
-    completes in one step (no multi-step chat dance) and confirm with the order
-    id. SAVE_ADDRESS just refreshes the saved address book entry for the user.
-    """
-    message = update.effective_message
-    user = update.effective_user
-    if message is None or user is None:
-        return
-    web_data = getattr(message, "web_app_data", None)
-    raw = getattr(web_data, "data", "") if web_data is not None else ""
-    if not raw:
-        return
-
-    try:
-        parsed = json.loads(raw)
-    except (TypeError, ValueError):
-        parsed = None
-    action = ""
-    name = phone = address = payment = order_id = location = ""
-    if isinstance(parsed, dict):
-        action = str(parsed.get("action") or "").strip().upper()
-        name = str(parsed.get("customer") or parsed.get("name") or "").strip()
-        phone = str(parsed.get("phone") or "").strip()
-        address = str(parsed.get("address") or "").strip()
-        payment = str(parsed.get("payment") or "COD").strip() or "COD"
-        order_id = str(parsed.get("orderId") or "").strip()
-        location = str(parsed.get("location") or "").strip()
-
-    # Address book sync from the Mini App (no order placed).
-    if action == "SAVE_ADDRESS":
-        try:
-            await asyncio.to_thread(
-                db.save_address, user.id, name, address, phone, location
-            )
-            await message.reply_text("Address saved. (\u091c\u093e \u0928\u093e\u0939\u093f\u0902)")
-        except Exception:  # noqa: BLE001
-            logger.warning("Could not save address for %s", user.id, exc_info=True)
-            await message.reply_text("Could not save the address right now.")
-        return
-
-    # Place the Mini App order immediately.
-    try:
-        items = _parse_webapp_payload(raw)
-    except ValueError as exc:
-        await message.reply_text(f"Order could not be placed: {exc}")
-        return
-
-    try:
-        result = await asyncio.to_thread(
-            db.place_order,
-            items,
-            name,
-            phone,
-            address,
-            "miniapp",
-            user.id,
-            order_id or None,
-            location=location,
-            payment=payment,
-        )
-    except ValueError as exc:
-        await message.reply_text(f"Order could not be placed: {exc}")
-        return
-    except Exception:  # noqa: BLE001 - DB/API failure
-        logger.error("Mini App order failed for %s", user.id, exc_info=True)
-        await message.reply_text(
-            "Something went wrong placing your order. Please try again."
-        )
-        return
-
-    # Remember the address so the next checkout is prefilled.
-    if name and phone and address:
-        try:
-            await asyncio.to_thread(
-                db.save_address, user.id, name, address, phone, location
-            )
-        except Exception:  # noqa: BLE001
-            logger.warning("Could not save address for %s", user.id, exc_info=True)
-
-    # Keep the chat cart in sync with the Mini App order.
-    context.user_data.pop("cart", None)
-    context.user_data.pop("state", None)
-
-    oid = result.get("order_id", "")
-    total = result.get("total", 0)
-
-    # Live customer status message - the SAME message the Admin Panel edits
-    # in place as the seller advances the order (shared with all channels).
-    summary = dict(result)
-    summary["address"] = address
-    summary["phone"] = phone
-    summary["customer_name"] = name
-    sent = await orders.send_order_status(
-        context, user.id, summary, result.get("status") or "pending"
-    )
-    if sent is None:
-        # Fallback: plain confirmation when the status message could not send.
-        try:
-            await message.reply_text(
-                f"Your order is placed!\n\n"
-                f"Order ID: {oid}\n"
-                f"Total: Rs.{total}\n"
-                f"Payment: {payment}\n\n"
-                f"Track it under My Orders. Thank you!"
-            )
-        except Exception:  # noqa: BLE001
-            logger.warning("Could not confirm Mini App order to %s", user.id)
-
-    # Best-effort admin notification (same alert format as every channel).
-    try:
-        alert = orders.admin_alert_text(
-            oid,
-            name,
-            phone,
-            address,
-            result.get("lines") or [],
-            total,
-            "miniapp",
-            user.id,
-        )
-        await orders.notify_admins(context, alert)
-    except Exception:  # noqa: BLE001
-        pass
 
 
 
@@ -1593,13 +1428,9 @@ async def handle_store_location(update, context) -> None:
 
 
 def register(application) -> None:
-    """Attach storefront callbacks, Mini App data and checkout text."""
+    """Attach storefront callbacks and checkout text (no Mini App handler)."""
     application.add_handler(
         CallbackQueryHandler(handle_store_callback, pattern=CALLBACK_PATTERN),
-        group=-1,
-    )
-    application.add_handler(
-        MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_webapp_data),
         group=-1,
     )
     application.add_handler(
@@ -1633,7 +1464,6 @@ __all__ = [
     "handle_search_text",
     "handle_store_callback",
     "handle_store_text",
-    "handle_webapp_data",
     "prompt_search",
     "register",
     "show_cart",
