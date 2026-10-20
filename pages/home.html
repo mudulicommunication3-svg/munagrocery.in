@@ -3,7 +3,7 @@
     <div class="max-w-md mx-auto flex items-center justify-between gap-2">
       <!-- Left: Clean rounded logo + shop name (single line) -->
       <div onclick="showScreen('home')" class="flex items-center gap-2 cursor-pointer select-none min-w-0 flex-1">
-        <div class="w-10 h-10 rounded-xl bg-[#ffd43b] text-slate-950 font-black text-2xl flex items-center justify-center shadow-xs shrink-0">
+        <div class="w-9 h-9 rounded-full bg-[#ffd43b] text-slate-950 font-black text-xl flex items-center justify-center shadow-sm shrink-0 border border-white/40">
           M
         </div>
         <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0;">
@@ -18,15 +18,15 @@
       </div>
       <!-- Right: Download App button — yellow capsule -->
       <a id="appDownloadBtn" href="/munagrocery.apk" download="munagrocery.apk" style="text-decoration: none; flex-shrink: 0;" onclick="downloadAndroidApp(); return false;" title="Download App">
-        <div style="background: linear-gradient(180deg, #FDB813 0%, #F59E0B 100%); padding: 5px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 10px rgba(245, 158, 11, 0.5); cursor: pointer;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="#1e3a1e">
+        <div style="background: linear-gradient(180deg, #FDB813 0%, #F59E0B 100%); padding: 4px 8px; border-radius: 16px; display: flex; align-items: center; gap: 5px; box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); cursor: pointer;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="#1e3a1e">
             <path d="M16.6 6.5l1.6-2.7c.2-.3.1-.7-.2-.9-.3-.2-.7-.1-.9.2l-1.6 2.8C14.2 5.3 12.7 5 11 5s-3.2.3-4.5.9L4.9 3.1c-.2-.3-.6-.4-.9-.2-.3.2-.4.6-.2.9l1.6 2.7C2.9 8.2 1.2 11.4 1 15h20c-.2-3.6-1.9-6.8-4.4-8.5zM7 11.5c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1zm8 0c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1z"/>
           </svg>
           <div style="display: flex; flex-direction: column; line-height: 1; text-align: center;">
-            <span style="font-size: 8.5px; font-weight: 900; color: #111827; letter-spacing: 0.3px;">DOWNLOAD</span>
-            <span style="font-size: 9.5px; font-weight: 900; color: #111827; letter-spacing: 0.3px;">APP</span>
+            <span style="font-size: 7.5px; font-weight: 900; color: #111827; letter-spacing: 0.2px;">DOWNLOAD</span>
+            <span style="font-size: 8px; font-weight: 900; color: #111827; letter-spacing: 0.2px;">APP</span>
           </div>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="#111827">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="#111827">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
         </div>
