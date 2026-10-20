@@ -12,12 +12,21 @@
       var spVal = parseFloat(p.selling_price) || 0;
       var off = mrpVal > spVal ? Math.round(((mrpVal - spVal) / mrpVal) * 100) : 0;
       var stockN = parseInt(p.stock_qty, 10); if (isNaN(stockN)) stockN = 10;
-      var fallback = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800';
+      // Server-hosted photo first (catalog image_url); same-origin server icon
+      // as the guaranteed fallback — external CDNs may block or expire links.
+      var fallback = 'icon-512.png';
 
       var img = document.getElementById('pdImage');
       img.src = p.image_url || fallback;
       img.alt = p.product_name;
       img.onerror = function () { this.src = fallback; };
+      // No photo on the product? Auto-find one by EAN (OpenFoodFacts) and
+      // swap it in as soon as it arrives.
+      if (!p.image_url) {
+        findProductImage_(p, function (u) {
+          if (u && currentItem === p) img.src = u;
+        });
+      }
 
       var offB = document.getElementById('pdOffBadge');
       if (off > 0) { offB.classList.remove('hidden'); offB.innerText = off + '% OFF'; } else { offB.classList.add('hidden'); }
@@ -170,6 +179,32 @@
       } catch (e) { try { alert(msg); } catch (e2) {} }
     }
 
+    // AUTO IMAGE FINDER: use the catalog (server) photo first; when a product
+    // has NO photo (or a dead CDN link) look one up on OpenFoodFacts by EAN
+    // and cache it in memory for this session — used by display AND share, so
+    // a shared product link always carries its picture when one exists.
+    function findProductImage_(p, cb) {
+      window._munnaImgGuess = window._munnaImgGuess || {};
+      var cached = p && (p.image_url || window._munnaImgGuess[String(p.ean)] || '');
+      if (cached) { cb(cached); return; }
+      if (!p || !p.ean) { cb(''); return; }
+      var done = false;
+      var finish = function (url) { if (done) return; done = true; cb(url || ''); };
+      var t = setTimeout(function () { finish(''); }, 7000);
+      try {
+        fetch('https://world.openfoodfacts.org/api/v0/product/' +
+              encodeURIComponent(String(p.ean)) + '.json')
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            clearTimeout(t);
+            var u = (j && j.product && (j.product.image_front_url || j.product.image_url)) || '';
+            if (u) window._munnaImgGuess[String(p.ean)] = u;
+            finish(u);
+          })
+          .catch(function () { clearTimeout(t); finish(''); });
+      } catch (e) { clearTimeout(t); finish(''); }
+    }
+
     function shareCurrentProduct() {
       if (!currentItem || !currentItem.ean) return;
       var link = 'https://munagrocery.in/?item=' + currentItem.ean;
@@ -187,10 +222,29 @@
           return;
         }
       } catch (e) {}
-      // (2) ବ୍ରାଉଜର: ଷ୍ଟାଣ୍ଡାର୍ଡ Web Share API (WhatsApp, Facebook, Gmail...)
+      // (2) ବ୍ରାଉଜର: Web Share API — ସମ୍ଭବ ଥିଲେ ଫଟୋ attach କରି (ଲିଙ୍କ୍ + ଫଟୋ
+      // ଏକାଥରେ), ନହେଲେ ଲିଙ୍କ୍ ସହ ଟେକ୍ସଟ୍। ଫଟୋ ନ ଥିଲେ ଆପେ ଖୋଜାଯିବ।
       if (navigator.share) {
-        navigator.share(shareData).catch(function (err) {
-          if (err && err.name !== 'AbortError') console.error('Share error:', err);
+        var sendPlain = function () {
+          navigator.share(shareData).catch(function (err) {
+            if (err && err.name !== 'AbortError') console.error('Share error:', err);
+          });
+        };
+        findProductImage_(currentItem, function (imgUrl) {
+          if (!imgUrl || !navigator.canShare) { sendPlain(); return; }
+          try {
+            fetch(imgUrl, { mode: 'cors' }).then(function (r) { return r.blob(); }).then(function (blob) {
+              var file = new File([blob], String(currentItem.ean || 'product') + '.jpg',
+                                  { type: blob.type || 'image/jpeg' });
+              if (navigator.canShare({ files: [file] })) {
+                navigator.share({ files: [file], text: shareText }).catch(function (err) {
+                  if (err && err.name !== 'AbortError') sendPlain();
+                });
+              } else {
+                sendPlain();
+              }
+            }).catch(function () { sendPlain(); });
+          } catch (eF) { sendPlain(); }
         });
         return;
       }
@@ -217,8 +271,7 @@
         try { window.MunnaShare.postImage('', 'product.jpg', shareText); } catch (e) {}
       };
       var timer = setTimeout(finishTextOnly, 10000);
-      try {
-        var imgUrl = (currentItem && currentItem.image_url) || '';
+      var sendImage = function (imgUrl) {
         if (!imgUrl) { clearTimeout(timer); finishTextOnly(); return; }
         fetch(imgUrl, { mode: 'cors' }).then(function (r) {
           if (!r.ok) throw new Error('img ' + r.status);
@@ -236,6 +289,11 @@
           rd.onerror = function () { clearTimeout(timer); finishTextOnly(); };
           rd.readAsDataURL(blob);
         }).catch(function () { clearTimeout(timer); finishTextOnly(); });
+      };
+      try {
+        // Catalog (server) photo first; auto-find one by EAN when missing —
+        // the share sheet then opens with the product picture + link.
+        findProductImage_(currentItem, sendImage);
       } catch (e) { clearTimeout(timer); finishTextOnly(); }
     }
 
@@ -256,7 +314,7 @@
           box.innerHTML = '<p class="text-[11px] text-slate-400 py-2">ଆଉ ସାମଗ୍ରୀ ନାହିଁ।</p>';
           return;
         }
-        var fallback = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300';
+        var fallback = 'icon-512.png'; // server-hosted — always loads
         box.innerHTML = list.map(function (s) {
           var mrp = parseFloat(s.mrp) || 0, sp = parseFloat(s.selling_price) || 0;
           var off = mrp > sp ? Math.round(((mrp - sp) / mrp) * 100) : 0;

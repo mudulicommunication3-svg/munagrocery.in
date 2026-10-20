@@ -136,10 +136,15 @@
         try { startAdminOrderPolling_(); } catch (e2) {}
       });
 
-      // Manifest shortcuts: /?screen=orders|cart|address|profile
+      // REFRESH KEEPS THE SAME PAGE: /?screen=... (manifest shortcuts) or the
+      // #hash written by showScreen() (#cart, #orders, #address, #profile,
+      // #home). ?item=<ean> is handled right below by handleItemDeepLink_().
       try {
-        var scr = new URLSearchParams(window.location.search).get('screen');
-        if (scr && ['orders', 'cart', 'address', 'profile'].indexOf(scr) >= 0) showScreen(scr);
+        var scr = new URLSearchParams(window.location.search).get('screen') ||
+                  (window.location.hash || '').replace(/^#/, '');
+        if (scr && ['home', 'cart', 'orders', 'address', 'profile'].indexOf(scr) >= 0) {
+          showScreen(scr);
+        }
       } catch (e) {}
 
       // One Product One Page deep-link: /?item=<ean>. The live catalog loads

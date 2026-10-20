@@ -8,12 +8,23 @@
       // ସବୁ ସେକେଣ୍ଡାରୀ ସ୍କ୍ରିନ (cart/orders/address/profile) ବନ୍ଦ ହେଲେ productDetail
       // ମଧ୍ୟ ବନ୍ଦ କର — ଯେପରି ତଳ ବଟନ ଦବାଇଲେ ହୋମ୍ କାଟାଲଗ୍ ଦେଖାଯାଏ (Flipkart ପରି)
       closeProductDetail(false);
-      // Push a history state for secondary screens so the hardware/browser
-      // Back button can unwind them one-by-one instead of exiting the app.
-      // (No push when arriving at 'home' from popstate — already synced.)
-      if (name !== 'home' && !_backNavGuard) {
-        if (!(history.state && history.state.screen === name)) {
-          history.pushState({ screen: name }, '', '#' + name);
+      // OWN URL PER PAGE — refresh reopens exactly this page:
+      //   home  -> clean URL (no hash, no ?item)
+      //   other -> #cart / #orders / #address / #profile (init.js restores it
+      //            after refresh); other params are preserved and ?item is
+      //            dropped so a product link never leaks onto other screens.
+      // (No push when arriving from popstate — already synced by the browser.)
+      if (!_backNavGuard) {
+        try {
+          var u = new URL(window.location.href);
+          var wantHash = (name === 'home') ? '' : ('#' + name);
+          u.searchParams.delete('item');
+          if (u.hash !== wantHash) {
+            history.pushState({ screen: name }, '',
+              u.pathname + (u.search ? u.search : '') + wantHash);
+          }
+        } catch (eU) {
+          if (name !== 'home') history.pushState({ screen: name }, '', '#' + name);
         }
       }
       document.querySelectorAll('.nav-btn').forEach(b => {

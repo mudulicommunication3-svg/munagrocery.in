@@ -37,7 +37,7 @@
           card.innerHTML = `
             ${discount > 0 ? `<span class="absolute top-2 left-2 z-10 bg-orange-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">${discount}% OFF</span>` : ''}
             <div onclick="openProductDetail('${p.ean}')" class="w-full h-32 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden cursor-pointer">
-              <img src="${p.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'}" alt="${p.product_name}" class="w-full h-full object-contain p-1" onerror="this.src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'">
+              <img src="${p.image_url || 'icon-512.png'}" alt="${p.product_name}" class="w-full h-full object-contain p-1" onerror="this.src='icon-512.png'">
             </div>
             <div onclick="openProductDetail('${p.ean}')" class="mt-2 flex-1 flex flex-col justify-between cursor-pointer">
               <h4 class="text-xs font-bold text-slate-800 line-clamp-2 leading-tight">${p.product_name}</h4>
