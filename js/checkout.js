@@ -17,6 +17,26 @@
           var pos = e.target.getLatLng();
           updateMapDistance(pos.lat, pos.lng);
         });
+
+        // GPS locate CONTROL (crosshair icon, top-right ON the map) — one tap
+        // jumps to the customer's current location + drops the pin there.
+        var gpsCtl = L.control({ position: 'topright' });
+        gpsCtl.onAdd = function () {
+          var btn = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+          btn.innerHTML = '<a href="#" title="ମୋ ଲୋକେସନ୍ ଦେଖାଅ" ' +
+            'style="width:30px;height:30px;line-height:30px;text-align:center;padding:0;">' +
+            '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#1d4ed8" ' +
+            'stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="6"/>' +
+            '<path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></a>';
+          btn.style.cursor = 'pointer';
+          L.DomEvent.disableClickPropagation(btn);
+          L.DomEvent.on(btn, 'click', function (e) {
+            L.DomEvent.stop(e);
+            locateUserGPS();
+          });
+          return btn;
+        };
+        gpsCtl.addTo(checkoutMap);
       }
       setTimeout(() => { checkoutMap.invalidateSize(); }, 300);
       updateMapDistance(STORE_LAT, STORE_LNG);
@@ -56,20 +76,59 @@
       customerLat = lat;
       customerLng = lng;
       deliveryMarker.setLatLng([lat, lng]);
-      var dist = calcDistance(STORE_LAT, STORE_LNG, lat, lng);
+      var straight = calcDistance(STORE_LAT, STORE_LNG, lat, lng);
+      // Instant feedback with the straight-line figure while the router runs.
+      applyDistanceToMap_(straight, 'ସିଧା ' + straight + ' KM · ରାସ୍ତା ହିସାବ ହେଉଛି...');
+      window._munnaDistTok = (window._munnaDistTok || 0) + 1;
+      var tok = window._munnaDistTok;
+      roadDistanceKm_(lat, lng).then(function (road) {
+        // Ignore stale answers after a newer drag / GPS fix.
+        if (tok !== window._munnaDistTok) return;
+        if (road != null) applyDistanceToMap_(road, 'ସିଧା ' + straight + ' KM');
+      });
+    }
+
+    // ROAD distance (door-to-door) via the public OSRM demo router — no API
+    // key, CORS-open. Returns kilometres (1 decimal) or null when unreachable
+    // (offline / router down) so the caller keeps the straight-line figure.
+    function roadDistanceKm_(lat, lng) {
+      var url = 'https://router.project-osrm.org/route/v1/driving/' +
+        STORE_LNG + ',' + STORE_LAT + ';' + lng + ',' + lat +
+        '?overview=false&alternatives=false&steps=false';
+      var ctrl = null, timer = null;
+      try {
+        ctrl = new AbortController();
+        timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000);
+      } catch (e) {}
+      return fetch(url, ctrl ? { signal: ctrl.signal } : undefined)
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (timer) clearTimeout(timer);
+          var m = j && j.routes && j.routes[0] && j.routes[0].distance;
+          return (typeof m === 'number' && m > 0) ? Math.round((m / 1000) * 10) / 10 : null;
+        })
+        .catch(function () {
+          if (timer) clearTimeout(timer);
+          return null;
+        });
+    }
+
+    // Paint the distance pill + enable/disable the next step. The ZONE CHECK
+    // uses the road distance when available (straight-line is the fallback).
+    function applyDistanceToMap_(dist, extra) {
       var pill = document.getElementById('mapStatusPill');
       var btn = document.getElementById('btnProceedToPayment');
-
+      var tail = extra ? (' — ' + extra) : '';
       if (dist <= MAX_RADIUS_KM) {
         isWithinRadius = true;
         pill.className = "text-[10px] font-bold p-1.5 rounded-lg mb-2 text-center bg-emerald-50 text-emerald-800 border border-emerald-200";
-        pill.innerText = `✅ ଦୂରତା: ${dist} KM (୩ କି.ମି. ଭିତରେ - ୧୦-୧୫ ମିନିଟ୍‌ରେ ଡେଲିଭରୀ)`;
+        pill.innerText = `✅ ରାସ୍ତା ଦୂରତା: ${dist} KM${tail} (୩ କି.ମି. ଭିତରେ)`;
         btn.disabled = false;
         btn.classList.remove('opacity-50', 'cursor-not-allowed');
       } else {
         isWithinRadius = false;
         pill.className = "text-[10px] font-bold p-1.5 rounded-lg mb-2 text-center bg-rose-50 text-rose-800 border border-rose-200";
-        pill.innerText = `❌ ଦୂରତା: ${dist} KM (୩ କି.ମି. ବାହାରେ ଡେଲିଭରୀ ସେବା ଉପଲବ୍ଧ ନାହିଁ)`;
+        pill.innerText = `❌ ରାସ୍ତା ଦୂରତା: ${dist} KM${tail} (୩ କି.ମି. ବାହାରେ ଡେଲିଭରୀ ନାହିଁ)`;
         btn.disabled = true;
         btn.classList.add('opacity-50', 'cursor-not-allowed');
       }
@@ -518,7 +577,7 @@
         var hookMissing = !sheetHookUrl('action=GET_ORDERS');
         if (hookMissing) {
           renderAdminSyncStatus_('Sheet webhook ସେଟ୍ କରନ୍ତୁ — order ସେଭ୍ ହେଲା ନାହିଁ', false);
-          alert('❌ Google Sheet webhook ସେଟ୍ ହୋଇନାହିଁ! Admin → Sheets ଟ୍ୟାବ୍ ରେ Webhook URL ଲଗାନ୍ତୁ, ତା\'ପରେ ପୁଣି order କରନ୍ତୁ।');
+          alert('⚠️ ଏବେ ଅର୍ଡର୍ କରିହେବ ନାହିଁ! କିଛି ସମୟ ପରେ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।');
           showOrderLoading_(false);
           return;
         }
@@ -539,7 +598,7 @@
           // server — never a duplicate row). The outbox is resend-only: it is
           // never rendered as history, so Orders still shows only Sheet rows.
           try { markPendingSheetOrder_(orderObj); resendPendingSheetOrders_().catch(function () {}); } catch (eOut) {}
-          alert('❌ Order Sheet କୁ ଗଲା ନାହିଁ: ' + failMsg + '। ଇଣ୍ଟରନେଟ୍ / webhook ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ — ଏହି order ସ୍ୱୟଂଚାଳିତ ଭାବେ retry ହେବ (ଡୁପ୍ଲିକେଟ୍ ହେବ ନାହିଁ)।');
+          alert('❌ ଅର୍ଡର୍ ପଠାଯାଇପାରିଲା ନାହିଁ! ଇଣ୍ଟରନେଟ୍ ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ (ଡୁପ୍ଲିକେଟ୍ ହେବ ନାହିଁ)।');
           showOrderLoading_(false);
           return; // cart + form stay intact so the customer can retry safely
         }
@@ -554,7 +613,7 @@
         } catch (verifyErr) { verified = false; }
         if (!verified) {
           renderAdminSyncStatus_('Sheet save pending — retry from Orders', false);
-          alert('⚠️ Order Sheet ରେ ଦେଖାଯାଉ ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ — ଦୁଇଥର ଟଙ୍କା/ଷ୍ଟକ୍ କଟିବ ନାହିଁ (order ID ସମାନ ରହିବ)।');
+          alert('⚠️ ଅର୍ଡର୍ ନିଶ୍ଚିତ ହୋଇନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ — ଦୁଇଥର ଟଙ୍କା କଟିବ ନାହିଁ।');
           showOrderLoading_(false);
           return;
         }
