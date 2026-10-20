@@ -10,9 +10,14 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.view.View;
 import android.view.Window;
@@ -86,6 +91,14 @@ public class MainActivity extends Activity {
     private static final long MIN_NATIVE_NOTICE_MS = 8000L;  // debounce tray posts
     private static final String DEFAULT_WEBHOOK =
             "https://script.google.com/macros/s/AKfycbyBG-2536FNp4Kdux8GSBjKMyHjaSBWqSIaJpHDQ68GtzKpyUYR9x_N9QthMdvXPNhE/exec";
+
+    // Native ringtone state (rings even when app is closed/minimized).
+    // STATIC so it works from BOTH the foreground activity AND the background
+    // poller (which may run in a fresh process after the app is swiped away).
+    private static Ringtone _nativeRingtone = null;
+    private static Handler _ringHandler = null;
+    private static boolean _nativeRinging = false;
+    private static final long NATIVE_RING_MS = 15000L; // ring for 15 s like WhatsApp
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -427,6 +440,17 @@ public class MainActivity extends Activity {
             return true;
         }
 
+        // ===== RING control (called from js/admin.js) =====
+        @android.webkit.JavascriptInterface
+        public void startRing() {
+            startNativeRing(getApplicationContext());
+        }
+
+        @android.webkit.JavascriptInterface
+        public void stopRing() {
+            stopNativeRing();
+        }
+
         @android.webkit.JavascriptInterface
         public void setAdminMode(final boolean enabled) {
             getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -546,6 +570,75 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) { }
     }
 
+    /**
+     * Play a looping ringtone for NATIVE_RING_MS (like a phone call).
+     * STATIC + Context-based so it works when the app is OPEN (foreground) AND
+     * when it is CLOSED / minimized (background poller may run in a fresh
+     * process). Uses the application context, never the activity.
+     */
+    static void startNativeRing(final Context ctx) {
+        try {
+            if (ctx == null) return;
+            if (_nativeRinging) return;
+            _nativeRinging = true;
+            final Context app = ctx.getApplicationContext();
+            if (_ringHandler == null) _ringHandler = new Handler(app.getMainLooper());
+            Uri ringUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+            if (ringUri == null) {
+                ringUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            }
+            _nativeRingtone = RingtoneManager.getRingtone(app, ringUri);
+            if (_nativeRingtone != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    AudioAttributes attr = new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build();
+                    _nativeRingtone.setAudioAttributes(attr);
+                }
+                _nativeRingtone.play();
+                // Loop the ringtone every ~1 s for NATIVE_RING_MS total.
+                _ringHandler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (_nativeRinging && _nativeRingtone != null) {
+                            try {
+                                if (!_nativeRingtone.isPlaying()) _nativeRingtone.play();
+                            } catch (Exception ignored) { }
+                            _ringHandler.postDelayed(this, 1000);
+                        }
+                    }
+                }, 1000);
+                // Auto-stop after NATIVE_RING_MS.
+                _ringHandler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() { stopNativeRing(); }
+                }, NATIVE_RING_MS);
+            }
+        } catch (Exception ignored) { }
+    }
+
+    static void stopNativeRing() {
+        try {
+            _nativeRinging = false;
+            if (_ringHandler != null) _ringHandler.removeCallbacksAndMessages(null);
+            if (_nativeRingtone != null) {
+                try { if (_nativeRingtone.isPlaying()) _nativeRingtone.stop(); } catch (Exception ignored) { }
+                _nativeRingtone = null;
+            }
+        } catch (Exception ignored) { }
+    }
+
+    /**
+     * Called from the background poller (BackgroundOrderPollReceiver thread)
+     * when a fresh unseen order is detected. The static startNativeRing(Context)
+     * handles BOTH the case where this process already hosts a MainActivity
+     * (app minimized) and the case where it is a fresh process (app closed).
+     */
+    static void ringFromBackground(Context ctx) {
+        startNativeRing(ctx);
+    }
+
     // -------------------------------------------------------------------------
     // BACKGROUND POLLING (AlarmManager, 15 s) — keeps catching live orders
     // while the app is backgrounded WITHOUT a foreground service (which OEMs
@@ -652,6 +745,8 @@ public class MainActivity extends Activity {
                         nm.createNotificationChannel(ch);
                         postTrayNotification(ctx, nm, "🚨 New Order #" + id, msg, id);
                     }
+                    // Play native ringtone even when app is closed/minimized.
+                    ringFromBackground(ctx);
                     break; // one alert per tick — next tick handles the next
                 }
             } finally {

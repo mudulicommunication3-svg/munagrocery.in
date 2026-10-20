@@ -434,6 +434,14 @@
     function startRing_() {
       if (!_ringOn) return;                 // Ring toggle OFF -> no sound ring
       stopRing_(); // never stack oscillators
+      // NATIVE APP: trigger the loud system ringtone (works even when the app
+      // is later backgrounded — the ring keeps playing for 15 s). The Web Audio
+      // oscillator below is the browser-tab fallback.
+      try {
+        if (window.MunnaOrderBridge && typeof window.MunnaOrderBridge.startRing === 'function') {
+          window.MunnaOrderBridge.startRing();
+        }
+      } catch (eBridge) {}
       try {
         var AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
@@ -469,6 +477,12 @@
     // Equivalent of audio.pause(); audio.currentTime = 0; for Web Audio:
     // kill the oscillator + reset state + clear all ring timers.
     function stopRing_() {
+      // Stop the native Android ringtone too (accept/decline/review = stop).
+      try {
+        if (window.MunnaOrderBridge && typeof window.MunnaOrderBridge.stopRing === 'function') {
+          window.MunnaOrderBridge.stopRing();
+        }
+      } catch (eBridgeOff) {}
       try {
         if (_ringOsc) { try { _ringOsc.stop(); } catch (e) {} _ringOsc.disconnect(); _ringOsc = null; }
         if (_ringGain) { try { _ringGain.disconnect(); } catch (e) {} _ringGain = null; }

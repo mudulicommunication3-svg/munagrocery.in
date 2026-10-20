@@ -11,10 +11,8 @@
     <!-- New-order notification alert/vibration -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    // Persistent foreground service: keeps the WebView process alive while the
-    // app is backgrounded (auto-restarts unless the user force-stops), so the
-    // 15 s AlarmManager poller keeps catching live orders like WhatsApp.
-    // No visible notification (START_NOT_STICKY + no notify) — silent keep-alive.
+    <!-- Ringtone playback for new-order alert (native ringtone even when app closed) -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
