@@ -41,6 +41,24 @@
       <span class="text-yellow-300 font-extrabold flex items-center gap-0.5"><i class="ph-fill ph-lightning"></i> 3 KM Zone</span>
     </div>
 
+    <!-- Store Closed Banner — shown only when admin has set store CLOSED.
+         Admin-set open time is shown (default 10 AM). When store is OPEN this
+         box is removed entirely and the home screen shows as usual. -->
+    <div id="homeStoreClosedBanner" class="hidden max-w-md mx-auto mt-2 rounded-xl bg-orange-50 border border-orange-200 px-3 py-2 flex items-center gap-2 shadow-sm">
+      <div class="w-7 h-7 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0"><i class="ph-bold ph-lock"></i></div>
+      <div class="min-w-0">
+        <div class="flex items-center gap-1 mb-0.5">
+          <span class="block text-[10px] font-black text-orange-800 leading-tight">Store Closed</span>
+          <span class="block text-[10px] font-black text-orange-800 leading-tight">•</span>
+          <span id="homeStoreClosedOpenTime" class="block text-[10px] font-black text-orange-800 leading-tight">ସକାଳ 10 ଟାରେ ଖୋଲିବ</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="block text-[8px] font-bold text-orange-600 leading-tight">Orders accepted • Delivery starts after 10:00 AM</span>
+          <span class="block text-[8px] font-bold text-orange-600 leading-tight">| ଅର୍ଡର ଗ୍ରହଣ ହେବ, ଡେଲିଭରୀ ସକାଳ 10 ଟାରୁ ଆରମ୍ଭ ହେବ</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 2 option chips: Home Delivery (with time) + Store Pickup availability
          (each chip is HIDDEN automatically when the admin turns that option
          OFF — see renderDeliveryTiming) -->
@@ -57,16 +75,6 @@
         <div class="min-w-0">
           <span class="block text-[10px] font-black text-slate-800 leading-tight">Store Pickup</span>
           <span id="homePickupState" class="block text-[9px] font-bold text-[#1864ab] truncate">ଉପଲବ୍ଧ ✅</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Store Service Hours — auto-changing Open / Closed icon (10 AM to 10 PM default) -->
-    <div class="max-w-md mx-auto mt-2 grid grid-cols-1 gap-2">
-      <div id="homeStoreStatusBox" class="rounded-xl bg-emerald-50 border border-emerald-200 px-2 py-1.5 flex items-center gap-1.5 shadow-xs">
-        <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0" id="homeStoreIcon"><i class="ph-bold ph-power"></i></div>
-        <div class="min-w-0">
-          <span class="block text-[10px] font-black text-emerald-800 leading-tight" id="homeStoreLabel">Store Open</span>
         </div>
       </div>
     </div>

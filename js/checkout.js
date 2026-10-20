@@ -281,8 +281,9 @@
 
     // Home + Cart: show the admin-set home-delivery timing
     // (Today/Tomorrow · 30 min | 1 hour | 2 hour | 3 hour | 5 hour).
-    // ALSO: Store Service Hours — auto-changing Open/Closed icons on Home,
-    // and hide Delivery / Pickup boxes when the store is CLOSED.
+    // ALSO: Store Closed Banner — shown at top of Home when admin has set
+    // the store CLOSED. Admin-set open time is shown (default 10 AM).
+    // When store is OPEN the banner is removed entirely (home screen as usual).
     function renderDeliveryTiming() {
       var day = (shopConfig.deliveryDay === 'Tomorrow') ? 'ଆଉକାଲି' : 'ଆଜି';
       var txt = day + ' · ' + (shopConfig.deliverySlot || '1 hour');
@@ -296,21 +297,31 @@
 
       // --- STORE OPEN/CLOSED STATUS --------------------------------------
       var openNow = isStoreOpenNow_();
-      var storeIcon = document.getElementById('homeStoreIcon');
-      var storeLabel = document.getElementById('homeStoreLabel');
-      var storeStatusBox = document.getElementById('homeStoreStatusBox');
 
-      if (storeStatusBox) {
+      // Store Closed Banner: show only when CLOSED; remove entirely when OPEN
+      // (home screen shows as usual).
+      var closedBanner = document.getElementById('homeStoreClosedBanner');
+      var closedOpenTime = document.getElementById('homeStoreClosedOpenTime');
+
+      if (closedBanner) {
         if (openNow) {
-          storeStatusBox.className = 'rounded-xl bg-emerald-50 border border-emerald-200 px-2 py-1.5 flex items-center gap-1.5 shadow-xs';
-          storeIcon.innerHTML = '<i class="ph-bold ph-power text-emerald-600"></i>';
-          storeLabel.innerHTML = '<span class="block text-[10px] font-black text-emerald-800">Store Open</span><span class="block text-[9px] font-bold text-emerald-600">ଦୋକାନ ଖୋଲାଅଛି ✅</span>';
+          closedBanner.classList.add('hidden'); // remove from view
         } else {
-          storeStatusBox.className = 'rounded-xl bg-rose-50 border border-rose-200 px-2 py-1.5 flex items-center gap-1.5 shadow-xs';
-          storeIcon.innerHTML = '<i class="ph-bold ph-power text-rose-600"></i>';
-          storeLabel.innerHTML = '<span class="block text-[10px] font-black text-rose-800">Store Closed</span><span class="block text-[9px] font-bold text-rose-600">ଦୋକାନ ବନ୍ଦ ଅଛି ❌</span>';
+          closedBanner.classList.remove('hidden'); // show the banner
+          // Show admin-set open time (default 10 AM).
+          var openTime = shopConfig.storeOpenTime || '10:00';
+          var openLabel = fmtClock_(new Date('2000-01-01T' + openTime));
+          if (closedOpenTime) closedOpenTime.textContent = 'ସକାଳ ' + openTime + ' ଟାରେ ଖୋଲିବ';
         }
       }
+
+      // Home page chips: HIDE entirely when the admin turned that option OFF
+      // OR when the store is CLOSED (both delivery & pickup unavailable).
+      var closed = !openNow;
+      var delBox = document.getElementById('homeDeliveryBox');
+      if (delBox) delBox.classList.toggle('hidden', shopConfig.codActive === false || closed);
+      var pkBox = document.getElementById('homePickupBox');
+      if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false || closed);
 
       // Calculated expected delivery / pickup times (Open time + slot).
       var slotMins = slotToMinutes_(shopConfig.deliverySlot || '1 hour');
@@ -323,17 +334,6 @@
       if (pickupStateEl) {
         pickupStateEl.innerHTML = 'ପିକଅପ୍ ଆସିବ: ' + expText;
       }
-
-      // Home page chips: HIDE entirely when the admin turned that option OFF
-      // OR when the store is CLOSED (both delivery & pickup unavailable).
-      var closed = !openNow;
-      var delBox = document.getElementById('homeDeliveryBox');
-      if (delBox) delBox.classList.toggle('hidden', shopConfig.codActive === false || closed);
-      var pkBox = document.getElementById('homePickupBox');
-      if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false || closed);
-      // Always show the store status box (open or closed) — auto-changing icon.
-      var storeBox = document.getElementById('homeStoreStatusBox');
-      if (storeBox) storeBox.classList.remove('hidden');
     }
 
     // --- CUSTOMER CLOCK (AM/PM) + EXPECTED-BY HELPERS -------------------------
