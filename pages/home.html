@@ -1,4 +1,4 @@
-﻿  <!-- ================= TOP HEADER (Flipkart-style, professional) ================= -->
+?  <!-- ================= TOP HEADER (Flipkart-style, professional) ================= -->
   <header class="bg-[#1864ab] text-white px-4 sticky top-0 z-40 shadow-sm" style="padding-top: calc(env(safe-area-inset-top, 0px) + 8px); padding-bottom: 12px;">
     <div class="max-w-md mx-auto flex items-center justify-between gap-2">
       <!-- Left: Clean rounded logo + shop name (single line) -->
@@ -8,15 +8,15 @@
         </div>
         <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0;">
           <h1 id="lblStoreName" style="margin: 0; font-size: 15px; font-weight: 700; color: #ffffff; white-space: nowrap;">
-            à¬®à­à¬¨à­à¬¨à¬¾ à¬®à­‹à¬¬à¬¾à¬‡à¬²à­ à¬†à¬£à­à¬¡à­ à¬—à­à¬°à­‹à¬¸à¬°à­€
+            ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ
           </h1>
           <p id="lblStoreSub" style="margin: 2px 0 0; font-size: 10px; color: #E5E7EB; white-space: nowrap; display: flex; align-items: center; gap: 4px;">
             <span style="width: 5px; height: 5px; background-color: #10B981; border-radius: 50%; display: inline-block;"></span>
-            Niali, 754004 â€¢ à¬®à­‹à¬¬à¬¾à¬‡à¬²à­ â€¢ à¬¸à¬‰à¬¦à¬¾
+            Niali, 754004 • ମୋବାଇଲ୍ • ସଉଦା
           </p>
         </div>
       </div>
-      <!-- Right: Download App button â€” yellow capsule -->
+      <!-- Right: Download App button — yellow capsule -->
       <a id="appDownloadBtn" href="/munagrocery.apk" download="munagrocery.apk" style="text-decoration: none; flex-shrink: 0;" onclick="downloadAndroidApp(); return false;" title="Download App">
         <div style="background: linear-gradient(180deg, #FDB813 0%, #F59E0B 100%); padding: 5px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 10px rgba(245, 158, 11, 0.5); cursor: pointer;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="#1e3a1e">
@@ -31,7 +31,7 @@
           </svg>
         </div>
       </a>
-      <!-- Clean header: store identity ONLY â€” Language / Login / Admin lock
+      <!-- Clean header: store identity ONLY — Language / Login / Admin lock
            all moved to the Profile screen (see #profileScreen below). -->
     </div>
 
@@ -43,20 +43,20 @@
 
     <!-- 2 option chips: Home Delivery (with time) + Store Pickup availability
          (each chip is HIDDEN automatically when the admin turns that option
-         OFF â€” see renderDeliveryTiming) -->
+         OFF — see renderDeliveryTiming) -->
     <div class="max-w-md mx-auto mt-2 grid grid-cols-2 gap-2">
       <div id="homeDeliveryBox" class="rounded-xl bg-white border border-emerald-200 px-2 py-1.5 flex items-center gap-1.5 shadow-xs">
         <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0"><i class="ph-bold ph-truck"></i></div>
         <div class="min-w-0">
           <span class="block text-[10px] font-black text-slate-800 leading-tight">Home Delivery</span>
-          <span id="homeBoxTiming" class="block text-[9px] font-bold text-emerald-700 truncate">à¬†à¬œà¬¿ Â· 1 hour</span>
+          <span id="homeBoxTiming" class="block text-[9px] font-bold text-emerald-700 truncate">ଆଜି · 1 hour</span>
         </div>
       </div>
       <div id="homePickupBox" class="rounded-xl bg-white border border-blue-200 px-2 py-1.5 flex items-center gap-1.5 shadow-xs">
         <div class="w-7 h-7 rounded-full bg-blue-100 text-[#1864ab] flex items-center justify-center shrink-0"><i class="ph-bold ph-storefront"></i></div>
         <div class="min-w-0">
           <span class="block text-[10px] font-black text-slate-800 leading-tight">Store Pickup</span>
-          <span id="homePickupState" class="block text-[9px] font-bold text-[#1864ab] truncate">à¬‰à¬ªà¬²à¬¬à­à¬§ âœ…</span>
+          <span id="homePickupState" class="block text-[9px] font-bold text-[#1864ab] truncate">ଉପଲବ୍ଧ ✅</span>
         </div>
       </div>
     </div>
@@ -68,11 +68,11 @@
         <input 
           type="text" 
           id="searchInput" 
-          placeholder="à¬®à­‹à¬¬à¬¾à¬‡à¬²à­, à¬šà¬¾à¬°à­à¬œà¬° à¬•à¬¿à¬®à­à¬¬à¬¾ à¬—à­à¬°à­‹à¬¸à¬°à­€ à¬¸à¬¨à­à¬§à¬¾à¬¨ à¬•à¬°à¬¨à­à¬¤à­..."
+          placeholder="ମୋବାଇଲ୍, ଚାର୍ଜର କିମ୍ବା ଗ୍ରୋସରୀ ସନ୍ଧାନ କରନ୍ତୁ..."
           oninput="handleSearch(this.value)"
           class="w-full pl-9 pr-16 py-2 bg-white text-slate-800 text-xs rounded-xl shadow-xs border border-transparent focus:border-yellow-400 outline-none placeholder:text-slate-400 font-medium"
         >
-        <button onclick="openScanner('customer')" title="à¬¬à¬¾à¬°à¬•à­‹à¬¡à­ / QR à¬¸à­à¬•à¬¾à¬¨à­ à¬•à¬°à¬¨à­à¬¤à­" class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[#1864ab]">
+        <button onclick="openScanner('customer')" title="ବାରକୋଡ୍ / QR ସ୍କାନ୍ କରନ୍ତୁ" class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[#1864ab]">
           <i class="ph-bold ph-barcode text-base"></i>
         </button>
         <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -103,7 +103,7 @@
           <h3 id="adminNoticeTitleEl" class="text-xs font-black text-amber-900 leading-tight mb-1"></h3>
           <p id="adminNoticeTextEl" class="text-[10px] text-slate-700 font-medium leading-snug"></p>
           <div class="mt-2 flex items-center justify-between w-full">
-            <span class="text-[9px] font-bold text-amber-600">ðŸ“¢ à¬¨à­‚à¬¤à¬¨ à¬…à¬«à¬°à­ / à¬…à¬ªà¬¡à­‡à¬Ÿà­ â€” à¬•à­à¬²à¬¿à¬•à­ à¬•à¬°à¬¨à­à¬¤à­</span>
+            <span class="text-[9px] font-bold text-amber-600">📢 ନୂତନ ଅଫର୍ / ଅପଡେଟ୍ — କ୍ଲିକ୍ କରନ୍ତୁ</span>
             <i class="ph-bold ph-arrow-right text-[10px] text-amber-600"></i>
           </div>
         </div>
@@ -122,10 +122,10 @@
         <h3 id="adminNoticeDetailTitle" class="text-sm font-bold text-slate-900 mb-1"></h3>
         <p id="adminNoticeDetailText" class="text-xs text-slate-600 mb-4 leading-relaxed"></p>
         <button onclick="openAdminNoticeUrl()" class="w-full py-2.5 bg-[#1864ab] text-white text-xs font-bold rounded-xl shadow-md hover:bg-blue-600 flex items-center justify-center gap-2">
-          <i class="ph-bold ph-link-simple"></i> <span id="adminNoticeUrlLabel">à¬²à¬¿à¬™à­à¬•à­ à¬–à­‹à¬²à¬¨à­à¬¤à­</span>
+          <i class="ph-bold ph-link-simple"></i> <span id="adminNoticeUrlLabel">ଲିଙ୍କ୍ ଖୋଲନ୍ତୁ</span>
         </button>
         <button onclick="closeAdminNoticeDetail()" class="w-full py-2 mt-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl">
-          à¬¬à¬¨à­à¬¦ à¬•à¬°à¬¨à­à¬¤à­
+          ବନ୍ଦ କରନ୍ତୁ
         </button>
       </div>
     </div>
@@ -136,7 +136,7 @@
     <div class="flex items-center justify-between mb-2">
       <h3 class="text-xs font-extrabold text-slate-800 flex items-center gap-1">
         <i class="ph-fill ph-fire text-rose-500"></i>
-        <span>ðŸ”¥ Trending Offers (à¬Ÿà­à¬°à­‡à¬£à­à¬¡à¬¿à¬‚ à¬…à¬«à¬°à­)</span>
+        <span>🔥 Trending Offers (ଟ୍ରେଣ୍ଡିଂ ଅଫର୍)</span>
       </h3>
       <span id="trendingCount" class="text-[11px] font-semibold text-slate-500"></span>
     </div>
@@ -153,15 +153,15 @@
     <div class="flex items-center justify-between mb-2">
       <h3 class="text-xs font-extrabold text-slate-800 flex items-center gap-1">
         <i class="ph-fill ph-fire text-rose-500"></i>
-        <span id="lblSectionTitle">à¬²à­‹à¬•à¬ªà­à¬°à¬¿à­Ÿ à¬¸à¬¾à¬®à¬—à­à¬°à­€ (BEST OFFERS & DEALS)</span>
+        <span id="lblSectionTitle">ଲୋକପ୍ରିୟ ସାମଗ୍ରୀ (BEST OFFERS & DEALS)</span>
       </h3>
-      <span id="productCountBadge" class="text-[11px] font-semibold text-slate-500">0 à¬Ÿà¬¿ à¬¸à¬¾à¬®à¬—à­à¬°à­€</span>
+      <span id="productCountBadge" class="text-[11px] font-semibold text-slate-500">0 ଟି ସାମଗ୍ରୀ</span>
     </div>
     <div id="grid" class="grid grid-cols-2 gap-2.5"></div>
     <div id="emptyView" class="hidden py-12 text-center">
       <i class="ph-bold ph-magnifying-glass text-4xl text-slate-300 mx-auto mb-2"></i>
-      <h4 class="font-bold text-slate-700 text-sm">à¬•à­Œà¬£à¬¸à¬¿ à¬¸à¬¾à¬®à¬—à­à¬°à­€ à¬®à¬¿à¬³à¬¿à¬²à¬¾ à¬¨à¬¾à¬¹à¬¿à¬</h4>
-      <p class="text-xs text-slate-400 mt-1">à¬…à¬¨à­à­Ÿ à¬•à¬¿à¬›à¬¿ à¬¶à¬¬à­à¬¦ à¬–à­‹à¬œà¬¨à­à¬¤à­à¥¤</p>
+      <h4 class="font-bold text-slate-700 text-sm">କୌଣସି ସାମଗ୍ରୀ ମିଳିଲା ନାହିଁ</h4>
+      <p class="text-xs text-slate-400 mt-1">ଅନ୍ୟ କିଛି ଶବ୍ଦ ଖୋଜନ୍ତୁ।</p>
     </div>
   </main>
 
@@ -174,39 +174,39 @@
           <span id="floatingCartBadge" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#f59f00] text-slate-950 text-[10px] font-black flex items-center justify-center border-2 border-[#0c5273]">0</span>
         </div>
         <div>
-          <span class="text-[10px] text-blue-200 font-bold block leading-none">à¬®à­‹à¬Ÿ à¬®à­‚à¬²à­à­Ÿ</span>
+          <span class="text-[10px] text-blue-200 font-bold block leading-none">ମୋଟ ମୂଲ୍ୟ</span>
           <span id="floatingCartTotal" class="text-sm font-black text-white mt-0.5">Rs.0</span>
         </div>
       </div>
       <button onclick="openCartDrawer()" class="px-4 py-2 rounded-xl bg-[#ffd43b] hover:bg-yellow-400 text-slate-950 font-extrabold text-xs shadow-md active:scale-95 transition-all flex items-center gap-1.5">
-        <span>à¬•à¬¾à¬°à­à¬Ÿ à¬¦à­‡à¬–à¬¨à­à¬¤à­ / Checkout</span>
+        <span>କାର୍ଟ ଦେଖନ୍ତୁ / Checkout</span>
         <i class="ph-bold ph-arrow-right"></i>
       </button>
     </div>
   </div>
 
-    <!-- ================= FLIPKART STYLE BOTTOM NAV â€” à¬¸à¬¬à­ à¬ªà­‡à¬œà¬°à­‡ à¬¸à­à¬¥à¬¿à¬° à¬¤à¬³ à¬¬à¬Ÿà¬¨ (Home / Orders / Cart / Address / Profile) ================= -->
-    <!-- à¬•à¬¾à¬¹à¬¿à¬à¬•à¬¿ z-[70]? à¬•à¬¾à¬°à¬£ Product Detail à¬¸à­à¬•à­à¬°à¬¿à¬¨ z-[60] à¬…à¬Ÿà­‡ â€” à¬à¬¹à¬¾ à¬¨à¬¥à¬¿à¬²à­‡ à¬¤à¬³ à¬¬à¬Ÿà¬¨ à¬ªà­à¬°à­‹à¬¡à¬•à­à¬Ÿ à¬ªà­‡à¬œ à¬­à¬¿à¬¤à¬°à­‡ à¬²à­à¬šà¬¿à¬¯à¬¿à¬¬ -->
+    <!-- ================= FLIPKART STYLE BOTTOM NAV — ସବୁ ପେଜରେ ସ୍ଥିର ତଳ ବଟନ (Home / Orders / Cart / Address / Profile) ================= -->
+    <!-- କାହିଁକି z-[70]? କାରଣ Product Detail ସ୍କ୍ରିନ z-[60] ଅଟେ — ଏହା ନଥିଲେ ତଳ ବଟନ ପ୍ରୋଡକ୍ଟ ପେଜ ଭିତରେ ଲୁଚିଯିବ -->
     <nav id="bottomNav" class="fixed bottom-0 left-0 right-0 z-[70] bg-white border-t border-[#e2e8f0] shadow-2xl" style="height: calc(54px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);">
     <div class="max-w-md mx-auto grid grid-cols-5 text-[10px] font-bold text-slate-500 h-[54px]">
       <button onclick="closeProductDetail();showScreen('home')" data-nav="home" class="nav-btn flex flex-col items-center justify-center gap-0.5 text-[#1864ab]">
-        <i class="ph-bold ph-house text-[12px]"></i><span>à¬¹à­‹à¬®à­ (Home)</span>
+        <i class="ph-bold ph-house text-[12px]"></i><span>ହୋମ୍ (Home)</span>
       </button>
       <button onclick="closeProductDetail();showScreen('orders')" data-nav="orders" class="nav-btn flex flex-col items-center justify-center gap-0.5">
-        <i class="ph-bold ph-receipt text-[12px]"></i><span>à¬…à¬°à­à¬¡à¬° (Orders)</span>
+        <i class="ph-bold ph-receipt text-[12px]"></i><span>ଅର୍ଡର (Orders)</span>
       </button>
       <button onclick="closeProductDetail();openCartDrawer()" data-nav="cart" class="nav-btn flex flex-col items-center justify-center gap-0.5 relative">
         <span class="relative">
           <i class="ph-bold ph-shopping-cart text-[12px]"></i>
           <span id="navCartBadge" class="hidden absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[8px] font-black flex items-center justify-center border border-white">0</span>
         </span>
-        <span>à¬•à¬¾à¬°à­à¬Ÿ (Cart)</span>
+        <span>କାର୍ଟ (Cart)</span>
       </button>
       <button onclick="closeProductDetail();showScreen('address')" data-nav="address" class="nav-btn flex flex-col items-center justify-center gap-0.5">
-        <i class="ph-bold ph-map-pin text-[12px]"></i><span>à¬ à¬¿à¬•à¬£à¬¾ (Address)</span>
+        <i class="ph-bold ph-map-pin text-[12px]"></i><span>ଠିକଣା (Address)</span>
       </button>
       <button onclick="closeProductDetail();showScreen('profile')" data-nav="profile" class="nav-btn flex flex-col items-center justify-center gap-0.5">
-        <i class="ph-bold ph-user-circle text-[12px]"></i><span>à¬ªà­à¬°à­‹à¬«à¬¾à¬‡à¬²à­ (Profile)</span>
+        <i class="ph-bold ph-user-circle text-[12px]"></i><span>ପ୍ରୋଫାଇଲ୍ (Profile)</span>
       </button>
     </div>
   </nav>
