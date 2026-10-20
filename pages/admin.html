@@ -246,6 +246,28 @@
             </p>
           </div>
 
+          <!-- App Download Link — update the APK URL shown on the Home page -->
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">
+              <i class="ph-bold ph-download-simple text-[#1864ab]"></i> 📱 App Download Link (Android APK)
+            </h4>
+            <p class="text-[10px] text-slate-500 leading-snug">
+              ହୋମ୍ ପେଜ୍ ର ଡାହାଣ ପାଖରେ "Download App" ବଟନ୍ ଦେଖାଯିବ (କେବଳ ୱେବ୍‌ସାଇଟ୍‌ରେ, ଆପ୍ ଭିତରେ ନୁହେଁ)। ଏଠାରେ ନୂଆ APK ଲିଙ୍କ୍ ପରିବର୍ତ୍ତନ କଲେ ସମସ୍ତଙ୍କ ପାଖରେ ସେହି ଲିଙ୍କ୍ ଦେଖାଯିବ।
+            </p>
+            <input type="text" id="apkLinkInput" placeholder="https://munagrocery.in/munagrocery.apk"
+                   class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="saveApkLink()" class="flex-1 py-2 bg-[#1864ab] hover:bg-blue-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1">
+                <i class="ph-bold ph-floppy-disk"></i> ସେଭ୍ କରନ୍ତୁ (Update Link)
+              </button>
+              <button type="button" onclick="resetApkLink()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg">Reset</button>
+            </div>
+            <p id="apkLinkStatus" class="hidden text-[10px] font-bold"></p>
+            <p class="text-[9px] text-slate-400 leading-snug">
+              ଲିଙ୍କ୍ ସେଭ୍ ହେଲେ ସମସ୍ତ ଗ୍ରାହକଙ୍କ ହୋମ୍ ପେଜ୍ ରେ 2 ମିନିଟ୍ ମଧ୍ୟରେ ନୂଆ ଲିଙ୍କ୍ ଦେଖାଯିବ। ଡିଫଲ୍ଟ: <code class="text-[9px]">https://munagrocery.in/munagrocery.apk</code>
+            </p>
+          </div>
+
           <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
             <h4 class="text-xs font-black text-slate-700">📢 ୫-ସ୍ଲାଇଡ୍ ପ୍ରମୋସନ୍ ବ୍ୟାନର୍ ମ୍ୟାନେଜର୍</h4>
             <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">

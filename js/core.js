@@ -431,3 +431,57 @@
       window.location.href = _adminNotice.url;
     }
 
+    // ====================================================================
+    // 📱 APP DOWNLOAD FLOATING BUTTON — shows ONLY on the webpage
+    // (not inside the native Android app). Admin can update the APK link
+    // anytime via the Sheet webhook (action=GET_CONFIG -> app_download_url).
+    // Fallback: built-in GitHub Pages APK URL.
+    // ====================================================================
+    var MUNNA_DEFAULT_APK_URL = 'https://munagrocery.in/munagrocery.apk';
+    var _apkUrl = MUNNA_DEFAULT_APK_URL;
+    var _apkVersion = '';
+    // Restore the locally-cached APK link so the button works even offline.
+    try {
+      var cachedApk = (localStorage.getItem('munna_apk_url') || '').trim();
+      if (cachedApk) _apkUrl = cachedApk;
+    } catch (eApkCache) {}
+
+    function isNativeApp_() {
+      return !!(window.MunnaOrderBridge &&
+                typeof window.MunnaOrderBridge.showNotification === 'function');
+    }
+
+    function updateAppDownloadVisibility_() {
+      var btn = document.getElementById('appDownloadBtn');
+      if (!btn) return;
+      // Hidden inside the native app; shown only in a normal browser/PWA tab.
+      if (isNativeApp_()) { btn.classList.add('hidden'); return; }
+      btn.classList.remove('hidden');
+    }
+
+    function downloadAndroidApp() {
+      try { window.open(_apkUrl, '_blank'); } catch (e) { window.location.href = _apkUrl; }
+    }
+
+    // Fetch the admin-updated APK link from the Sheet Config tab
+    // (key: app_download_url). Falls back to the built-in default.
+    function fetchApkLink_() {
+      var hook = window.munnaHookBase ? window.munnaHookBase() : '';
+      if (!hook) return;
+      fetch(hook + (hook.indexOf('?') >= 0 ? '&' : '?') + 'action=GET_CONFIG&_=' + Date.now(),
+            { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var cfg = (d && d.config) || {};
+          var u = String(cfg.app_download_url || '').trim();
+          if (u) _apkUrl = u;
+          var v = String(cfg.app_version || '').trim();
+          if (v) {
+            _apkVersion = v;
+            var sub = document.querySelector('#appDownloadBtn .text-\\[9px\\]');
+            if (sub) sub.innerText = 'Android APK · v' + v + ' · ମାଗଣା';
+          }
+        })
+        .catch(function () {});
+    }
+

@@ -467,3 +467,50 @@
       btn.innerHTML = '<i class="ph-bold ph-link-simple"></i> Generate Link';
     }
 
+    // --- APP DOWNLOAD LINK (Android APK URL) — shown on Home as a floating
+    // "Download App" button (webpage only, hidden inside the native app).
+    // Saved to the shared Sheet Config tab (key: app_download_url) so a new
+    // app version is instantly visible to every customer within ~2 minutes.
+    // -------------------------------------------------------------------
+    function showApkLinkStatus_(msg, ok) {
+      var el = document.getElementById('apkLinkStatus');
+      if (!el) return;
+      el.classList.remove('hidden');
+      el.style.color = ok ? '#059669' : '#e11d48';
+      el.innerText = msg;
+    }
+
+    // Prefill the input with the CURRENT link whenever the Banners tab opens.
+    function fillApkLinkInput_() {
+      var el = document.getElementById('apkLinkInput');
+      if (el && !el.value) el.value = (typeof _apkUrl !== 'undefined' && _apkUrl) ? _apkUrl : MUNNA_DEFAULT_APK_URL;
+    }
+
+    function saveApkLink() {
+      if (!isAdmin_()) { openAdminModal(); return; }
+      var el = document.getElementById('apkLinkInput');
+      var url = el ? el.value.trim() : '';
+      if (!url) { showApkLinkStatus_('❌ ପ୍ରଥମେ APK ଲିଙ୍କ୍ ଦିଅନ୍ତୁ!', false); return; }
+      if (!/^https?:\/\//i.test(url)) { showApkLinkStatus_('❌ ଲିଙ୍କ୍ http/https ରୁ ଆରମ୍ଭ ହେବା ଉଚିତ୍।', false); return; }
+      // Save to the shared Sheet Config tab so ALL customer devices pick it up.
+      var ok = pushConfigToSheet('app_download_url', url);
+      // Also update the local copy so THIS device sees the new link immediately.
+      _apkUrl = url;
+      try { localStorage.setItem('munna_apk_url', url); } catch (e) {}
+      if (ok) {
+        showApkLinkStatus_('✅ ଲିଙ୍କ୍ ସେଭ୍ ହେଲା! ସମସ୍ତ ଗ୍ରାହକ ହୋମ୍ ପେଜ୍ ରେ 2 ମିନିଟ୍ ମଧ୍ୟରେ ନୂଆ ଲିଙ୍କ୍ ପାଇବେ।', true);
+      } else {
+        showApkLinkStatus_('⚠️ ଲିଙ୍କ୍ ଏହି ଫୋନ୍ ରେ ସେଭ୍ ହେଲା, କିନ୍ତୁ Sheet ରେ ପହଞ୍ଚିଲା ନାହିଁ। Apps Script ନୂଆ version Deploy କରନ୍ତୁ (SAVE_CONFIG ଦରକାର)।', false);
+      }
+    }
+
+    function resetApkLink() {
+      if (!confirm('APK ଲିଙ୍କ୍ ଡିଫଲ୍ଟ ରେ ଫେରାଇବେ?')) return;
+      _apkUrl = MUNNA_DEFAULT_APK_URL;
+      try { localStorage.removeItem('munna_apk_url'); } catch (e) {}
+      var el = document.getElementById('apkLinkInput');
+      if (el) el.value = MUNNA_DEFAULT_APK_URL;
+      pushConfigToSheet('app_download_url', MUNNA_DEFAULT_APK_URL); // also clear server-side
+      showApkLinkStatus_('✅ ଡିଫଲ୍ଟ ଲିଙ୍କ୍ ରେ ଫେରିଗଲା।', true);
+    }
+

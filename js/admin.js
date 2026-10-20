@@ -170,7 +170,7 @@
       if (t === 'orders') renderAdminOrders();
       if (t === 'users') { renderAdminUsers(); syncUsersFromSheet(); }
       if (t === 'stock') { renderAdminList(); renderStockHealth(); }
-      if (t === 'banners') renderAdminBanners();
+      if (t === 'banners') { renderAdminBanners(); try { fillApkLinkInput_(); } catch (eApk) {} }
       if (t === 'settings') fillShopSettingsInputs();
     }
 

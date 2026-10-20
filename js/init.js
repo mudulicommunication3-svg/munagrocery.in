@@ -39,7 +39,11 @@
       syncBannersFromSheet();
       // Customer-side admin broadcast notice (image + text, clickable).
       fetchAdminNotice();
-      setInterval(function () { syncBannersFromSheet(); syncFromGoogleSheet(); fetchAdminNotice(); }, 120000);
+      // App download floating button (webpage only) + fetch the admin-updated
+      // APK link so a new app version is always one tap away.
+      updateAppDownloadVisibility_();
+      fetchApkLink_();
+      setInterval(function () { syncBannersFromSheet(); syncFromGoogleSheet(); fetchAdminNotice(); fetchApkLink_(); }, 120000);
       // Shared-database sync: Telegram (bot) orders + saved addresses, then
       // keep refreshing so stage/status changes made in the bot show up here.
       // Admin/full-store devices use a faster sync managed by

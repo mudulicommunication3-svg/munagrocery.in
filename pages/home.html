@@ -148,6 +148,17 @@
     </div>
   </main>
 
+  <!-- ================= APP DOWNLOAD FLOATING BUTTON (webpage only — hidden inside the native app) ================= -->
+  <div id="appDownloadBtn" class="hidden fixed right-3 z-[65] flex items-center gap-2.5 bg-[#0c5273] text-white rounded-full pl-2 pr-4 py-2 shadow-xl border border-white/10 active:scale-95 transition-all" style="bottom: calc(66px + env(safe-area-inset-bottom, 0px));" onclick="downloadAndroidApp()">
+    <div class="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center shrink-0 overflow-hidden">
+      <img src="icon-192.png" alt="App" class="w-9 h-9 object-cover rounded-full">
+    </div>
+    <div class="leading-tight">
+      <span class="block text-[11px] font-extrabold">Download App</span>
+      <span class="block text-[9px] text-blue-200 font-semibold">Android APK · ମାଗଣା</span>
+    </div>
+  </div>
+
   <!-- ================= FLOATING CART BAR (JioMart-style, only when items) ================= -->
   <div id="floatingCartBar" class="hidden fixed left-0 right-0 z-[45] mx-3 bg-[#0c5273] shadow-xl" style="bottom: calc(58px + env(safe-area-inset-bottom, 0px)); border-radius: 16px;">
     <div class="max-w-md mx-auto px-4 py-2.5 flex items-center justify-between">
