@@ -2,26 +2,24 @@
   <header class="bg-[#1864ab] text-white px-4 sticky top-0 z-40 shadow-sm" style="padding-top: calc(env(safe-area-inset-top, 0px) + 8px); padding-bottom: 12px;">
     <div class="max-w-md mx-auto flex items-center justify-between gap-2">
       <!-- Left: Clean rounded logo + store name -->
-      <div onclick="showScreen('home')" class="flex items-center gap-2.5 cursor-pointer select-none min-w-0">
+      <div onclick="showScreen('home')" class="flex items-center gap-2 cursor-pointer select-none min-w-0 flex-1">
         <div class="w-10 h-10 rounded-xl bg-[#ffd43b] text-slate-950 font-black text-2xl flex items-center justify-center shadow-xs shrink-0">
           M
         </div>
         <div class="min-w-0">
-          <h1 id="lblStoreName" class="font-extrabold text-sm leading-tight truncate">ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ</h1>
+          <!-- Removed truncate so the shop name shows fully instead of ending with ... -->
+          <h1 id="lblStoreName" class="font-extrabold text-sm leading-tight">ମୁନ୍ନା ମୋବାଇଲ୍ ଆଣ୍ଡ୍ ଗ୍ରୋସରୀ</h1>
           <p id="lblStoreSub" class="text-[10px] text-blue-100 flex items-center gap-1 font-medium">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             <span>Niali, 754004 • ମୋବାଇଲ୍ • ସଉଦା</span>
           </p>
         </div>
       </div>
-      <!-- Right: Download App button (webpage only — hidden inside the native
-           app). Yellow pill matching the store logo brand color, with Android
-           icon + DOWNLOAD APP text + download arrow, like your reference.
-           Brand name on the left stays fully visible. -->
-      <a id="appDownloadBtn" href="/munagrocery.apk" download="munagrocery.apk" class="hidden flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 border border-amber-200 rounded-full px-3 py-1.5 cursor-pointer active:scale-95 transition-all shrink-0 no-underline text-white font-bold" onclick="downloadAndroidApp(); return false;" title="Download App">
-        <span class="text-xs">🤖</span>
-        <span class="text-[10px] font-black tracking-tight">DOWNLOAD APP</span>
-        <span class="text-xs">⬇</span>
+      <!-- Right: Download App button (webpage only — hidden inside the native app). -->
+      <a id="appDownloadBtn" href="/munagrocery.apk" download="munagrocery.apk" class="hidden flex items-center gap-1 bg-amber-400 hover:bg-amber-300 border border-amber-200 rounded-full px-2 py-1 cursor-pointer active:scale-95 transition-all shrink-0 no-underline text-[10px] font-black tracking-tight" onclick="downloadAndroidApp(); return false;" title="Download App">
+        <span class="text-[10px]">🤖</span>
+        <span>DOWNLOAD APP</span>
+        <span class="text-[10px]">⬇</span>
       </a>
       <!-- Clean header: store identity ONLY — Language / Login / Admin lock
            all moved to the Profile screen (see #profileScreen below). -->
