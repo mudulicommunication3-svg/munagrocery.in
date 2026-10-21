@@ -349,12 +349,16 @@
         var closedOpenTime = document.getElementById('homeStoreClosedOpenTime');
         if (closedBanner) {
           closedBanner.classList.remove('hidden'); // show the banner
-          var nextOpen = nextOpenTimeText_();
+          var closedOpenTime = document.getElementById('homeStoreClosedOpenTime');
           if (closedOpenTime) {
-            if (manualClosed) {
+            // Use admin-editable message if set, otherwise fall back to default.
+            var customMsg = shopConfig.storeClosedMessage || '';
+            if (customMsg) {
+              closedOpenTime.textContent = customMsg;
+            } else if (manualClosed) {
               closedOpenTime.textContent = 'ଦୋକାନୀ ଦୋକାନ ବନ୍ଦ ରଖିଛନ୍ତି — ଖୋଲିବା ପରେ ଅର୍ଡର କରନ୍ତୁ';
             } else {
-              closedOpenTime.textContent = 'ଡେଲିଭରୀ ଆରମ୍ଭ: ' + nextOpen + ' ରେ';
+              closedOpenTime.textContent = 'ଡେଲିଭରୀ ଆରମ୍ଭ: ' + nextOpenTimeText_() + ' ରେ';
             }
           }
         }

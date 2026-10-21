@@ -338,7 +338,7 @@
             <p class="text-[10px] text-slate-400 leading-snug">✅ ଥରେ ସେଭ୍ କଲେ ସମସ୍ତଙ୍କ ଫୋନ୍ ରେ ଲାଗୁ (Config tab)। Cart ରେ ଗ୍ରାହକ କୁପନ୍ apply କରିପାରିବେ।</p>
           </div>
 
-          <!-- Store Open / Closed Status (top-level) -->
+          <!-- Store Open / Closed Toggle -->
           <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-amber-50 border border-amber-200">
             <div class="flex items-center gap-2">
               <i class="ph-bold ph-storefront text-amber-600"></i>
@@ -360,13 +360,20 @@
             <div>
               <label class="text-[11px] font-bold text-slate-700">Open Time</label>
               <input type="time" id="setStoreOpenTime" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
-              <p class="text-[10px] text-slate-400 leading-snug mt-0.5">ଦୋକାନ ଖୋଲିବାର ସମୟ (default: 10:00 AM)</p>
+              <p class="text-[10px] text-slate-400 leading-snug mt-0.5">Default: 10:00 AM</p>
             </div>
             <div>
               <label class="text-[11px] font-bold text-slate-700">Close Time</label>
               <input type="time" id="setStoreCloseTime" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
-              <p class="text-[10px] text-slate-400 leading-snug mt-0.5">ଦୋକାନ ବନ୍ଦ ହେବାର ସମୟ (default: 09:00 PM)</p>
+              <p class="text-[10px] text-slate-400 leading-snug mt-0.5">Default: 09:00 PM</p>
             </div>
+          </div>
+
+          <!-- Editable Closed Banner Message -->
+          <div class="mt-2">
+            <label class="text-[11px] font-bold text-slate-700">Closed Banner Message (Odia)</label>
+            <input type="text" id="setStoreClosedMessage" placeholder="ଦୋକାନ ବନ୍ଦ ଅଛି..." class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            <p class="text-[10px] text-slate-400 leading-snug mt-0.5">ଦୋକାନ ବନ୍ଦ ଥିଲେ ହୋମ ପେଜରେ କ’ଣ ଦେଖାଇବେ ସେହି ମେସେଜ୍ ଏହିପରି ସେଟ୍ କରନ୍ତୁ</p>
           </div>
 
           <!-- Checkout & Delivery Settings: COD + Store Pickup toggles (shared Config) -->

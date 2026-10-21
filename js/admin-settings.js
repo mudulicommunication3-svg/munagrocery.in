@@ -131,6 +131,10 @@
       if (typeof cfg.store_close_time === 'string' && cfg.store_close_time.trim()) {
         shopConfig.storeCloseTime = cfg.store_close_time.trim();
       }
+      // Editable closed banner message.
+      if (cfg.store_open_message !== undefined) {
+        shopConfig.storeClosedMessage = String(cfg.store_open_message || '').trim();
+      }
       renderTrending();
       updateBillingSummary();
       try { renderDeliveryTiming(); } catch (eDT) {}
@@ -173,7 +177,10 @@
       var soT = document.getElementById('setStoreOpen');
       if (soT) soT.checked = !!shopConfig.storeOpen;
       f('setStoreOpenTime', shopConfig.storeOpenTime || '10:00');
-      f('setStoreCloseTime', shopConfig.storeCloseTime || '22:00');
+      f('setStoreCloseTime', shopConfig.storeCloseTime || '21:00');
+      // Editable closed banner message.
+      var scm = document.getElementById('setStoreClosedMessage');
+      if (scm) scm.value = shopConfig.storeClosedMessage || '';
     }
 
     // Read the Checkout & Delivery Settings card into shopConfig.
@@ -212,7 +219,10 @@
       var sot = document.getElementById('setStoreOpenTime');
       if (sot) shopConfig.storeOpenTime = sot.value || '10:00';
       var sct = document.getElementById('setStoreCloseTime');
-      if (sct) shopConfig.storeCloseTime = sct.value || '22:00';
+      if (sct) shopConfig.storeCloseTime = sct.value || '21:00';
+      // Editable closed banner message.
+      var scm = document.getElementById('setStoreClosedMessage');
+      if (scm) shopConfig.storeClosedMessage = scm.value.trim();
     }
 
     function saveShopSettings(quiet) {
@@ -244,6 +254,7 @@
       ok = pushConfigToSheet('store_open', shopConfig.storeOpen ? '1' : '0') && ok;
       ok = pushConfigToSheet('store_open_time', shopConfig.storeOpenTime || '10:00') && ok;
       ok = pushConfigToSheet('store_close_time', shopConfig.storeCloseTime || '21:00') && ok;
+      ok = pushConfigToSheet('store_open_message', shopConfig.storeClosedMessage || '') && ok;
       ok = pushConfigToSheet('pickup_charge_on', shopConfig.pickupChargeOn ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_fee', shopConfig.pickupChargeFee || 0) && ok;
       updateBillingSummary();
@@ -266,7 +277,7 @@
       };
       ['setDeliveryFee', 'setFreeAbove', 'setCouponCode', 'setCouponPercent', 'setCouponMinBill',
        'setCodNotice', 'setPickupNote', 'setPickupChargeFee',
-       'setStoreOpenTime', 'setStoreCloseTime'].forEach(function (id) {
+       'setStoreOpenTime', 'setStoreCloseTime', 'setStoreClosedMessage'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el || !el.addEventListener) return;
         el.addEventListener('input', schedule);

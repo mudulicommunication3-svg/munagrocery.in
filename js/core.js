@@ -61,10 +61,12 @@
       // When false, home page shows "ଦୋକାନ ବନ୍ଦ" banner and hides
       // delivery/pickup chips (date + timing removed).
       storeOpen: true,
-      // Store Service Hours — default 10 AM to 10 PM, every day.
+      // Store Service Hours — default 10 AM to 9 PM, every day.
       // Admin can toggle ON/OFF and change open/close times.
       storeOpenTime: '10:00',     // HH:MM 24h — default 10:00 (10 AM)
-      storeCloseTime: '22:00'     // HH:MM 24h — default 22:00 (10 PM)
+      storeCloseTime: '21:00',    // HH:MM 24h — default 21:00 (9 PM)
+      // Editable closed banner message shown on home page when store is closed.
+      storeClosedMessage: ''
     };
     let appliedCoupon = ''; // coupon code applied inside the cart
     try {
@@ -93,6 +95,7 @@
         if (typeof cachedCfg.storeOpen === 'boolean') shopConfig.storeOpen = cachedCfg.storeOpen;
         if (typeof cachedCfg.storeOpenTime === 'string') shopConfig.storeOpenTime = cachedCfg.storeOpenTime;
         if (typeof cachedCfg.storeCloseTime === 'string') shopConfig.storeCloseTime = cachedCfg.storeCloseTime;
+        if (typeof cachedCfg.storeClosedMessage === 'string') shopConfig.storeClosedMessage = cachedCfg.storeClosedMessage;
       }
     } catch (e) {}
 
