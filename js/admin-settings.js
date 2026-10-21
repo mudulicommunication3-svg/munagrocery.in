@@ -409,22 +409,31 @@
       row.innerHTML = list.map(function (p) {
         var mrpV = parseFloat(p.mrp) || 0, spV = parseFloat(p.selling_price) || 0;
         var off = mrpV > spV ? Math.round(((mrpV - spV) / mrpV) * 100) : 0;
+        var stockN = parseInt(p.stock_qty, 10); if (isNaN(stockN)) stockN = 10;
         var tq = cart[p.ean] || 0;
         var qtyCtl = tq > 0
           ? `<div class="flex items-center gap-1 bg-slate-900 text-white rounded-lg px-1 py-0.5">
-               <button onclick="setQty('${p.ean}', ${tq - 1})" class="w-5 h-5 rounded bg-slate-800 flex items-center justify-center"><i class="ph-bold ph-minus text-[10px]"></i></button>
+               <button onclick="event.stopPropagation(); setQty('${p.ean}', ${tq - 1})" class="w-5 h-5 rounded bg-slate-800 flex items-center justify-center"><i class="ph-bold ph-minus text-[10px]"></i></button>
                <span class="text-[11px] font-bold w-4 text-center">${tq}</span>
-               <button onclick="setQty('${p.ean}', ${tq + 1})" class="w-5 h-5 rounded bg-[#1864ab] flex items-center justify-center"><i class="ph-bold ph-plus text-[10px]"></i></button>
+               <button onclick="event.stopPropagation(); setQty('${p.ean}', ${tq + 1})" class="w-5 h-5 rounded bg-[#1864ab] flex items-center justify-center"><i class="ph-bold ph-plus text-[10px]"></i></button>
              </div>`
-          : `<button onclick="setQty('${p.ean}', 1)" class="w-6 h-6 rounded-lg bg-[#1864ab] text-white flex items-center justify-center"><i class="ph-bold ph-plus text-xs"></i></button>`;
+          : `<button onclick="event.stopPropagation(); setQty('${p.ean}', 1)" class="w-6 h-6 rounded-lg bg-[#1864ab] text-white flex items-center justify-center"><i class="ph-bold ph-plus text-xs"></i></button>`;
+        var stockHtml = stockN <= 0
+          ? '<span class="text-[10px] font-extrabold text-rose-600">❌ OUT</span>'
+          : (stockN <= 5
+            ? `<span class="text-[10px] font-extrabold text-amber-600">⚠️ ${stockN}</span>`
+            : `<span class="text-[10px] text-slate-400 font-bold">${stockN}</span>`);
         return `
-        <div class="shrink-0 w-32 bg-white rounded-2xl border border-slate-200 p-2 relative">
+        <div class="shrink-0 w-32 bg-white rounded-2xl border border-slate-200 p-2 relative cursor-pointer" onclick="openProductDetail('${p.ean}')">
           ${off > 0 ? `<span class="absolute top-1.5 left-1.5 bg-rose-600 text-white text-[9px] font-black px-1 py-0.5 rounded">${off}% OFF</span>` : ''}
           <img src="${p.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300'}" class="w-full h-20 object-contain" alt="">
           <p class="text-[10px] font-bold text-slate-800 line-clamp-2 mt-1 leading-tight">${p.product_name}</p>
           <div class="flex items-center justify-between mt-1">
             <span class="text-xs font-black text-[#1864ab]">Rs.${money(p.selling_price)}</span>
             ${qtyCtl}
+          </div>
+          <div class="flex items-center justify-between mt-0.5">
+            <span class="text-[9px] ${stockN <= 0 ? 'text-rose-600' : (stockN <= 5 ? 'text-amber-600' : 'text-slate-400')} font-bold">${stockHtml}</span>
           </div>
         </div>`;
       }).join('');
