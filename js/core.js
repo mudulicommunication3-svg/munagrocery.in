@@ -56,7 +56,11 @@
       deliverySlot: '1 hour',
       // Store Pickup charge (admin toggle; added to the bill when the customer
       // picks Store Pickup at checkout; OFF = free pickup).
-      pickupChargeOn: false, pickupChargeFee: 0
+      pickupChargeOn: false, pickupChargeFee: 0,
+      // Store Open / Closed status — admin sets via Sheet Config tab.
+      // When false, home page shows "ଦୋକାନ ବନ୍ଦ" banner and hides
+      // delivery/pickup chips (date + timing removed).
+      storeOpen: true
     };
     let appliedCoupon = ''; // coupon code applied inside the cart
     try {
@@ -81,6 +85,7 @@
         if (typeof cachedCfg.pickupChargeOn === 'boolean') shopConfig.pickupChargeOn = cachedCfg.pickupChargeOn;
         var pcf = parseFloat(cachedCfg.pickupChargeFee);
         if (!isNaN(pcf)) shopConfig.pickupChargeFee = Math.max(0, pcf);
+        if (typeof cachedCfg.storeOpen === 'boolean') shopConfig.storeOpen = cachedCfg.storeOpen;
       }
     } catch (e) {}
 

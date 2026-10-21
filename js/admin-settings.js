@@ -105,6 +105,13 @@
           shopConfig.deliverySlot = dSlot;
         }
       }
+      // Store Open / Closed status (sheet key: store_open).
+      if (cfg.store_open !== undefined) {
+        shopConfig.storeOpen = !(String(cfg.store_open) === '0' ||
+          String(cfg.store_open).toLowerCase() === 'false' ||
+          String(cfg.store_open).toLowerCase() === 'inactive' ||
+          String(cfg.store_open).toLowerCase() === 'closed');
+      }
       // Store Pickup charge toggle + amount.
       if (cfg.pickup_charge_on !== undefined) {
         shopConfig.pickupChargeOn = !(String(cfg.pickup_charge_on) === '0' ||
@@ -144,6 +151,10 @@
       // Delivery timing (Home + Cart) + Store Pickup charge.
       f('setDeliveryDay', shopConfig.deliveryDay === 'Tomorrow' ? 'Tomorrow' : 'Today');
       f('setDeliverySlot', shopConfig.deliverySlot || '1 hour');
+      var soT = document.getElementById('setStoreOpen');
+      if (soT) soT.checked = !!shopConfig.storeOpen;
+      var soStatus = document.getElementById('storeOpenStatusText');
+      if (soStatus) soStatus.innerText = shopConfig.storeOpen ? 'ଦୋକାନ ଖୋଲାଅଛି ✅' : 'ଦୋକାନ ବନ୍ଦ ❌';
       var pcT = document.getElementById('setPickupChargeOn');
       if (pcT) pcT.checked = !!shopConfig.pickupChargeOn;
       f('setPickupChargeFee', shopConfig.pickupChargeFee || 0);
@@ -167,7 +178,9 @@
       shopConfig.pickupSlots = picked.length ? picked : ['30 min', '1 hour', '2 hour'];
       // Delivery timing (day + slot shown on Home & Cart).
       var dDay = document.getElementById('setDeliveryDay');
-      if (dDay) shopConfig.deliveryDay = (dDay.value === 'Tomorrow') ? 'Tomorrow' : 'Today';
+      if (dDay) shopConfig.deliveryDay = (dDay.value === 'Tomorrow' ? 'Tomorrow' : 'Today');
+      var soT = document.getElementById('setStoreOpen');
+      if (soT) shopConfig.storeOpen = !!soT.checked;
       var dSlot = document.getElementById('setDeliverySlot');
       if (dSlot && ['30 min', '1 hour', '2 hour', '3 hour', '5 hour'].indexOf(dSlot.value) >= 0) {
         shopConfig.deliverySlot = dSlot.value;
@@ -205,6 +218,7 @@
       // Delivery timing (Home + Cart) + Store Pickup charge -> shared Config.
       ok = pushConfigToSheet('delivery_day', shopConfig.deliveryDay === 'Tomorrow' ? 'Tomorrow' : 'Today') && ok;
       ok = pushConfigToSheet('delivery_slot', shopConfig.deliverySlot || '1 hour') && ok;
+      ok = pushConfigToSheet('store_open', shopConfig.storeOpen ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_on', shopConfig.pickupChargeOn ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_fee', shopConfig.pickupChargeFee || 0) && ok;
       updateBillingSummary();
@@ -232,7 +246,7 @@
         el.addEventListener('input', schedule);
       });
       // Toggles + slot checkboxes save on change (they are not text fields).
-      ['setCodActive', 'setPickupActive', 'setPickupChargeOn',
+      ['setCodActive', 'setPickupActive', 'setPickupChargeOn', 'setStoreOpen',
        'setDeliveryDay', 'setDeliverySlot',
        'slotChk_30_min', 'slotChk_1_hour', 'slotChk_2_hour'].forEach(function (id) {
         var el = document.getElementById(id);
@@ -279,6 +293,7 @@
       // Delivery timing (Home + Cart) + Store Pickup charge -> shared Config.
       ok = pushConfigToSheet('delivery_day', shopConfig.deliveryDay === 'Tomorrow' ? 'Tomorrow' : 'Today') && ok;
       ok = pushConfigToSheet('delivery_slot', shopConfig.deliverySlot || '1 hour') && ok;
+      ok = pushConfigToSheet('store_open', shopConfig.storeOpen ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_on', shopConfig.pickupChargeOn ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_fee', shopConfig.pickupChargeFee || 0) && ok;
       // Banners too (if any) so the carousel also syncs.

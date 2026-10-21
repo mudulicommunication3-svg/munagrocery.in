@@ -281,7 +281,23 @@
 
     // Home + Cart: show the admin-set home-delivery timing
     // (Today/Tomorrow · 30 min | 1 hour | 2 hour | 3 hour | 5 hour).
+    // When store is closed (storeOpen === false): hide the date + timing chips
+    // entirely and show the "ଦୋକାନ ବନ୍ଦ" banner on the home page.
     function renderDeliveryTiming() {
+      var storeClosed = shopConfig.storeOpen === false;
+      // Show / hide the store-status banner on the home page.
+      var banner = document.getElementById('storeStatusBanner');
+      if (banner) banner.classList.toggle('hidden', !storeClosed);
+
+      // When store is closed: remove date option from banner — hide ALL chips.
+      if (storeClosed) {
+        var delBox = document.getElementById('homeDeliveryBox');
+        if (delBox) delBox.classList.add('hidden');
+        var pkBox = document.getElementById('homePickupBox');
+        if (pkBox) pkBox.classList.add('hidden');
+        return;
+      }
+
       var day = (shopConfig.deliveryDay === 'Tomorrow') ? 'ଆଉକାଲି' : 'ଆଜି';
       var txt = day + ' · ' + (shopConfig.deliverySlot || '1 hour');
       var set = function (id) {
@@ -417,6 +433,12 @@
     // Rebuild the Delivery Method card from the live admin settings.
     function renderDeliveryOptions() {
       syncCheckoutConfig_();
+      // 🛑 STORE CLOSED: block all delivery/pickup selection with a clear message.
+      if (shopConfig.storeOpen === false) {
+        var stepPay = document.getElementById('stepPayment');
+        if (stepPay) stepPay.innerHTML = '<div class="p-3 rounded-xl bg-rose-50 border border-rose-200"><div class="flex items-center gap-2 text-xs font-bold text-rose-700 mb-1"><i class="ph-bold ph-shield-warning text-rose-600"></i><span>ଦୋକାନ ବନ୍ଦ ଅଛି — ଅର୍ଡର ନାହିଁ</span></div><p class="text-[10px] text-slate-600">ଦୟାକରି ପରବର୍ତ୍ତେ ଚେଷ୍ଟା କରନ୍ତୁ କିମ୍ବା ଦୋକାନୀ ସହ ଯୋଗାଯୋଗ କରନ୍ତୁ。</p></div>';
+        return;
+      }
       var codOn = checkoutPickupCfg.codActive;
       var codRadio = document.getElementById('payCodRadio');
       var codLabel = document.getElementById('codOptionLabel');
@@ -515,6 +537,11 @@
     async function placeMiniOrder() {
       // Ordering requires a logged-in session (browse stays open without it).
       if (!requireLoginForOrder_()) return;
+      // 🛑 STORE CLOSED: block order placement with a clear Odia message.
+      if (shopConfig.storeOpen === false) {
+        alert('❌ ଦୋକାନ ଏବେ ବନ୍ଦ ଅଛି — ଅର୍ଡର କରିବାକୁ ଅନୁମତି ନାହିଁ। ଦୟାକରି ଦୋକାନ ଖୋଲିବା ପରେ ଚେଷ୍ଟା କରନ୍ତୁ।');
+        return;
+      }
       var name = document.getElementById('orderCustName').value.trim() || 'Customer';
       var phone = document.getElementById('orderCustPhone').value.trim();
       var address = document.getElementById('orderCustAddress').value.trim();
