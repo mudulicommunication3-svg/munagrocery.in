@@ -367,6 +367,34 @@
       if (closedBanner) {
         closedBanner.classList.add('hidden');
       }
+
+      // Show / hide home delivery & pickup availability boxes based on admin toggles.
+      // Only show when store is OPEN; hide when store is closed.
+      var boxesBox = document.getElementById('homeDeliveryPickupBoxes');
+      var delBox = document.getElementById('homeDeliveryBox');
+      var pkBox = document.getElementById('homePickupBox');
+      var showDel = shopConfig.codActive !== false;
+      var showPk = shopConfig.pickupActive !== false;
+
+      if (delBox) delBox.classList.toggle('hidden', !showDel);
+      if (pkBox) pkBox.classList.toggle('hidden', !showPk);
+
+      // Show the parent container only if at least one box is visible.
+      if (boxesBox) {
+        boxesBox.classList.toggle('hidden', !showDel && !showPk);
+      }
+
+      // Update timing text on visible boxes.
+      if (showDel) {
+        var day = (shopConfig.deliveryDay === 'Tomorrow') ? 'ଆଉକାଲି' : 'ଆଜି';
+        var txt = day + ' · ' + (shopConfig.deliverySlot || '1 hour');
+        var homeBoxTimingEl = document.getElementById('homeBoxTiming');
+        if (homeBoxTimingEl) homeBoxTimingEl.textContent = txt;
+      }
+      if (showPk) {
+        var homePickupStateEl = document.getElementById('homePickupState');
+        if (homePickupStateEl) homePickupStateEl.textContent = 'ଉପଲବ୍ଧ ✅';
+      }
     }
 
     // --- CUSTOMER CLOCK (AM/PM) + EXPECTED-BY HELPERS -------------------------

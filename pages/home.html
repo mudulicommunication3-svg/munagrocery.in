@@ -59,6 +59,27 @@
       </div>
     </div>
 
+    <!-- Home Delivery & Store Pickup Availability Boxes
+         Controlled by admin COD + Pickup toggles — shown only when store is OPEN -->
+    <div id="homeDeliveryPickupBoxes" class="max-w-md mx-auto mt-2 grid grid-cols-2 gap-2 hidden">
+      <!-- Home Delivery Box -->
+      <div id="homeDeliveryBox" class="rounded-xl bg-white border border-emerald-200 px-2 py-1.5 flex items-center gap-1.5 shadow-xs">
+        <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0"><i class="ph-bold ph-truck"></i></div>
+        <div class="min-w-0">
+          <span class="block text-[10px] font-black text-slate-800 leading-tight">Home Delivery</span>
+          <span id="homeBoxTiming" class="block text-[9px] font-bold text-emerald-700 truncate">ଆଜି · 1 hour</span>
+        </div>
+      </div>
+      <!-- Store Pickup Box -->
+      <div id="homePickupBox" class="rounded-xl bg-white border border-blue-200 px-2 py-1.5 flex items-center gap-1.5 shadow-xs">
+        <div class="w-7 h-7 rounded-full bg-blue-100 text-[#1864ab] flex items-center justify-center shrink-0"><i class="ph-bold ph-storefront"></i></div>
+        <div class="min-w-0">
+          <span class="block text-[10px] font-black text-slate-800 leading-tight">Store Pickup</span>
+          <span id="homePickupState" class="block text-[9px] font-bold text-[#1864ab] truncate">ଉପଲବ୍ଧ ✅</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Live Search Input -->
     <div class="max-w-md mx-auto mt-2">
       <div class="relative">
