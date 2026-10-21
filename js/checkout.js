@@ -186,19 +186,26 @@
         var sub = (parseFloat(p.selling_price) || 0) * qty;
         var stockN = parseInt(p.stock_qty, 10); if (isNaN(stockN)) stockN = 10;
         return `
-          <div class="bg-slate-50 p-2 rounded-xl text-xs">
-            <div class="flex items-center justify-between">
-              <span class="font-bold line-clamp-1 flex-1">${p.product_name}</span>
-              <span class="font-black text-[#1864ab] pl-2">Rs.${money(sub)}</span>
-            </div>
-            <div class="flex items-center justify-between mt-1.5">
-              <div class="flex items-center gap-1.5">
-                <button onclick="setQty('${ean}', ${qty - 1})" class="w-6 h-6 rounded bg-slate-200 flex items-center justify-center text-xs font-bold"><i class="ph-bold ph-minus"></i></button>
-                <span class="font-bold w-6 text-center">${qty}</span>
-                <button onclick="setQty('${ean}', ${qty + 1})" class="w-6 h-6 rounded bg-[#1864ab] text-white flex items-center justify-center text-xs"><i class="ph-bold ph-plus"></i></button>
-                <span class="text-[9px] text-slate-400 ml-1">${stockN <= 5 ? ('⚠️ ' + stockN + ' ବଳିଛି') : ('Stock: ' + stockN)}</span>
+          <div class="bg-white p-2 rounded-xl border border-slate-200 text-xs">
+            <div class="flex items-center gap-2">
+              <div class="shrink-0">
+                <img src="${p.image_url || 'https://via.placeholder.com/40x40'}" class="w-8 h-8 object-cover rounded border border-slate-200 bg-slate-50">
               </div>
-              <button onclick="setQty('${ean}', 0)" class="text-rose-600 font-bold px-1"><i class="ph-bold ph-trash"></i></button>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold line-clamp-1 text-slate-800">${p.product_name}</span>
+                  <span class="font-black text-[#1864ab] pl-2">Rs.${money(sub)}</span>
+                </div>
+                <div class="flex items-center justify-between mt-1.5">
+                  <div class="flex items-center gap-1.5">
+                    <button onclick="setQty('${ean}', ${qty - 1})" class="w-6 h-6 rounded bg-slate-200 flex items-center justify-center text-xs font-bold"><i class="ph-bold ph-minus"></i></button>
+                    <span class="font-bold w-6 text-center">${qty}</span>
+                    <button onclick="setQty('${ean}', ${qty + 1})" class="w-6 h-6 rounded bg-[#1864ab] text-white flex items-center justify-center text-xs"><i class="ph-bold ph-plus"></i></button>
+                    <span class="text-[9px] text-slate-400 ml-1">${stockN <= 5 ? ('⚠️ ' + stockN + ' ବଳିଛି') : ('Stock: ' + stockN)}</span>
+                  </div>
+                  <button onclick="setQty('${ean}', 0)" class="text-rose-600 font-bold px-1"><i class="ph-bold ph-trash"></i></button>
+                </div>
+              </div>
             </div>
           </div>
         `;
