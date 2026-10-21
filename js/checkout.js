@@ -308,16 +308,13 @@
       set('cartTimingText');     // Cart page summary card
       set('payTimingText');      // Cart page -> Payment step (Home Delivery option)
 
-      // --- STORE OPEN/CLOSED STATUS --------------------------------------
-      var openNow = isStoreOpenNow_();
-
       // Store Closed Banner: show only when CLOSED; remove entirely when OPEN
       // (home screen shows as usual).
       var closedBanner = document.getElementById('homeStoreClosedBanner');
       var closedOpenTime = document.getElementById('homeStoreClosedOpenTime');
 
       if (closedBanner) {
-        if (openNow) {
+        if (!storeClosed) {
           closedBanner.classList.add('hidden'); // remove from view entirely
         } else {
           closedBanner.classList.remove('hidden'); // show the banner
@@ -334,22 +331,19 @@
 
       // Home page chips: HIDE entirely when the admin turned that option OFF
       // OR when the store is CLOSED (both delivery & pickup unavailable).
-      var closed = !openNow;
       var delBox = document.getElementById('homeDeliveryBox');
-      if (delBox) delBox.classList.toggle('hidden', shopConfig.codActive === false || closed);
+      if (delBox) delBox.classList.toggle('hidden', shopConfig.codActive === false || storeClosed);
       var pkBox = document.getElementById('homePickupBox');
-      if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false || closed);
+      if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false || storeClosed);
 
-      // Calculated expected delivery / pickup times (Open time + slot).
-      var slotMins = slotToMinutes_(shopConfig.deliverySlot || '1 hour');
-      var expText = expectedTimeText_(slotMins);
+      // Show simple timing text on chips.
       var homeBoxTimingEl = document.getElementById('homeBoxTiming');
       if (homeBoxTimingEl) {
-        homeBoxTimingEl.innerHTML = txt + '<br><span class="text-[8px] font-bold text-orange-600">ଡେଲିଭରୀ ଆସିବ: ' + expText + '</span>';
+        homeBoxTimingEl.textContent = txt;
       }
       var pickupStateEl = document.getElementById('homePickupState');
       if (pickupStateEl) {
-        pickupStateEl.innerHTML = 'ପିକଅପ୍ ଆସିବ: ' + expText;
+        pickupStateEl.textContent = 'ଉପଲବ୍ଧ ✅';
       }
     }
 

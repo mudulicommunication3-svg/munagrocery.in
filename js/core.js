@@ -89,14 +89,10 @@
         if (typeof cachedCfg.pickupChargeOn === 'boolean') shopConfig.pickupChargeOn = cachedCfg.pickupChargeOn;
         var pcf = parseFloat(cachedCfg.pickupChargeFee);
         if (!isNaN(pcf)) shopConfig.pickupChargeFee = Math.max(0, pcf);
-<<<<<<< HEAD
-        if (typeof cachedCfg.storeOpen === 'boolean') shopConfig.storeOpen = cachedCfg.storeOpen;
-=======
         // Store Service Hours cache (shared Config).
         if (typeof cachedCfg.storeOpen === 'boolean') shopConfig.storeOpen = cachedCfg.storeOpen;
         if (typeof cachedCfg.storeOpenTime === 'string') shopConfig.storeOpenTime = cachedCfg.storeOpenTime;
         if (typeof cachedCfg.storeCloseTime === 'string') shopConfig.storeCloseTime = cachedCfg.storeCloseTime;
->>>>>>> 0923530111bd9a9d65541f9ecb535ffd0435f50b
       }
     } catch (e) {}
 
