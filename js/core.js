@@ -66,7 +66,10 @@
       storeOpenTime: '10:00',     // HH:MM 24h — default 10:00 (10 AM)
       storeCloseTime: '21:00',    // HH:MM 24h — default 21:00 (9 PM)
       // Editable closed banner message shown on home page when store is closed.
-      storeClosedMessage: ''
+      storeClosedMessage: '',
+      // Editable checkout page message shown when store is closed — tells customer
+      // that orders will be processed after store opens.
+      storeClosedCheckoutMessage: ''
     };
     let appliedCoupon = ''; // coupon code applied inside the cart
     try {
@@ -96,6 +99,7 @@
         if (typeof cachedCfg.storeOpenTime === 'string') shopConfig.storeOpenTime = cachedCfg.storeOpenTime;
         if (typeof cachedCfg.storeCloseTime === 'string') shopConfig.storeCloseTime = cachedCfg.storeCloseTime;
         if (typeof cachedCfg.storeClosedMessage === 'string') shopConfig.storeClosedMessage = cachedCfg.storeClosedMessage;
+        if (typeof cachedCfg.store_closed_checkout_message === 'string') shopConfig.storeClosedCheckoutMessage = cachedCfg.store_closed_checkout_message;
       }
     } catch (e) {}
 

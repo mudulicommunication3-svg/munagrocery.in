@@ -337,19 +337,19 @@
       var banner = document.getElementById('storeStatusBanner');
       if (banner) banner.classList.toggle('hidden', !storeClosed);
 
-      // When store is closed: remove date option from banner — hide ALL chips.
-      if (storeClosed) {
-        var delBox = document.getElementById('homeDeliveryBox');
-        if (delBox) delBox.classList.add('hidden');
-        var pkBox = document.getElementById('homePickupBox');
-        if (pkBox) pkBox.classList.add('hidden');
+      // ALWAYS show delivery/pickup chips on home page — never hide them
+      // when store is closed. Only hide chips when admin turned COD/Pickup OFF.
+      var delBox = document.getElementById('homeDeliveryBox');
+      if (delBox) delBox.classList.toggle('hidden', shopConfig.codActive === false);
+      var pkBox = document.getElementById('homePickupBox');
+      if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false);
 
+      if (storeClosed) {
         // Show closed banner with next open time.
         var closedBanner = document.getElementById('homeStoreClosedBanner');
         var closedOpenTime = document.getElementById('homeStoreClosedOpenTime');
         if (closedBanner) {
           closedBanner.classList.remove('hidden'); // show the banner
-          var closedOpenTime = document.getElementById('homeStoreClosedOpenTime');
           if (closedOpenTime) {
             // Use admin-editable message if set, otherwise fall back to default.
             var customMsg = shopConfig.storeClosedMessage || '';
@@ -361,6 +361,15 @@
               closedOpenTime.textContent = 'ଡେଲିଭରୀ ଆରମ୍ଭ: ' + nextOpenTimeText_() + ' ରେ';
             }
           }
+        }
+        // Show closed status text on chips instead of timing.
+        var homeBoxTimingEl = document.getElementById('homeBoxTiming');
+        if (homeBoxTimingEl) {
+          homeBoxTimingEl.textContent = 'ବନ୍ଦ';
+        }
+        var pickupStateEl = document.getElementById('homePickupState');
+        if (pickupStateEl) {
+          pickupStateEl.textContent = 'ବନ୍ଦ';
         }
         return;
       }
@@ -380,12 +389,6 @@
       set('homeBoxTiming');      // Home page chip: Home Delivery + time
       set('cartTimingText');     // Cart page summary card
       set('payTimingText');      // Cart page -> Payment step (Home Delivery option)
-
-      // Home page chips: HIDE entirely when the admin turned that option OFF.
-      var delBox = document.getElementById('homeDeliveryBox');
-      if (delBox) delBox.classList.toggle('hidden', shopConfig.codActive === false);
-      var pkBox = document.getElementById('homePickupBox');
-      if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false);
 
       // Show simple timing text on chips.
       var homeBoxTimingEl = document.getElementById('homeBoxTiming');
@@ -575,10 +578,24 @@
     // Rebuild the Delivery Method card from the live admin settings.
     function renderDeliveryOptions() {
       syncCheckoutConfig_();
-      // 🛑 STORE CLOSED: block all delivery/pickup selection with a clear message.
-      if (shopConfig.storeOpen === false) {
+      var storeClosed = shopConfig.storeOpen === false;
+
+      // When store is closed: show delivery/pickup options with an editable message
+      // that orders will be processed after store opens. Order placement is blocked
+      // in placeMiniOrder().
+      if (storeClosed) {
         var stepPay = document.getElementById('stepPayment');
-        if (stepPay) stepPay.innerHTML = '<div class="p-3 rounded-xl bg-rose-50 border border-rose-200"><div class="flex items-center gap-2 text-xs font-bold text-rose-700 mb-1"><i class="ph-bold ph-shield-warning text-rose-600"></i><span>ଦୋକାନ ବନ୍ଦ ଅଛି — ଅର୍ଡର ନାହିଁ</span></div><p class="text-[10px] text-slate-600">ଦୟାକରି ପରବର୍ତ୍ତେ ଚେଷ୍ଟା କରନ୍ତୁ କିମ୍ବା ଦୋକାନୀ ସହ ଯୋଗାଯୋଗ କରନ୍ତୁ。</p></div>';
+        if (stepPay) {
+          var closedMsg = shopConfig.storeClosedCheckoutMessage || 'ଦୋକାନ ବନ୍ଦ ଅଛି — ଦୋକାନ ଖୋଲିବା ପରେ ଅର୍ଡର ଡେଲିଭର୍ ହେବ';
+          stepPay.innerHTML = '<div class="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-2"><div class="flex items-center gap-2 text-xs font-bold text-amber-700 mb-1"><i class="ph-bold ph-clock text-amber-600"></i><span>ଦୋକାନ ବନ୍ଦ ଅଛି</span></div><p class="text-[10px] text-amber-600 leading-snug">' + closedMsg + '</p></div>' + stepPay.innerHTML;
+        }
+        // Disable the radio buttons so customer can see but not place order until store opens
+        var codRadio = document.getElementById('payCodRadio');
+        var pkRadio = document.getElementById('payPickupRadio');
+        if (codRadio) codRadio.disabled = true;
+        if (pkRadio) pkRadio.disabled = true;
+        var codLabel = document.getElementById('codOptionLabel');
+        if (codLabel) { codLabel.classList.add('opacity-50', 'cursor-not-allowed'); codLabel.classList.remove('cursor-pointer'); }
         return;
       }
       var codOn = checkoutPickupCfg.codActive;
@@ -679,8 +696,8 @@
     async function placeMiniOrder() {
       // Ordering requires a logged-in session (browse stays open without it).
       if (!requireLoginForOrder_()) return;
-      // 🛑 STORE CLOSED: block order placement with a clear Odia message.
-      if (shopConfig.storeOpen === false) {
+      // 🛑 STORE CLOSED: block order placement (manual toggle OR time-based).
+      if (!isStoreOpenNow_()) {
         alert('❌ ଦୋକାନ ଏବେ ବନ୍ଦ ଅଛି — ଅର୍ଡର କରିବାକୁ ଅନୁମତି ନାହିଁ। ଦୟାକରି ଦୋକାନ ଖୋଲିବା ପରେ ଚେଷ୍ଟା କରନ୍ତୁ।');
         return;
       }

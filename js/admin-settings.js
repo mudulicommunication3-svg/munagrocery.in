@@ -135,6 +135,10 @@
       if (cfg.store_open_message !== undefined) {
         shopConfig.storeClosedMessage = String(cfg.store_open_message || '').trim();
       }
+      // Editable checkout page closed message.
+      if (cfg.store_closed_checkout_message !== undefined) {
+        shopConfig.storeClosedCheckoutMessage = String(cfg.store_closed_checkout_message || '').trim();
+      }
       renderTrending();
       updateBillingSummary();
       try { renderDeliveryTiming(); } catch (eDT) {}
@@ -181,6 +185,9 @@
       // Editable closed banner message.
       var scm = document.getElementById('setStoreClosedMessage');
       if (scm) scm.value = shopConfig.storeClosedMessage || '';
+      // Editable checkout page closed message.
+      var sccm = document.getElementById('setStoreClosedCheckoutMessage');
+      if (sccm) sccm.value = shopConfig.storeClosedCheckoutMessage || '';
     }
 
     // Read the Checkout & Delivery Settings card into shopConfig.
@@ -223,6 +230,9 @@
       // Editable closed banner message.
       var scm = document.getElementById('setStoreClosedMessage');
       if (scm) shopConfig.storeClosedMessage = scm.value.trim();
+      // Editable checkout page closed message.
+      var sccm = document.getElementById('setStoreClosedCheckoutMessage');
+      if (sccm) shopConfig.storeClosedCheckoutMessage = sccm.value.trim();
     }
 
     function saveShopSettings(quiet) {
@@ -255,6 +265,7 @@
       ok = pushConfigToSheet('store_open_time', shopConfig.storeOpenTime || '10:00') && ok;
       ok = pushConfigToSheet('store_close_time', shopConfig.storeCloseTime || '21:00') && ok;
       ok = pushConfigToSheet('store_open_message', shopConfig.storeClosedMessage || '') && ok;
+      ok = pushConfigToSheet('store_closed_checkout_message', shopConfig.storeClosedCheckoutMessage || '') && ok;
       ok = pushConfigToSheet('pickup_charge_on', shopConfig.pickupChargeOn ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_fee', shopConfig.pickupChargeFee || 0) && ok;
       updateBillingSummary();
@@ -277,7 +288,7 @@
       };
       ['setDeliveryFee', 'setFreeAbove', 'setCouponCode', 'setCouponPercent', 'setCouponMinBill',
        'setCodNotice', 'setPickupNote', 'setPickupChargeFee',
-       'setStoreOpenTime', 'setStoreCloseTime', 'setStoreClosedMessage'].forEach(function (id) {
+       'setStoreOpenTime', 'setStoreCloseTime', 'setStoreClosedMessage', 'setStoreClosedCheckoutMessage'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el || !el.addEventListener) return;
         el.addEventListener('input', schedule);
