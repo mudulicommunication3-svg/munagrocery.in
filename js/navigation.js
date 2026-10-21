@@ -149,3 +149,6 @@
     // feature/setting ever asks for a password again on this device.
     // ====================================================================
     var ADMIN_SESSION_KEY = 'isAdminLoggedIn';
+
+    // Initialize: Show home screen on page load
+    try { showScreen('home'); } catch (e) {}
