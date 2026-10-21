@@ -59,34 +59,6 @@
       </div>
     </div>
 
-    <!-- 2 option chips: Home Delivery (with time) + Store Pickup availability
-         (each chip is HIDDEN automatically when the admin turns that option
-         OFF — see renderDeliveryTiming) -->
-    <div class="max-w-md mx-auto mt-2 grid grid-cols-2 gap-2">
-      <div id="homeDeliveryBox" class="rounded-xl bg-white border border-emerald-200 px-2 py-1.5 flex items-center gap-1.5 shadow-xs">
-        <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0"><i class="ph-bold ph-truck"></i></div>
-        <div class="min-w-0">
-          <span class="block text-[10px] font-black text-slate-800 leading-tight">Home Delivery</span>
-          <span id="homeBoxTiming" class="block text-[9px] font-bold text-emerald-700 truncate">ଆଜି · 1 hour</span>
-        </div>
-      </div>
-      <div id="homePickupBox" class="rounded-xl bg-white border border-blue-200 px-2 py-1.5 flex items-center gap-1.5 shadow-xs">
-        <div class="w-7 h-7 rounded-full bg-blue-100 text-[#1864ab] flex items-center justify-center shrink-0"><i class="ph-bold ph-storefront"></i></div>
-        <div class="min-w-0">
-          <span class="block text-[10px] font-black text-slate-800 leading-tight">Store Pickup</span>
-          <span id="homePickupState" class="block text-[9px] font-bold text-[#1864ab] truncate">ଉପଲବ୍ଧ ✅</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Store Open / Closed Banner — shown when admin sets storeOpen=false.
-         When closed, the delivery/pickup chips above are also hidden by
-         renderDeliveryTiming() (date + timing removed). -->
-    <div id="storeStatusBanner" class="max-w-md mx-auto mt-2 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 flex items-center gap-2 text-[11px] font-bold text-rose-700 hidden">
-      <i class="ph-bold ph-shield-warning text-rose-600"></i>
-      <span>ଦୋକାନ ଏବେ ବନ୍ଦ ଅଛି — ଅର୍ଡର ପାଇଁ ଅପେକ୍ଷା କରନ୍ତୁ</span>
-    </div>
-
     <!-- Live Search Input -->
     <div class="max-w-md mx-auto mt-2">
       <div class="relative">

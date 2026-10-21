@@ -333,71 +333,28 @@
       var manualClosed = shopConfig.storeOpen === false;
       var storeClosed = timeBasedClosed || manualClosed;
 
-      // Show / hide the store-status banner on the home page.
-      var banner = document.getElementById('storeStatusBanner');
-      if (banner) banner.classList.toggle('hidden', !storeClosed);
-
-      // ALWAYS show delivery/pickup chips on home page — never hide them
-      // when store is closed. Only hide chips when admin turned COD/Pickup OFF.
-      var delBox = document.getElementById('homeDeliveryBox');
-      if (delBox) delBox.classList.toggle('hidden', shopConfig.codActive === false);
-      var pkBox = document.getElementById('homePickupBox');
-      if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false);
+      // Single closed banner: show only when store is closed, hide when open.
+      var closedBanner = document.getElementById('homeStoreClosedBanner');
+      var closedOpenTime = document.getElementById('homeStoreClosedOpenTime');
 
       if (storeClosed) {
-        // Show closed banner with next open time.
-        var closedBanner = document.getElementById('homeStoreClosedBanner');
-        var closedOpenTime = document.getElementById('homeStoreClosedOpenTime');
-        if (closedBanner) {
-          closedBanner.classList.remove('hidden'); // show the banner
-          if (closedOpenTime) {
-            // Use admin-editable message if set, otherwise fall back to default.
-            var customMsg = shopConfig.storeClosedMessage || '';
-            if (customMsg) {
-              closedOpenTime.textContent = customMsg;
-            } else if (manualClosed) {
-              closedOpenTime.textContent = 'ଦୋକାନୀ ଦୋକାନ ବନ୍ଦ ରଖିଛନ୍ତି — ଖୋଲିବା ପରେ ଅର୍ଡର କରନ୍ତୁ';
-            } else {
-              closedOpenTime.textContent = 'ଡେଲିଭରୀ ଆରମ୍ଭ: ' + nextOpenTimeText_() + ' ରେ';
-            }
+        if (closedBanner) closedBanner.classList.remove('hidden'); // show the banner
+        if (closedOpenTime) {
+          var customMsg = shopConfig.storeClosedMessage || '';
+          if (customMsg) {
+            closedOpenTime.textContent = customMsg;
+          } else if (manualClosed) {
+            closedOpenTime.textContent = 'ଦୋକାନୀ ଦୋକାନ ବନ୍ଦ ରଖିଛନ୍ତି — ଖୋଲିବା ପରେ ଅର୍ଡର କରନ୍ତୁ';
+          } else {
+            closedOpenTime.textContent = 'ଡେଲିଭରୀ ଆରମ୍ଭ: ' + nextOpenTimeText_() + ' ରେ';
           }
-        }
-        // Show closed status text on chips instead of timing.
-        var homeBoxTimingEl = document.getElementById('homeBoxTiming');
-        if (homeBoxTimingEl) {
-          homeBoxTimingEl.textContent = 'ବନ୍ଦ';
-        }
-        var pickupStateEl = document.getElementById('homePickupState');
-        if (pickupStateEl) {
-          pickupStateEl.textContent = 'ବନ୍ଦ';
         }
         return;
       }
 
-      // Store is OPEN — hide closed banner.
-      var closedBanner = document.getElementById('homeStoreClosedBanner');
+      // Store is OPEN — hide closed banner entirely.
       if (closedBanner) {
-        closedBanner.classList.add('hidden'); // remove from view entirely
-      }
-
-      var day = (shopConfig.deliveryDay === 'Tomorrow') ? 'ଆଉକାଲି' : 'ଆଜି';
-      var txt = day + ' · ' + (shopConfig.deliverySlot || '1 hour');
-      var set = function (id) {
-        var el = document.getElementById(id);
-        if (el) el.textContent = txt;
-      };
-      set('homeBoxTiming');      // Home page chip: Home Delivery + time
-      set('cartTimingText');     // Cart page summary card
-      set('payTimingText');      // Cart page -> Payment step (Home Delivery option)
-
-      // Show simple timing text on chips.
-      var homeBoxTimingEl = document.getElementById('homeBoxTiming');
-      if (homeBoxTimingEl) {
-        homeBoxTimingEl.textContent = txt;
-      }
-      var pickupStateEl = document.getElementById('homePickupState');
-      if (pickupStateEl) {
-        pickupStateEl.textContent = 'ଉପଲବ୍ଧ ✅';
+        closedBanner.classList.add('hidden');
       }
     }
 
