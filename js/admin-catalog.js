@@ -127,19 +127,19 @@
           : (sq <= 5
             ? '<span class="text-[9px] font-black text-amber-600">⚠️ LOW (' + sq + ')</span>'
             : '<span class="text-[9px] text-slate-400 font-bold">Stock: ' + sq + '</span>');
-        rowsHtml += '<div class="grid grid-cols-6 gap-1 items-center p-1.5 bg-white rounded-xl border border-slate-200 text-xs">' +
-          '<div class="min-w-0 flex items-center gap-2">' +
-            '<img src="' + (p.image_url || 'https://via.placeholder.com/40x40') + '" class="w-6 h-6 object-cover rounded border border-slate-100 bg-slate-50">' +
-            '<div class="min-w-0">' +
-              '<h5 class="font-bold text-slate-800 leading-tight truncate">' + (p.product_name || 'Unknown') + '</h5>' +
+        rowsHtml += '<div class="flex flex-col md:flex-row gap-2 items-center p-1.5 bg-white rounded-xl border border-slate-200 text-xs sm:text-xs md:text-xs">' +
+          '<div class="min-w-0 w-full md:w-1/3 flex items-center gap-2">' +
+            '<img src="' + (p.image_url || 'https://via.placeholder.com/40x40') + '" class="w-6 h-6 object-cover rounded border border-slate-100 bg-slate-50 shrink-0">' +
+            '<div class="min-w-0 flex-1">' +
+              '<h5 class="font-bold text-slate-800 leading-tight truncate text-[10px]">' + (p.product_name || 'Unknown') + '</h5>' +
               '<span class="text-[9px] text-slate-400 truncate">EAN: ' + (p.ean || '-') + '</span>' +
             '</div>' +
           '</div>' +
-          '<div class="text-slate-700 font-bold text-[10px]">₹' + (p.mrp || '0') + '</div>' +
-          '<div class="text-[#1864ab] font-bold text-[10px]">₹' + (p.selling_price || '0') + '</div>' +
-          '<div class="text-[10px]">' + stockBadge + '</div>' +
-          '<div class="text-[9px] text-slate-500 truncate">' + (p.category || 'General') + '</div>' +
-          '<div class="flex gap-1 items-center justify-end">' +
+          '<div class="text-center md:text-left text-slate-700 font-bold text-[10px] w-1/6">₹' + (p.mrp || '0') + '</div>' +
+          '<div class="text-center md:text-left text-[#1864ab] font-bold text-[10px] w-1/6">₹' + (p.selling_price || '0') + '</div>' +
+          '<div class="text-center text-[10px] w-1/6">' + stockBadge + '</div>' +
+          '<div class="text-center md:text-left text-[9px] text-slate-500 truncate w-1/6">' + (p.category || 'General') + '</div>' +
+          '<div class="flex gap-1 items-center justify-end w-full md:w-1/6">' +
             '<button onclick="toggleTrending(\'' + (p.ean || '') + '\')" title="Trending ରେ ଯୋଡ଼ନ୍ତୁ/ହଟାନ୍ତୁ" class="w-5 h-5 rounded text-xs ' + (isTrend ? 'text-amber-500' : 'text-slate-300') + '">' + (isTrend ? '★' : '☆') + '</button>' +
             '<button onclick="editAdminProduct(' + realIdx + ')" title="Edit" class="px-1.5 py-0.5 bg-amber-500 text-white rounded font-bold text-[9px]">Edit</button>' +
             '<button onclick="deleteAdminProduct(' + realIdx + ')" title="Delete" class="px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded font-bold text-[9px]">Delete</button>' +
