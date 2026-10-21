@@ -3,6 +3,8 @@
     function openProductDetail(ean) {
       var p = window.STORE_CATALOG.find(function (x) { return String(x.ean) === String(ean); });
       if (!p) return;
+      // Record product view for Live Viewers Tracker
+      try { recordPageView(p.product_name); } catch (e) {}
       // Preserve the home grid scroll position for the Back button.
       window._homeScrollY = window.scrollY || window.pageYOffset || 0;
       detailState = { ean: String(p.ean), qty: Math.max(1, parseInt(cart[p.ean], 10) || 1) };

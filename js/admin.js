@@ -161,7 +161,7 @@
     function closeAdminDashboard() { document.getElementById('adminDashboard').classList.add('hidden'); }
 
     function switchAdminTab(t) {
-      ['orders','users','stock','banners','settings','sync'].forEach(tab => {
+      ['orders','users','stock','banners','settings','sync','viewers'].forEach(tab => {
         document.getElementById(`admTab-${tab}`).classList.toggle('hidden', tab !== t);
         var b = document.getElementById(`admTabBtn-${tab}`);
         b.classList.toggle('border-[#1864ab]', tab === t);
@@ -173,6 +173,7 @@
       if (t === 'stock') { renderAdminList(); renderStockHealth(); }
       if (t === 'banners') { renderAdminBanners(); try { fillApkLinkInput_(); } catch (eApk) {} }
       if (t === 'settings') fillShopSettingsInputs();
+      if (t === 'viewers') renderViewerStats();
     }
 
     function manualFullOrderSync() {
@@ -984,4 +985,169 @@
       alert(`Order #${orders[oIdx].id} -> Stage ${stageNum} (${orders[oIdx].status})`);
     }
 
-    // --- BANNER MANAGER ---
+    // ========================================================================
+// 👁️ LIVE VIEWERS TRACKER — records every page view to localStorage + Sheet
+// Tracks: total visitors, today's visits, live viewers (last 5 min), product views
+// ========================================================================
+var VIEWER_STORAGE_KEY = 'MUNA_VIEWERS_DATA';
+var VIEWER_LIVE_MINUTES = 5; // a viewer is "live" if active within last 5 min
+
+function getViewerData() {
+  try {
+    var raw = localStorage.getItem(VIEWER_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { visitors: [], productViews: {}, today: '' };
+}
+
+function saveViewerData(data) {
+  try { localStorage.setItem(VIEWER_STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+}
+
+// Call this on every page load (home + all screens) — ପୃଥିବା ଗ୍ରାହକ ଯେତେବେଳେ ୱେବସାଇଟ୍ ଖୋଲିବେ, ଏହା ରେକର୍ଡ ହେବ
+function recordPageView(productName) {
+  var now = Date.now();
+  var todayStr = new Date().toISOString().slice(0, 10);
+  var data = getViewerData();
+
+  // Reset today's counter if new day
+  if (data.today !== todayStr) {
+    data.today = todayStr;
+    data.visitors = data.visitors.filter(function (v) {
+      return new Date(v.ts).toISOString().slice(0, 10) === todayStr;
+    });
+  }
+
+  // Unique device/session id
+  var sessionId = localStorage.getItem('MUNA_VIEWER_SESSION');
+  if (!sessionId) {
+    sessionId = 'viewer_' + now + '_' + Math.floor(Math.random() * 10000);
+    localStorage.setItem('MUNA_VIEWER_SESSION', sessionId);
+  }
+
+  // Upsert visitor session
+  var existing = data.visitors.find(function (v) { return v.id === sessionId; });
+  if (existing) {
+    existing.ts = now;
+    existing.page = productName || 'Home';
+    existing.views = (existing.views || 0) + 1;
+  } else {
+    data.visitors.push({
+      id: sessionId,
+      ts: now,
+      page: productName || 'Home',
+      views: 1,
+      ua: navigator.userAgent ? navigator.userAgent.substring(0, 80) : ''
+    });
+  }
+
+  // Product view count
+  if (productName) {
+    data.productViews[productName] = (data.productViews[productName] || 0) + 1;
+  }
+
+  saveViewerData(data);
+
+  // Push to Google Sheet (fire-and-forget, no-cors)
+  var hook = window.munnaHookBase ? window.munnaHookBase() : '';
+  if (hook) {
+    try {
+      fetch(hook, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'TRACK_VIEWER',
+          sessionId: sessionId,
+          product: productName || 'Home',
+          ts: now,
+          today: todayStr
+        })
+      });
+    } catch (e) {}
+  }
+}
+
+function refreshViewersStats() {
+  renderViewerStats();
+}
+
+function renderViewerStats() {
+  var data = getViewerData();
+  var now = Date.now();
+  var fiveMinAgo = now - (VIEWER_LIVE_MINUTES * 60 * 1000);
+  var todayStr = new Date().toISOString().slice(0, 10);
+
+  // Live viewers (active in last 5 min)
+  var liveCount = data.visitors.filter(function (v) { return v.ts >= fiveMinAgo; }).length;
+
+  // Today's unique visitors
+  var todayVisitors = data.visitors.filter(function (v) {
+    return new Date(v.ts).toISOString().slice(0, 10) === todayStr;
+  });
+  var todayCount = todayVisitors.length;
+
+  // All time unique
+  var totalCount = data.visitors.length;
+
+  // Update summary cards
+  var liveEl = document.getElementById('viewerLiveCount');
+  var todayEl = document.getElementById('viewerTodayCount');
+  var totalEl = document.getElementById('viewerTotalCount');
+  if (liveEl) liveEl.innerText = liveCount;
+  if (todayEl) todayEl.innerText = todayCount;
+  if (totalEl) totalEl.innerText = totalCount;
+
+  // Render product view list
+  renderViewerProducts(data.productViews);
+}
+
+function renderViewerProducts(productViews) {
+  var box = document.getElementById('viewerProductsList');
+  var noData = document.getElementById('viewerNoData');
+  var searchEl = document.getElementById('viewerSearchInput');
+  if (!box) return;
+
+  var q = searchEl ? String(searchEl.value || '').trim().toLowerCase() : '';
+  var views = productViews || getViewerData().productViews || {};
+
+  var entries = Object.entries(views).filter(function (e) {
+    if (!q) return true;
+    return String(e[0]).toLowerCase().indexOf(q) >= 0;
+  }).sort(function (a, b) { return b[1] - a[1]; });
+
+  if (!entries.length) {
+    box.innerHTML = '';
+    if (noData) noData.classList.remove('hidden');
+    return;
+  }
+  if (noData) noData.classList.add('hidden');
+
+  box.innerHTML = entries.map(function (e) {
+    var pname = e[0];
+    var count = e[1];
+    var p = window.STORE_CATALOG ? window.STORE_CATALOG.find(function (x) { return x.product_name === pname; }) : null;
+    var img = p && p.image_url ? p.image_url : 'https://via.placeholder.com/40x40';
+    return '<div class="flex items-center gap-2 p-1.5 bg-white rounded-xl border border-slate-200 text-xs">' +
+      '<img src="' + img + '" class="w-6 h-6 object-cover rounded bg-slate-50">' +
+      '<div class="min-w-0 flex-1">' +
+        '<div class="font-bold text-slate-800 truncate">' + pname + '</div>' +
+        '<div class="text-[9px] text-slate-500">Views: <b>' + count + '</b></div>' +
+      '</div>' +
+      '<span class="bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-md shrink-0 text-[10px]">' + count + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+// Initialize: record this page view on load (home screen calls this too)
+function initViewerTracker() {
+  // Auto-record when admin dashboard opens or any page loads
+  setTimeout(function () {
+    var currentPage = document.getElementById('lblStoreName') ? 'Home' : 'Admin Panel';
+    recordPageView(currentPage);
+    renderViewerStats();
+  }, 500);
+}
+// ========================================================================
+
+// --- BANNER MANAGER ---

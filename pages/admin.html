@@ -24,6 +24,7 @@
         <button onclick="switchAdminTab('banners')" id="admTabBtn-banners" class="flex-1 py-2.5 text-center border-b-2 border-transparent">📢 Banners</button>
         <button onclick="switchAdminTab('sync')" id="admTabBtn-sync" class="flex-1 py-2.5 text-center border-b-2 border-transparent">⚙️ Sheets</button>
         <button onclick="switchAdminTab('settings')" id="admTabBtn-settings" class="flex-1 py-2.5 text-center border-b-2 border-transparent">🛒 Shop</button>
+        <button onclick="switchAdminTab('viewers')" id="admTabBtn-viewers" class="flex-1 py-2.5 text-center border-b-2 border-transparent">👁️ Viewers</button>
       </div>
 
       <!-- MASTER SAVE BAR — pushes EVERYTHING (trending + banners + settings) to the shared Google Sheet -->
@@ -601,6 +602,44 @@
             <p class="text-[10px] text-slate-400 leading-snug">Session ଏହି ଡିଭାଇସ୍ ରେ ସେଭ୍ ଅଛି (isAdminLoggedIn) — ପୁଣି ପାସୱାର୍ଡ ଦେବାକୁ ପଡ଼ିବ ନାହିଁ।</p>
           </div>
         </div>
+
+        <!-- Tab: Live Viewers Tracker -->
+        <div id="admTab-viewers" class="hidden space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-black text-slate-700 flex items-center gap-2">
+              <i class="ph-bold ph-eye text-blue-600"></i> Live Viewers Tracker
+            </h4>
+            <button onclick="refreshViewersStats()" class="text-[11px] font-bold text-[#1864ab] flex items-center gap-1">
+              <i class="ph-bold ph-arrows-clockwise"></i> Refresh
+            </button>
+          </div>
+          <!-- Summary Stats -->
+          <div class="grid grid-cols-3 gap-2 mb-2">
+            <div class="bg-blue-50 p-2 rounded-xl border border-blue-100 text-center">
+              <div class="text-[10px] text-blue-700 font-bold mb-0.5">Live Viewers</div>
+              <div id="viewerLiveCount" class="text-xl font-black text-blue-600">0</div>
+            </div>
+            <div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100 text-center">
+              <div class="text-[10px] text-emerald-700 font-bold mb-0.5">Today's Visits</div>
+              <div id="viewerTodayCount" class="text-xl font-black text-emerald-600">0</div>
+            </div>
+            <div class="bg-amber-50 p-2 rounded-xl border border-amber-100 text-center">
+              <div class="text-[10px] text-amber-700 font-bold mb-0.5">All Time Visits</div>
+              <div id="viewerTotalCount" class="text-xl font-black text-amber-600">0</div>
+            </div>
+          </div>
+          <!-- Product View Table -->
+          <div class="bg-white p-2.5 rounded-2xl border border-slate-200">
+            <div class="relative mb-2">
+              <i class="ph-bold ph-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <input type="text" id="viewerSearchInput" oninput="renderViewerProducts()" placeholder="🔍 ପ୍ରୋଡକ୍ଟ ନାମ ଦ୍ୱାରା ଖୋଜନ୍ତୁ..."
+                     class="w-full text-xs pl-8 pr-2.5 py-2 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+            </div>
+            <div id="viewerProductsList" class="space-y-1"></div>
+            <p id="viewerNoData" class="hidden text-xs text-slate-400 text-center py-4">କୌଣସି ଡାଟା ନାହିଁ — ଗ୍ରାହକ ୱେବସାଇଟ୍ ଖୋଲିଲେ ଏଠାରେ ଦେଖାଯିବ。</p>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

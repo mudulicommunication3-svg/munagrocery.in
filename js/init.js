@@ -166,7 +166,9 @@
           navigator.serviceWorker.register('sw.js').catch(function () {});
         });
       }
-        }
+      // Start live viewers tracker — records every page visit + product view
+      try { initViewerTracker(); } catch (eVT) {}
+      }
     if (document.readyState === 'loading') {
       window.addEventListener('DOMContentLoaded', munnaStartInit_);
     } else {
