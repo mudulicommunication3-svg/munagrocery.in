@@ -537,23 +537,17 @@
       syncCheckoutConfig_();
       var storeClosed = shopConfig.storeOpen === false;
 
-      // When store is closed: show delivery/pickup options with an editable message
-      // that orders will be processed after store opens. Order placement is blocked
-      // in placeMiniOrder().
+      // When store is closed: show info message but KEEP delivery/pickup options active.
+      // Customer can place order anytime — delivery will happen after store opens.
       if (storeClosed) {
         var stepPay = document.getElementById('stepPayment');
         if (stepPay) {
           var closedMsg = shopConfig.storeClosedCheckoutMessage || 'ଦୋକାନ ବନ୍ଦ ଅଛି — ଦୋକାନ ଖୋଲିବା ପରେ ଅର୍ଡର ଡେଲିଭର୍ ହେବ';
-          stepPay.innerHTML = '<div class="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-2"><div class="flex items-center gap-2 text-xs font-bold text-amber-700 mb-1"><i class="ph-bold ph-clock text-amber-600"></i><span>ଦୋକାନ ବନ୍ଦ ଅଛି</span></div><p class="text-[10px] text-amber-600 leading-snug">' + closedMsg + '</p></div>' + stepPay.innerHTML;
+          var infoHtml = '<div class="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-2"><div class="flex items-center gap-2 text-xs font-bold text-amber-700 mb-1"><i class="ph-bold ph-clock text-amber-600"></i><span>ଦୋକାନ ବନ୍ଦ ଅଛି</span></div><p class="text-[10px] text-amber-600 leading-snug">' + closedMsg + '</p></div>';
+          // Prepend info message but keep existing delivery/pickup options active
+          stepPay.innerHTML = infoHtml + stepPay.innerHTML;
         }
-        // Disable the radio buttons so customer can see but not place order until store opens
-        var codRadio = document.getElementById('payCodRadio');
-        var pkRadio = document.getElementById('payPickupRadio');
-        if (codRadio) codRadio.disabled = true;
-        if (pkRadio) pkRadio.disabled = true;
-        var codLabel = document.getElementById('codOptionLabel');
-        if (codLabel) { codLabel.classList.add('opacity-50', 'cursor-not-allowed'); codLabel.classList.remove('cursor-pointer'); }
-        return;
+        // Do NOT disable radio buttons — customer can select and place order anytime.
       }
       var codOn = checkoutPickupCfg.codActive;
       var codRadio = document.getElementById('payCodRadio');
@@ -653,11 +647,7 @@
     async function placeMiniOrder() {
       // Ordering requires a logged-in session (browse stays open without it).
       if (!requireLoginForOrder_()) return;
-      // 🛑 STORE CLOSED: block order placement (manual toggle OR time-based).
-      if (!isStoreOpenNow_()) {
-        alert('❌ ଦୋକାନ ଏବେ ବନ୍ଦ ଅଛି — ଅର୍ଡର କରିବାକୁ ଅନୁମତି ନାହିଁ। ଦୟାକରି ଦୋକାନ ଖୋଲିବା ପରେ ଚେଷ୍ଟା କରନ୍ତୁ।');
-        return;
-      }
+      // Customer can place order ANYTIME — delivery/pickup happens after store opens.
       var name = document.getElementById('orderCustName').value.trim() || 'Customer';
       var phone = document.getElementById('orderCustPhone').value.trim();
       var address = document.getElementById('orderCustAddress').value.trim();
