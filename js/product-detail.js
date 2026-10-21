@@ -316,20 +316,36 @@
           box.innerHTML = '<p class="text-[11px] text-slate-400 py-2">ଆଉ ସାମଗ୍ରୀ ନାହିଁ।</p>';
           return;
         }
-        var fallback = 'icon-512.png'; // server-hosted — always loads
+        var fallback = 'icon-512.png';
         box.innerHTML = list.map(function (s) {
           var mrp = parseFloat(s.mrp) || 0, sp = parseFloat(s.selling_price) || 0;
           var off = mrp > sp ? Math.round(((mrp - sp) / mrp) * 100) : 0;
+          var sq = parseInt(s.stock_qty, 10); if (isNaN(sq)) sq = 10;
+          var cartQty = cart[s.ean] || 0;
+          var addCtl = cartQty > 0
+            ? '<div class="flex items-center gap-1 mt-1 bg-slate-900 text-white rounded-lg px-1 py-0.5">' +
+              '<button onclick="event.stopPropagation(); setQty(\' + String(s.ean).replace(/\'/g, \'') + \', ' + (cartQty - 1) + ')" class="w-5 h-5 rounded bg-slate-800 flex items-center justify-center"><i class="ph-bold ph-minus text-[9px]"></i></button>' +
+              '<span class="text-[9px] font-bold w-4 text-center">' + cartQty + '</span>' +
+              '<button onclick="event.stopPropagation(); setQty(\' + String(s.ean).replace(/\'/g, \'') + \', ' + (cartQty + 1) + ')" class="w-5 h-5 rounded bg-[#1864ab] flex items-center justify-center"><i class="ph-bold ph-plus text-[9px]"></i></button>' +
+            '</div>'
+            : sq <= 0
+              ? '<button disabled class="w-full py-1 mt-1 rounded-lg bg-rose-50 text-rose-400 border border-rose-200 text-[10px] font-bold cursor-not-allowed">Out</button>'
+              : '<button onclick="event.stopPropagation(); setQty(\' + String(s.ean).replace(/\'/g, \'') + \', 1)" class="w-full py-1.5 mt-1 rounded-lg bg-[#1864ab] text-white text-[10px] font-bold flex items-center justify-center gap-1"><i class="ph-bold ph-plus"></i> କାର୍ଟ</button>';
           return '<div class="shrink-0 w-32 bg-white rounded-2xl border border-slate-200 shadow-xs p-2 flex flex-col">' +
-            '<div class="relative w-full h-20 rounded-xl bg-slate-50 overflow-hidden cursor-pointer" onclick="openProductDetail(\'' + String(s.ean).replace(/'/g, '') + '\')">' +
-              '<img src="' + (s.image_url || fallback) + '" alt="" class="w-full h-full object-contain" onerror="this.src=\'' + fallback + '\'">' +
+            '<div class="relative w-full h-20 rounded-xl bg-slate-50 overflow-hidden cursor-pointer" onclick="openProductDetail(\' + String(s.ean).replace(/\'/g, \'') + \')">' +
+              '<img src="' + (s.image_url || fallback) + '" alt="" class="w-full h-full object-contain" onerror="this.src=\' + fallback + \'">' +
               (off > 0 ? '<span class="absolute top-1 left-1 bg-orange-600 text-white text-[9px] font-black px-1 py-0.5 rounded">' + off + '% OFF</span>' : '') +
+              (sq <= 0 ? '<span class="absolute bottom-1 left-1 bg-rose-600 text-white text-[9px] font-black px-1 py-0.5 rounded">OUT</span>' : '') +
             '</div>' +
-            '<div class="mt-1.5 text-[10px] font-bold text-slate-800 leading-tight" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:26px;">' + String(s.product_name || '') + '</div>' +
-            '<div class="mt-0.5 text-xs font-black text-slate-900">Rs.' + money(s.selling_price) + '</div>' +
-            '<button onclick="openProductDetail(\'' + String(s.ean).replace(/'/g, '') + '\')" class="mt-1.5 w-full py-1 rounded-lg bg-blue-50 text-[#1864ab] hover:bg-[#1864ab] hover:text-white border border-blue-200 text-[10px] font-bold">ଦେଖନ୍ତୁ</button>' +
+            '<div class="mt-1 text-[10px] font-bold text-slate-800 leading-tight" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:24px;">' + String(s.product_name || \'\') + '</div>' +
+            '<div class="mt-0.5 text-[9px] font-black text-slate-900">Rs.' + money(s.selling_price) + '</div>' +
+            addCtl +
           '</div>';
         }).join('');
+      } catch (e) {
+        box.innerHTML = '';
+      }
+    }
       } catch (e) {
         box.innerHTML = '';
       }
