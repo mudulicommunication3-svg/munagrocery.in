@@ -1,3 +1,11 @@
+# Scratch / debug output & temp scripts (never commit)
+dotest.js
+out.txt
+out2.txt
+pd_*.js
+*.tmp
+*.bak
+
 # Android / bubblewrap build outputs & cache
 .gradle/
 build/
