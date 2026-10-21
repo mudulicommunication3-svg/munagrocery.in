@@ -310,9 +310,11 @@
           closedBanner.classList.remove('hidden'); // show the banner
           // Show admin-set open time (default 10 AM) — clean time only.
           var openTime = shopConfig.storeOpenTime || '10:00';
+          // Strict validation: must be clean "HH:MM" string only. Never accept
+          // a Date object or full date string that could leak from Sheet cache.
           if (typeof openTime !== 'string') openTime = '10:00';
           openTime = String(openTime).trim();
-          if (!openTime || openTime.indexOf(':') < 0) openTime = '10:00';
+          if (!/^\d{1,2}:\d{2}$/.test(openTime)) openTime = '10:00';
           if (closedOpenTime) closedOpenTime.textContent = 'ସକାଳ ' + openTime + ' ଟାରେ ଖୋଲିବ';
         }
       }
