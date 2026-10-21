@@ -94,7 +94,7 @@
       var q = searchEl ? searchEl.value.trim().toLowerCase() : '';
       if (clearBtn) clearBtn.classList.toggle('hidden', !q);
 
-      // Database search: filter by product name / category / EAN (case-insensitive, partial match)
+      // Database search: filter by product name / category / EAN / MRP / SP (case-insensitive, partial match)
       var items = window.STORE_CATALOG || [];
       if (q) {
         items = items.filter(function (p) {
@@ -115,42 +115,38 @@
         return;
       }
 
-      box.innerHTML = items.map((p) => {
-        var realIdx = window.STORE_CATALOG.indexOf(p);
+      // Build rows using findIndex by EAN (more reliable than indexOf for objects)
+      var rowsHtml = '';
+      items.forEach(function (p) {
+        var realIdx = window.STORE_CATALOG.findIndex(function (x) { return String(x.ean) === String(p.ean); });
+        if (realIdx === -1) realIdx = 0; // fallback
         var isTrend = shopConfig.trending.indexOf(String(p.ean)) >= 0;
         var sq = parseInt(p.stock_qty, 10); if (isNaN(sq)) sq = 10;
         var stockBadge = sq <= 0
           ? '<span class="text-[9px] font-black text-rose-600">❌ OUT</span>'
           : (sq <= 5
-            ? `<span class="text-[9px] font-black text-amber-600">⚠️ LOW (${sq})</span>`
-            : `<span class="text-[9px] text-slate-400 font-bold">Stock: ${sq}</span>`);
-        return `
-        <div class="grid grid-cols-6 gap-1 items-center p-1.5 bg-white rounded-xl border border-slate-200 text-xs">
-          <!-- Product -->
-          <div class="min-w-0 flex items-center gap-2">
-            <img src="${p.image_url || 'https://via.placeholder.com/40x40'}" class="w-6 h-6 object-cover rounded border border-slate-100 bg-slate-50">
-            <div class="min-w-0">
-              <h5 class="font-bold text-slate-800 leading-tight truncate">${p.product_name}</h5>
-              <span class="text-[9px] text-slate-400 truncate">EAN: ${p.ean || '-'}</span>
-            </div>
-          </div>
-          <!-- MRP -->
-          <div class="text-slate-700 font-bold text-[10px]">₹${p.mrp || '0'}</div>
-          <!-- SP -->
-          <div class="text-[#1864ab] font-bold text-[10px]">₹${p.selling_price || '0'}</div>
-          <!-- Stock -->
-          <div class="text-[10px]">${stockBadge}</div>
-          <!-- Category -->
-          <div class="text-[9px] text-slate-500 truncate">${p.category || 'General'}</div>
-          <!-- Actions -->
-          <div class="flex gap-1 items-center justify-end">
-            <button onclick="toggleTrending('${p.ean}')" title="Trending ରେ ଯୋଡ଼ନ୍ତୁ/ହଟାନ୍ତୁ" class="w-5 h-5 rounded text-xs ${isTrend ? 'text-amber-500' : 'text-slate-300'}">${isTrend ? '★' : '☆'}</button>
-            <button onclick="editAdminProduct(${realIdx})" title="Edit" class="px-1.5 py-0.5 bg-amber-500 text-white rounded font-bold text-[9px]">Edit</button>
-            <button onclick="deleteAdminProduct(${realIdx})" title="Delete" class="px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded font-bold text-[9px]">Delete</button>
-          </div>
-        </div>
-      `;
-      }).join('');
+            ? '<span class="text-[9px] font-black text-amber-600">⚠️ LOW (' + sq + ')</span>'
+            : '<span class="text-[9px] text-slate-400 font-bold">Stock: ' + sq + '</span>');
+        rowsHtml += '<div class="grid grid-cols-6 gap-1 items-center p-1.5 bg-white rounded-xl border border-slate-200 text-xs">' +
+          '<div class="min-w-0 flex items-center gap-2">' +
+            '<img src="' + (p.image_url || 'https://via.placeholder.com/40x40') + '" class="w-6 h-6 object-cover rounded border border-slate-100 bg-slate-50">' +
+            '<div class="min-w-0">' +
+              '<h5 class="font-bold text-slate-800 leading-tight truncate">' + (p.product_name || 'Unknown') + '</h5>' +
+              '<span class="text-[9px] text-slate-400 truncate">EAN: ' + (p.ean || '-') + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="text-slate-700 font-bold text-[10px]">₹' + (p.mrp || '0') + '</div>' +
+          '<div class="text-[#1864ab] font-bold text-[10px]">₹' + (p.selling_price || '0') + '</div>' +
+          '<div class="text-[10px]">' + stockBadge + '</div>' +
+          '<div class="text-[9px] text-slate-500 truncate">' + (p.category || 'General') + '</div>' +
+          '<div class="flex gap-1 items-center justify-end">' +
+            '<button onclick="toggleTrending(\'' + (p.ean || '') + '\')" title="Trending ରେ ଯୋଡ଼ନ୍ତୁ/ହଟାନ୍ତୁ" class="w-5 h-5 rounded text-xs ' + (isTrend ? 'text-amber-500' : 'text-slate-300') + '">' + (isTrend ? '★' : '☆') + '</button>' +
+            '<button onclick="editAdminProduct(' + realIdx + ')" title="Edit" class="px-1.5 py-0.5 bg-amber-500 text-white rounded font-bold text-[9px]">Edit</button>' +
+            '<button onclick="deleteAdminProduct(' + realIdx + ')" title="Delete" class="px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded font-bold text-[9px]">Delete</button>' +
+          '</div>' +
+        '</div>';
+      });
+      box.innerHTML = rowsHtml;
       document.getElementById('adminTotalItems').innerText =
         q ? items.length + ' / ' + window.STORE_CATALOG.length + ' Items' : window.STORE_CATALOG.length + ' Items';
     }
