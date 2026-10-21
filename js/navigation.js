@@ -1,7 +1,7 @@
 /* munnamobile :: js/navigation.js  (extracted from index.html lines 2460-2584)
    screen navigation + customer orders list */
     function showScreen(name) {
-      ['cart','orders','address','profile'].forEach(s => {
+      ['home','cart','orders','address','profile'].forEach(s => {
         var el = document.getElementById(s + 'Screen');
         if (el) el.classList.toggle('hidden', s !== name);
       });
