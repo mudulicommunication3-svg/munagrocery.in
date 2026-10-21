@@ -310,7 +310,6 @@
           closedBanner.classList.remove('hidden'); // show the banner
           // Show admin-set open time (default 10 AM) — clean time only.
           var openTime = shopConfig.storeOpenTime || '10:00';
-          var openLabel = fmtClock_(new Date('2000-01-01T' + openTime + ':00'));
           if (closedOpenTime) closedOpenTime.textContent = 'ସକାଳ ' + openTime + ' ଟାରେ ଖୋଲିବ';
         }
       }
