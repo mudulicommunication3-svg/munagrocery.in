@@ -120,6 +120,17 @@
       }
       var pcfFee = parseFloat(cfg.pickup_charge_fee);
       if (!isNaN(pcfFee)) shopConfig.pickupChargeFee = Math.max(0, pcfFee);
+      // Store Service Hours (shared Config).
+      if (cfg.store_open !== undefined) {
+        shopConfig.storeOpen = !(String(cfg.store_open) === '0' ||
+          String(cfg.store_open).toLowerCase() === 'false');
+      }
+      if (typeof cfg.store_open_time === 'string' && cfg.store_open_time.trim()) {
+        shopConfig.storeOpenTime = cfg.store_open_time.trim();
+      }
+      if (typeof cfg.store_close_time === 'string' && cfg.store_close_time.trim()) {
+        shopConfig.storeCloseTime = cfg.store_close_time.trim();
+      }
       renderTrending();
       updateBillingSummary();
       try { renderDeliveryTiming(); } catch (eDT) {}
@@ -158,6 +169,11 @@
       var pcT = document.getElementById('setPickupChargeOn');
       if (pcT) pcT.checked = !!shopConfig.pickupChargeOn;
       f('setPickupChargeFee', shopConfig.pickupChargeFee || 0);
+      // Store Service Hours inputs.
+      var soT = document.getElementById('setStoreOpen');
+      if (soT) soT.checked = !!shopConfig.storeOpen;
+      f('setStoreOpenTime', shopConfig.storeOpenTime || '10:00');
+      f('setStoreCloseTime', shopConfig.storeCloseTime || '22:00');
     }
 
     // Read the Checkout & Delivery Settings card into shopConfig.
@@ -190,6 +206,13 @@
       if (pcT) shopConfig.pickupChargeOn = !!pcT.checked;
       var pcF = document.getElementById('setPickupChargeFee');
       if (pcF) shopConfig.pickupChargeFee = Math.max(0, parseFloat(pcF.value) || 0);
+      // Store Service Hours.
+      var soT = document.getElementById('setStoreOpen');
+      if (soT) shopConfig.storeOpen = !!soT.checked;
+      var sot = document.getElementById('setStoreOpenTime');
+      if (sot) shopConfig.storeOpenTime = sot.value || '10:00';
+      var sct = document.getElementById('setStoreCloseTime');
+      if (sct) shopConfig.storeCloseTime = sct.value || '22:00';
     }
 
     function saveShopSettings(quiet) {
@@ -240,7 +263,8 @@
         t = setTimeout(function () { saveShopSettings(true); }, 1500);
       };
       ['setDeliveryFee', 'setFreeAbove', 'setCouponCode', 'setCouponPercent', 'setCouponMinBill',
-       'setCodNotice', 'setPickupNote', 'setPickupChargeFee'].forEach(function (id) {
+       'setCodNotice', 'setPickupNote', 'setPickupChargeFee',
+       'setStoreOpenTime', 'setStoreCloseTime'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el || !el.addEventListener) return;
         el.addEventListener('input', schedule);
@@ -248,7 +272,8 @@
       // Toggles + slot checkboxes save on change (they are not text fields).
       ['setCodActive', 'setPickupActive', 'setPickupChargeOn', 'setStoreOpen',
        'setDeliveryDay', 'setDeliverySlot',
-       'slotChk_30_min', 'slotChk_1_hour', 'slotChk_2_hour'].forEach(function (id) {
+       'slotChk_30_min', 'slotChk_1_hour', 'slotChk_2_hour',
+       'setStoreOpen'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el || !el.addEventListener) return;
         el.addEventListener('change', schedule);
@@ -296,6 +321,10 @@
       ok = pushConfigToSheet('store_open', shopConfig.storeOpen ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_on', shopConfig.pickupChargeOn ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_fee', shopConfig.pickupChargeFee || 0) && ok;
+      // Store Service Hours -> shared Config (every customer phone gets it).
+      ok = pushConfigToSheet('store_open', shopConfig.storeOpen ? '1' : '0') && ok;
+      ok = pushConfigToSheet('store_open_time', shopConfig.storeOpenTime || '10:00') && ok;
+      ok = pushConfigToSheet('store_close_time', shopConfig.storeCloseTime || '22:00') && ok;
       // Banners too (if any) so the carousel also syncs.
       try { ok = pushBannersToSheet() && ok; } catch (e) {}
 

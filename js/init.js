@@ -22,7 +22,7 @@
 
       initCarousel();
       loadCart_(); // restore cart + applied coupon so refresh never empties it
-      autoTelegramLogin_(); // Telegram WebApp -> silent profile login
+      // (Telegram Mini App auto-login removed — shop runs on our own HTML.)
       // Restore the saved language (OD/EN) for the Profile selector.
       try { if (localStorage.getItem('munna_lang') === 'en') setLang(true); } catch (eL) {}
       updateHeaderAuth(); // no-op now (header chip removed) — kept for callers
@@ -44,6 +44,9 @@
       updateAppDownloadVisibility_();
       fetchApkLink_();
       setInterval(function () { syncBannersFromSheet(); syncFromGoogleSheet(); fetchAdminNotice(); fetchApkLink_(); }, 120000);
+      // Keep the store open/closed icon + delivery/pickup times fresh every
+      // minute so it auto-changes exactly when the store opens/closes.
+      setInterval(function () { try { renderDeliveryTiming(); } catch (e) {} }, 60000);
       // Shared-database sync: Telegram (bot) orders + saved addresses, then
       // keep refreshing so stage/status changes made in the bot show up here.
       // Admin/full-store devices use a faster sync managed by

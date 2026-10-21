@@ -1,5 +1,5 @@
 /* munnamobile :: js/auth.js  (extracted from index.html lines 5613-6125)
-   login/signup: password, Google, Telegram, guest */
+   login/signup: password, Google, guest */
     function getSessionUser() {
       try {
         var s = JSON.parse(localStorage.getItem('active_store_user') || 'null');
@@ -360,7 +360,7 @@
         msg.innerText = 'ଗୁଗଲ୍ ବଟନ୍ / One-Tap ଖୋଲୁଛି… (OAuth Client ID ସେଟ୍)';
         loadGisScript_(function (ok) { renderGoogleButton_(cid, ok); });
       } catch (e) {
-        msg.innerText = '❌ Google script load ହେଲା ନାହିଁ — OTP/Telegram ବ୍ୟବହାର କରନ୍ତୁ ।';
+        msg.innerText = '❌ Google script load ହେଲା ନାହିଁ — OTP ବ୍ୟବହାର କରନ୍ତୁ ।';
       }
     }
     function loadGisScript_(cb) {
@@ -435,53 +435,6 @@
       renderProfile();
     }
 
-    // --- Telegram auto-login (WebApp user -> profile, no typing) ---
-    function fillTgLoginInfo() {
-      var box = document.getElementById('tgLoginInfo');
-      var btn = document.getElementById('tgLoginBtn');
-      if (!box) return;
-      var u = getTgUser();
-      if (u) {
-        var nm = [u.first_name, u.last_name].filter(Boolean).join(' ') || 'Telegram User';
-        box.innerHTML = '<b>✅ ମିଳିଲା:</b> ' + nm +
-          (u.username ? ' (@' + u.username + ')' : '') +
-          (u.phone_number ? '<br>📞 ' + u.phone_number : '');
-        if (btn) btn.disabled = false;
-      } else {
-        box.innerHTML = '⚠️ ଟେଲିଗ୍ରାମ୍ ବାହାରେ (ବ୍ରାଉଜର୍‌ରେ) ଖୋଲାଅଛି — ବଟ୍ ଭିତରେ ଖୋଲିଲେ ନିଜେ ଲଗଇନ୍ ହେବ ।';
-        if (btn) btn.disabled = true;
-      }
-    }
-    function telegramLogin() {
-      var u = getTgUser();
-      if (!u) { alert('ଟେଲିଗ୍ରାମ୍ ବଟ୍ ଭିତରେ ଖୋଲନ୍ତୁ ।'); return; }
-      var nm = [u.first_name, u.last_name].filter(Boolean).join(' ') || (u.username || 'Telegram User');
-      var ph = u.phone_number || '';
-      if (!ph) {
-        ph = (prompt('📱 ପ୍ରଥମ ଅର୍ଡର ପାଇଁ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ (10 ଅଙ୍କ):', '') || '').replace(/\D/g, '').slice(-10);
-        if (ph && !/^[6-9]\d{9}$/.test(ph)) { alert('ଠିକ୍ ନମ୍ବର ଦିଅନ୍ତୁ ।'); return; }
-      }
-      loginDone({
-        name: nm, phone: ph || '',
-        tg_id: u.id ? String(u.id) : '',
-        provider: 'telegram'
-      }, '✅ Telegram ଲଗଇନ୍ ସଫଳ! ସ୍ୱାଗତ, ' + nm + ' ।');
-      renderProfile();
-    }
-    // Silent auto-login inside Telegram (session empty + tg user present).
-    function autoTelegramLogin_() {
-      if (getSessionUser()) return;
-      var u = getTgUser();
-      if (!u) return;
-      var nm = [u.first_name, u.last_name].filter(Boolean).join(' ') || (u.username || 'Telegram User');
-      setSessionUser({
-        name: nm,
-        phone: u.phone_number || '',
-        tg_id: u.id ? String(u.id) : '',
-        provider: 'telegram'
-      });
-    }
-
     // --- Guest mode: browse only. Ordering now REQUIRES a login. ---
     // Keeping the function name so any stale onclick/caller still resolves,
     // but it no longer opens the cart for checkout — it asks for login.
@@ -489,12 +442,12 @@
       closeLoginModal();
       try {
         if (getSessionUser()) {
-          // Already logged in (OTP/Google/Telegram) -> proceed to cart.
+          // Already logged in (OTP/Google) -> proceed to cart.
           showScreen('cart');
           return;
         }
       } catch (e) {}
-      alert('🔒 ଅର୍ଡର କରିବାକୁ ଲଗଇନ୍ ଆବଶ୍ୟକ। ଦୟାକରି OTP / Google / Telegram ରେ ଲଗଇନ୍ କରନ୍ତୁ।');
+      alert('🔒 ଅର୍ଡର କରିବାକୁ ଲଗଇନ୍ ଆବଶ୍ୟକ। ଦୟାକରି OTP / Google ରେ ଲଗଇନ୍ କରନ୍ତୁ।');
       openLoginModal();
     }
 
@@ -507,7 +460,7 @@
           return true;
         }
       } catch (e) {}
-      alert('🔒 ଅର୍ଡର ପାଇଁ ଲଗଇନ୍ ଆବଶ୍ୟକ। ପ୍ରଥମେ OTP / Google / Telegram ରେ ଲଗଇନ୍ କରନ୍ତୁ।');
+      alert('🔒 ଅର୍ଡର ପାଇଁ ଲଗଇନ୍ ଆବଶ୍ୟକ। ପ୍ରଥମେ OTP / Google ରେ ଲଗଇନ୍ କରନ୍ତୁ।');
       openLoginModal();
       return false;
     }

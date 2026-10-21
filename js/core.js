@@ -17,9 +17,9 @@
     let checkoutMap = null;
     let deliveryMarker = null;
 
-    // Telegram SDK
-    var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-    if (tg) { tg.ready(); tg.expand(); }
+    // Telegram Mini App SDK REMOVED — the shop is our own HTML (munagrocery.in)
+    // and must NOT depend on Telegram. `tg` is kept as null for legacy callers.
+    var tg = null;
 
     // Dynamic 5-Slide Banners
     let defaultBanners = [
@@ -60,7 +60,11 @@
       // Store Open / Closed status — admin sets via Sheet Config tab.
       // When false, home page shows "ଦୋକାନ ବନ୍ଦ" banner and hides
       // delivery/pickup chips (date + timing removed).
-      storeOpen: true
+      storeOpen: true,
+      // Store Service Hours — default 10 AM to 10 PM, every day.
+      // Admin can toggle ON/OFF and change open/close times.
+      storeOpenTime: '10:00',     // HH:MM 24h — default 10:00 (10 AM)
+      storeCloseTime: '22:00'     // HH:MM 24h — default 22:00 (10 PM)
     };
     let appliedCoupon = ''; // coupon code applied inside the cart
     try {
@@ -85,7 +89,14 @@
         if (typeof cachedCfg.pickupChargeOn === 'boolean') shopConfig.pickupChargeOn = cachedCfg.pickupChargeOn;
         var pcf = parseFloat(cachedCfg.pickupChargeFee);
         if (!isNaN(pcf)) shopConfig.pickupChargeFee = Math.max(0, pcf);
+<<<<<<< HEAD
         if (typeof cachedCfg.storeOpen === 'boolean') shopConfig.storeOpen = cachedCfg.storeOpen;
+=======
+        // Store Service Hours cache (shared Config).
+        if (typeof cachedCfg.storeOpen === 'boolean') shopConfig.storeOpen = cachedCfg.storeOpen;
+        if (typeof cachedCfg.storeOpenTime === 'string') shopConfig.storeOpenTime = cachedCfg.storeOpenTime;
+        if (typeof cachedCfg.storeCloseTime === 'string') shopConfig.storeCloseTime = cachedCfg.storeCloseTime;
+>>>>>>> 0923530111bd9a9d65541f9ecb535ffd0435f50b
       }
     } catch (e) {}
 
@@ -105,6 +116,52 @@
     var query = "";
     var isEnglish = false;
     var currentSearchSource = "jiomart";
+
+    // --- STORE SERVICE HOURS + DELIVERY/PICKUP TIME CALCULATION ------------
+    // "HH:MM" (24h) -> minutes since midnight.
+    function hhmmToMinutes_(hhmm) {
+      var parts = String(hhmm || '').split(':');
+      var h = parseInt(parts[0], 10) || 0;
+      var m = parseInt(parts[1], 10) || 0;
+      return h * 60 + m;
+    }
+    // Is the store open RIGHT NOW based on admin set hours (every day)?
+    function isStoreOpenNow_() {
+      if (shopConfig.storeOpen === false) return false;
+      var nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+      var openMins = hhmmToMinutes_(shopConfig.storeOpenTime);
+      var closeMins = hhmmToMinutes_(shopConfig.storeCloseTime);
+      // If close <= open (e.g. overnight), treat as open all day.
+      if (closeMins <= openMins) return true;
+      return nowMins >= openMins && nowMins < closeMins;
+    }
+    // Expected completion time (Date) = now + slot minutes, clamped by store hours.
+    // If order placed before open time -> expected starts from open time.
+    function expectedCompletionDate_(slotMinutes) {
+      var now = new Date();
+      var start = now;
+      var openMins = hhmmToMinutes_(shopConfig.storeOpenTime);
+      var openToday = new Date();
+      openToday.setHours(Math.floor(openMins / 60), openMins % 60, 0, 0);
+      // If current time is before opening time, compute from opening time.
+      if (now < openToday) start = openToday;
+      var exp = new Date(start.getTime() + slotMinutes * 60000);
+      return exp;
+    }
+    // Format Date as "h:MM AM/PM".
+    function fmtClock_(d) {
+      var h = d.getHours(), m = d.getMinutes();
+      var ap = h >= 12 ? 'PM' : 'AM';
+      var h12 = h % 12; if (h12 === 0) h12 = 12;
+      return h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + ap;
+    }
+    // Human readable delivery/pickup expected time string in Odia.
+    function expectedTimeText_(slotMinutes) {
+      var exp = expectedCompletionDate_(slotMinutes);
+      var now = new Date();
+      var cross = exp.getDate() !== now.getDate() || exp.getMonth() !== now.getMonth();
+      return fmtClock_(exp) + (cross ? ' (ଆଉକାଲି)' : '');
+    }
 
     // Mathematical Haversine Distance Formula
     function calcDistance(lat1, lon1, lat2, lon2) {

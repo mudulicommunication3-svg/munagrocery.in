@@ -1,6 +1,8 @@
 /* munnamobile :: js/data-helpers.js  (extracted from index.html lines 4357-4652)
    session/address/order helpers + local order caches */
-    function getTgUser() { try { return (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null; } catch (e) { return null; } }
+    // Telegram Mini App removed — always "no Telegram user" so every flow
+    // (login, address, orders) uses our own web session + Sheet webhook.
+    function getTgUser() { return null; }
     function uidKey(base) { var u = getTgUser(); return base + '_' + (u && u.id ? u.id : 'anon'); }
     // =========================================================================
     // ADDRESSES — IN-MEMORY ONLY (no localStorage persistence).
@@ -31,13 +33,17 @@
     var STATUS_STAGE = { pending: 1, accepted: 2, packing: 3, out_for_delivery: 4, delivered: 5, cancelled: 5, rejected: 5, 'expired / cancelled': 5 };
     var STAGE_STATUS = ['pending', 'accepted', 'packing', 'out_for_delivery', 'delivered'];
 
-    // Order id shaped exactly like the bot's db.make_order_id(): MUN-YYYYMMDD-XXXXXX
+    // Order id format: DATE + TIME + random letters, e.g.
+    // "MUN-20261020-143512-K7QPXZ". The Sheet's "Timestamp" column still holds
+    // "YYYY-MM-DD HH:mm:ss" (bot + Apps Script depend on that exact format),
+    // so the time part lives INSIDE the order id instead.
     function makeOrderId() {
       var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); };
-      var stamp = '' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate());
+      var datePart = '' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate());
+      var timePart = p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
       var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', rand = '';
       for (var i = 0; i < 6; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
-      return 'MUN-' + stamp + '-' + rand;
+      return 'MUN-' + datePart + '-' + timePart + '-' + rand;
     }
     // Timestamp shaped like the bot's "%Y-%m-%d %H:%M:%S"
     function sheetTimestamp(d) {
@@ -119,6 +125,15 @@
         items_text: (typeof itemsRaw === 'string' && itemsRaw) ? itemsRaw : itemsToText(lines),
         stage: STATUS_STAGE[status] || 1,
         status: status,
+        // --- live tracking timestamps (per-stage times, shared via Sheet) ---
+        // Placed at = the order's Timestamp column (always present).
+        placed_at: ts,
+        expected_by: String(o.expected_by || o.expectedBy || '').trim(),
+        accepted_at: String(o.accepted_at || o.acceptedAt || '').trim(),
+        packed_at: String(o.packed_at || o.packedAt || '').trim(),
+        out_for_delivery_at: String(o.out_for_delivery_at || o.outForDeliveryAt || '').trim(),
+        delivered_at: String(o.delivered_at || o.deliveredAt || '').trim(),
+        cancelled_at: String(o.cancelled_at || o.cancelledAt || '').trim(),
         channel: o.channel || 'webapp',
         telegram_user_id: o.telegram_user_id || '',
         status_msg_id: o.status_msg_id || ''

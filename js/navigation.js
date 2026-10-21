@@ -106,6 +106,9 @@
       ];
 
       box.innerHTML = orders.map(o => {
+        var trackHtml = typeof renderOrderTrackHtml_ === 'function'
+          ? renderOrderTrackHtml_(o) : '';
+
         var stNum = o.stage || 1;
         var stepperHtml = `<div class="stepper my-2.5"><div class="stepper-line"></div>` + 
           stages.map(st => `
@@ -131,7 +134,7 @@
               <span>Total Bill</span>
               <span class="text-[#1864ab]">Rs.${money(o.total)}</span>
             </div>
-            ${stepperHtml}
+            ${trackHtml ? trackHtml : stepperHtml}
             ${['pending', 'accepted', 'packing'].indexOf(o.status) >= 0
               ? `<button onclick="cancelMyOrder('${o.id}')" class="mt-2 w-full py-1.5 rounded-xl bg-rose-50 text-rose-600 text-[11px] font-bold border border-rose-200">❌ ଅର୍ଡର ବାତିଲ୍ କରନ୍ତୁ (ଡେଲିଭରୀ ବାହାରିବା ଆଗରୁ)</button>`
               : (o.status === 'cancelled' ? '<p class="mt-2 text-center text-[11px] font-bold text-rose-600 bg-rose-50 rounded-xl py-1.5 border border-rose-200">❌ ଏହି ଅର୍ଡର ବାତିଲ୍ ହୋଇଛି</p>' : '')}
