@@ -412,19 +412,19 @@
         var tq = cart[p.ean] || 0;
         var qtyCtl = tq > 0
           ? `<div class="flex items-center gap-1 bg-slate-900 text-white rounded-lg px-1 py-0.5">
-               <button onclick="setQty('${p.ean}', ${tq - 1})" class="w-5 h-5 rounded bg-slate-800 flex items-center justify-center"><i class="ph-bold ph-minus text-[10px]"></i></button>
+               <button onclick="event.stopPropagation();setQty('${p.ean}', ${tq - 1})" class="w-5 h-5 rounded bg-slate-800 flex items-center justify-center"><i class="ph-bold ph-minus text-[10px]"></i></button>
                <span class="text-[11px] font-bold w-4 text-center">${tq}</span>
-               <button onclick="setQty('${p.ean}', ${tq + 1})" class="w-5 h-5 rounded bg-[#1864ab] flex items-center justify-center"><i class="ph-bold ph-plus text-[10px]"></i></button>
+               <button onclick="event.stopPropagation();setQty('${p.ean}', ${tq + 1})" class="w-5 h-5 rounded bg-[#1864ab] flex items-center justify-center"><i class="ph-bold ph-plus text-[10px]"></i></button>
              </div>`
-          : `<button onclick="setQty('${p.ean}', 1)" class="w-6 h-6 rounded-lg bg-[#1864ab] text-white flex items-center justify-center"><i class="ph-bold ph-plus text-xs"></i></button>`;
+          : `<button onclick="event.stopPropagation();setQty('${p.ean}', 1)" class="w-6 h-6 rounded-lg bg-[#1864ab] text-white flex items-center justify-center"><i class="ph-bold ph-plus text-xs"></i></button>`;
         return `
-        <div class="shrink-0 w-32 bg-white rounded-2xl border border-slate-200 p-2 relative">
-          ${off > 0 ? `<span class="absolute top-1.5 left-1.5 bg-rose-600 text-white text-[9px] font-black px-1 py-0.5 rounded">${off}% OFF</span>` : ''}
-          <img src="${p.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300'}" class="w-full h-20 object-contain" alt="">
-          <p class="text-[10px] font-bold text-slate-800 line-clamp-2 mt-1 leading-tight">${p.product_name}</p>
-          <div class="flex items-center justify-between mt-1">
-            <span class="text-xs font-black text-[#1864ab]">Rs.${money(p.selling_price)}</span>
-            ${qtyCtl}
+        <div class="shrink-0 w-32 bg-white rounded-2xl border border-slate-200 p-2 relative flex flex-col cursor-pointer" onclick="openProductDetail('${String(p.ean).replace(/'/g, "\\'")}')">
+          ${off > 0 ? `<span class="absolute top-1.5 left-1.5 z-10 bg-rose-600 text-white text-[9px] font-black px-1 py-0.5 rounded">${off}% OFF</span>` : ''}
+          <img src="${p.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300'}" class="w-full h-20 object-contain" alt="" style="pointer-events:none">
+          <p class="text-[10px] font-bold text-slate-800 line-clamp-2 mt-1 leading-tight" style="pointer-events:none">${p.product_name}</p>
+          <div class="flex items-center justify-between mt-1 gap-2">
+            <span class="text-xs font-black text-[#1864ab] flex-1 min-w-0" style="pointer-events:none">Rs.${money(p.selling_price)}</span>
+            <div class="flex items-center gap-1 shrink-0" style="pointer-events:auto">${qtyCtl}</div>
           </div>
         </div>`;
       }).join('');

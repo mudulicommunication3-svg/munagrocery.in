@@ -67,6 +67,7 @@
       renderSimilarProducts_(p);
 
       document.getElementById('pdQty').innerText = detailState.qty;
+      renderDetailBottomBar();
       document.getElementById('productDetailScreen').classList.remove('hidden');
       document.getElementById('productDetailScreen').scrollTop = 0;
 
@@ -139,16 +140,33 @@
       // Nothing left open — let the browser/WebView handle it (exit/parent nav).
     });
 
+    // Toggle sticky bottom bar: stepper vs Add-to-Cart button based on cart qty
+    function renderDetailBottomBar() {
+      var wrap = document.getElementById('pdStepperWrap');
+      var btn = document.getElementById('pdAddCartBtn');
+      var q = cart[detailState.ean] || 0;
+      if (!wrap || !btn) return;
+      if (q > 0) {
+        wrap.classList.remove('hidden');
+        btn.classList.add('hidden');
+      } else {
+        wrap.classList.add('hidden');
+        btn.classList.remove('hidden');
+      }
+    }
+
     function detailQtyChange(delta) {
       var p = window.STORE_CATALOG.find(function (x) { return String(x.ean) === String(detailState.ean); });
       var max = p ? (parseInt(p.stock_qty, 10) || 1) : 1;
       detailState.qty = Math.max(1, Math.min(99, Math.min(detailState.qty + delta, max)));
       document.getElementById('pdQty').innerText = detailState.qty;
+      renderDetailBottomBar();
     }
 
     function detailAddToCart() {
       if (!detailState.ean) return;
       setQty(detailState.ean, detailState.qty);
+      renderDetailBottomBar();
       alert('✅ କାର୍ଟରେ ଯୋଡ଼ାଗଲା (' + detailState.qty + ' ଟି)! 🛒');
     }
 
@@ -327,11 +345,26 @@
             '</div>' +
             '<div class="mt-1.5 text-[10px] font-bold text-slate-800 leading-tight" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:26px;">' + String(s.product_name || '') + '</div>' +
             '<div class="mt-0.5 text-xs font-black text-slate-900">Rs.' + money(s.selling_price) + '</div>' +
-            '<button onclick="openProductDetail(\'' + String(s.ean).replace(/'/g, '') + '\')" class="mt-1.5 w-full py-1 rounded-lg bg-blue-50 text-[#1864ab] hover:bg-[#1864ab] hover:text-white border border-blue-200 text-[10px] font-bold">ଦେଖନ୍ତୁ</button>' +
-          '</div>';
-        }).join('');
-      } catch (e) {
+            '<div id="pdSimilarCtl-' + String(s.ean) + '" class="mt-1.5 w-full"></div>' + 
+          '</div>'; 
         box.innerHTML = '';
+      }
+    }
+
+
+    // Live Add-to-Cart / stepper control for similar product cards
+    function renderSimilarCTL(ean) {
+      var ctl = document.getElementById('pdSimilarCtl-' + String(ean));
+      if (!ctl) return;
+      var tq = (cart && cart[ean]) || 0;
+      if (tq > 0) {
+        ctl.innerHTML = '<div class="flex items-center gap-1 bg-slate-900 text-white rounded-lg px-1 py-0.5">' +
+          '<button onclick="event.stopPropagation();setQty(\'' + String(ean).replace(/'/g, "\\'") + "', " + (tq-1) + ')" class="w-5 h-5 rounded bg-slate-800 flex items-center justify-center"><i class="ph-bold ph-minus text-[10px]"></i></button>' +
+          '<span class="text-[11px] font-bold w-4 text-center">' + tq + '</span>' +
+          '<button onclick="event.stopPropagation();setQty(\'' + String(ean).replace(/'/g, "\\'") + "', " + (tq+1) + ')" class="w-5 h-5 rounded bg-[#1864ab] flex items-center justify-center"><i class="ph-bold ph-plus text-[10px]"></i></button>' +
+          '</div>';
+      } else {
+        ctl.innerHTML = '<button onclick="event.stopPropagation();setQty(\'' + String(ean).replace(/'/g, "\\'") + "', 1)" class="w-full py-1 rounded-lg bg-[#1864ab] text-white text-[10px] font-bold flex items-center justify-center gap-1"><i class="ph-bold ph-plus"></i> Add</button>';
       }
     }
 

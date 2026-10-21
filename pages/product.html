@@ -54,13 +54,13 @@
     <!-- Flipkart ପରି ସ୍ଥିର ତଳ ଆକ୍ସନ ବାର — ସିଷ୍ଟମ ଜେସ୍ଚର ବାର ଉପରେ ଭାସେ -->
     <div class="fixed left-0 right-0 z-10 bg-white border-t border-slate-200 shadow-2xl" style="bottom: calc(54px + env(safe-area-inset-bottom, 0px));">
       <div class="max-w-md mx-auto px-3.5 py-2.5 flex items-center gap-2">
-        <!-- Qty stepper -->
-        <div class="flex items-center gap-1.5 bg-slate-900 text-white rounded-xl px-1.5 py-1.5 shrink-0">
+        <!-- Qty stepper (toggled by renderDetailBottomBar) -->
+        <div id="pdStepperWrap" class="hidden flex items-center gap-1.5 bg-slate-900 text-white rounded-xl px-1.5 py-1.5 shrink-0">
           <button onclick="detailQtyChange(-1)" class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center"><i class="ph-bold ph-minus"></i></button>
           <span id="pdQty" class="text-sm font-black w-6 text-center">1</span>
           <button onclick="detailQtyChange(1)" class="w-7 h-7 rounded-lg bg-[#1864ab] flex items-center justify-center"><i class="ph-bold ph-plus"></i></button>
         </div>
-        <!-- Add to Cart -->
+        <!-- Add to Cart (shown when qty === 0) -->
         <button onclick="detailAddToCart()" id="pdAddCartBtn" class="flex-1 py-2.5 rounded-xl bg-[#1864ab] hover:bg-blue-800 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/30 active:scale-95 transition-all">
           <i class="ph-bold ph-shopping-bag"></i> କାର୍ଟରେ ଯୋଡ଼ନ୍ତୁ
         </button>
