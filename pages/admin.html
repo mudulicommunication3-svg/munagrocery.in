@@ -355,6 +355,20 @@
             <p class="text-[10px] text-amber-600 font-bold mt-0.5" id="storeOpenStatusText">ଦୋକାନ ଖୋଲାଅଛି ✅</p>
           </div>
 
+          <!-- Store Service Hours: Open Time + Close Time -->
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">Open Time</label>
+              <input type="time" id="setStoreOpenTime" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              <p class="text-[10px] text-slate-400 leading-snug mt-0.5">ଦୋକାନ ଖୋଲିବାର ସମୟ (default: 10:00 AM)</p>
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-700">Close Time</label>
+              <input type="time" id="setStoreCloseTime" class="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#1864ab]">
+              <p class="text-[10px] text-slate-400 leading-snug mt-0.5">ଦୋକାନ ବନ୍ଦ ହେବାର ସମୟ (default: 09:00 PM)</p>
+            </div>
+          </div>
+
           <!-- Checkout & Delivery Settings: COD + Store Pickup toggles (shared Config) -->
           <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
             <h4 class="text-xs font-black text-slate-700 flex items-center gap-1">

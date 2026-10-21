@@ -242,6 +242,8 @@
       ok = pushConfigToSheet('delivery_day', shopConfig.deliveryDay === 'Tomorrow' ? 'Tomorrow' : 'Today') && ok;
       ok = pushConfigToSheet('delivery_slot', shopConfig.deliverySlot || '1 hour') && ok;
       ok = pushConfigToSheet('store_open', shopConfig.storeOpen ? '1' : '0') && ok;
+      ok = pushConfigToSheet('store_open_time', shopConfig.storeOpenTime || '10:00') && ok;
+      ok = pushConfigToSheet('store_close_time', shopConfig.storeCloseTime || '21:00') && ok;
       ok = pushConfigToSheet('pickup_charge_on', shopConfig.pickupChargeOn ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_fee', shopConfig.pickupChargeFee || 0) && ok;
       updateBillingSummary();
@@ -318,7 +320,6 @@
       // Delivery timing (Home + Cart) + Store Pickup charge -> shared Config.
       ok = pushConfigToSheet('delivery_day', shopConfig.deliveryDay === 'Tomorrow' ? 'Tomorrow' : 'Today') && ok;
       ok = pushConfigToSheet('delivery_slot', shopConfig.deliverySlot || '1 hour') && ok;
-      ok = pushConfigToSheet('store_open', shopConfig.storeOpen ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_on', shopConfig.pickupChargeOn ? '1' : '0') && ok;
       ok = pushConfigToSheet('pickup_charge_fee', shopConfig.pickupChargeFee || 0) && ok;
       // Store Service Hours -> shared Config (every customer phone gets it).

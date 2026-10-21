@@ -283,8 +283,56 @@
     // (Today/Tomorrow · 30 min | 1 hour | 2 hour | 3 hour | 5 hour).
       // When store is closed (storeOpen === false): hide the date + timing chips
       // entirely and show the "ଦୋକାନ ବନ୍ଦ" banner on the home page.
+    // Check if store is currently open based on admin-set open/close times.
+    // Returns true if storeOpen is true AND current time is within [open, close).
+    function isStoreOpenNow_() {
+      if (shopConfig.storeOpen === false) return false;
+      var openTime = shopConfig.storeOpenTime || '10:00';
+      var closeTime = shopConfig.storeCloseTime || '21:00';
+      // Strict validation: must be clean "HH:MM" string.
+      if (typeof openTime !== 'string' || !/^\d{1,2}:\d{2}$/.test(openTime)) openTime = '10:00';
+      if (typeof closeTime !== 'string' || !/^\d{1,2}:\d{2}$/.test(closeTime)) closeTime = '21:00';
+      openTime = String(openTime).trim();
+      closeTime = String(closeTime).trim();
+
+      var now = new Date();
+      var nowMinutes = now.getHours() * 60 + now.getMinutes();
+      var openParts = openTime.split(':').map(Number);
+      var closeParts = closeTime.split(':').map(Number);
+      var openMinutes = openParts[0] * 60 + openParts[1];
+      var closeMinutes = closeParts[0] * 60 + closeParts[1];
+
+      // If close time <= open time, treat as overnight (e.g., 22:00 to 06:00).
+      // For normal day: open < close.
+      if (openMinutes < closeMinutes) {
+        return nowMinutes >= openMinutes && nowMinutes < closeMinutes;
+      } else {
+        // Overnight: open at 22:00, close at 06:00 next day.
+        return nowMinutes >= openMinutes || nowMinutes < closeMinutes;
+      }
+    }
+
+    // Format "HH:MM" to "10:00 AM" style for display.
+    function fmtTimeDisplay_(hhmm) {
+      var parts = String(hhmm).split(':').map(Number);
+      var h = parts[0] || 10, m = parts[1] || 0;
+      var ap = h >= 12 ? 'PM' : 'AM';
+      var h12 = h % 12; if (h12 === 0) h12 = 12;
+      return h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + ap;
+    }
+
+    // Get next open time string for display when store is closed.
+    function nextOpenTimeText_() {
+      var openTime = shopConfig.storeOpenTime || '10:00';
+      if (typeof openTime !== 'string' || !/^\d{1,2}:\d{2}$/.test(openTime)) openTime = '10:00';
+      return fmtTimeDisplay_(openTime);
+    }
+
     function renderDeliveryTiming() {
-      var storeClosed = shopConfig.storeOpen === false;
+      var timeBasedClosed = !isStoreOpenNow_();
+      var manualClosed = shopConfig.storeOpen === false;
+      var storeClosed = timeBasedClosed || manualClosed;
+
       // Show / hide the store-status banner on the home page.
       var banner = document.getElementById('storeStatusBanner');
       if (banner) banner.classList.toggle('hidden', !storeClosed);
@@ -295,7 +343,28 @@
         if (delBox) delBox.classList.add('hidden');
         var pkBox = document.getElementById('homePickupBox');
         if (pkBox) pkBox.classList.add('hidden');
+
+        // Show closed banner with next open time.
+        var closedBanner = document.getElementById('homeStoreClosedBanner');
+        var closedOpenTime = document.getElementById('homeStoreClosedOpenTime');
+        if (closedBanner) {
+          closedBanner.classList.remove('hidden'); // show the banner
+          var nextOpen = nextOpenTimeText_();
+          if (closedOpenTime) {
+            if (manualClosed) {
+              closedOpenTime.textContent = 'ଦୋକାନୀ ଦୋକାନ ବନ୍ଦ ରଖିଛନ୍ତି — ଖୋଲିବା ପରେ ଅର୍ଡର କରନ୍ତୁ';
+            } else {
+              closedOpenTime.textContent = 'ଡେଲିଭରୀ ଆରମ୍ଭ: ' + nextOpen + ' ରେ';
+            }
+          }
+        }
         return;
+      }
+
+      // Store is OPEN — hide closed banner.
+      var closedBanner = document.getElementById('homeStoreClosedBanner');
+      if (closedBanner) {
+        closedBanner.classList.add('hidden'); // remove from view entirely
       }
 
       var day = (shopConfig.deliveryDay === 'Tomorrow') ? 'ଆଉକାଲି' : 'ଆଜି';
@@ -308,33 +377,11 @@
       set('cartTimingText');     // Cart page summary card
       set('payTimingText');      // Cart page -> Payment step (Home Delivery option)
 
-      // Store Closed Banner: show only when CLOSED; remove entirely when OPEN
-      // (home screen shows as usual).
-      var closedBanner = document.getElementById('homeStoreClosedBanner');
-      var closedOpenTime = document.getElementById('homeStoreClosedOpenTime');
-
-      if (closedBanner) {
-        if (!storeClosed) {
-          closedBanner.classList.add('hidden'); // remove from view entirely
-        } else {
-          closedBanner.classList.remove('hidden'); // show the banner
-          // Show admin-set open time (default 10 AM) — clean time only.
-          var openTime = shopConfig.storeOpenTime || '10:00';
-          // Strict validation: must be clean "HH:MM" string only. Never accept
-          // a Date object or full date string that could leak from Sheet cache.
-          if (typeof openTime !== 'string') openTime = '10:00';
-          openTime = String(openTime).trim();
-          if (!/^\d{1,2}:\d{2}$/.test(openTime)) openTime = '10:00';
-          if (closedOpenTime) closedOpenTime.textContent = 'ସକାଳ ' + openTime + ' ଟାରେ ଖୋଲିବ';
-        }
-      }
-
-      // Home page chips: HIDE entirely when the admin turned that option OFF
-      // OR when the store is CLOSED (both delivery & pickup unavailable).
+      // Home page chips: HIDE entirely when the admin turned that option OFF.
       var delBox = document.getElementById('homeDeliveryBox');
-      if (delBox) delBox.classList.toggle('hidden', shopConfig.codActive === false || storeClosed);
+      if (delBox) delBox.classList.toggle('hidden', shopConfig.codActive === false);
       var pkBox = document.getElementById('homePickupBox');
-      if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false || storeClosed);
+      if (pkBox) pkBox.classList.toggle('hidden', shopConfig.pickupActive === false);
 
       // Show simple timing text on chips.
       var homeBoxTimingEl = document.getElementById('homeBoxTiming');
