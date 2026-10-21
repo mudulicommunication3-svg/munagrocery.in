@@ -57,9 +57,9 @@
           if (qty > 0) {
             actionBox.innerHTML = `
               <div class="flex items-center justify-between bg-slate-900 text-white rounded-xl px-1.5 py-1">
-                <button onclick="setQty('${p.ean}', ${qty - 1})" class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs"><i class="ph-bold ph-minus"></i></button>
+                <button onclick="event.stopPropagation();setQty('${p.ean}', ${qty - 1})" class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs"><i class="ph-bold ph-minus"></i></button>
                 <span class="text-xs font-bold">${qty}</span>
-                <button onclick="setQty('${p.ean}', ${qty + 1})" class="w-6 h-6 rounded bg-[#1864ab] flex items-center justify-center text-xs"><i class="ph-bold ph-plus"></i></button>
+                <button onclick="event.stopPropagation();setQty('${p.ean}', ${qty + 1})" class="w-6 h-6 rounded bg-[#1864ab] flex items-center justify-center text-xs"><i class="ph-bold ph-plus"></i></button>
               </div>
             `;
           } else if (stockN <= 0) {
@@ -70,7 +70,7 @@
             `;
           } else {
             actionBox.innerHTML = `
-              <button onclick="setQty('${p.ean}', 1)" class="w-full py-1.5 rounded-xl bg-blue-50 text-[#1864ab] hover:bg-[#1864ab] hover:text-white border border-blue-200 text-xs font-bold transition-all flex items-center justify-center gap-1">
+              <button onclick="event.stopPropagation();setQty('${p.ean}', 1)" class="w-full py-1.5 rounded-xl bg-blue-50 text-[#1864ab] hover:bg-[#1864ab] hover:text-white border border-blue-200 text-xs font-bold transition-all flex items-center justify-center gap-1">
                 <i class="ph-bold ph-plus"></i> କାର୍ଟରେ ଯୋଡ଼ନ୍ତୁ
               </button>
             `;

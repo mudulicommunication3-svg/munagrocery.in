@@ -77,7 +77,7 @@
       var alreadyPushed = history.state && history.state.screen === 'product_detail' &&
         String(history.state.ean) === String(p.ean) &&
         window.location.search === detailUrl;
-      if (!alreadyPushed) {
+      if (!alreadyPushed && !window.__deepLinkConsumed) {
         history.pushState({ screen: 'product_detail', ean: String(p.ean) }, '', detailUrl);
       }
     }
@@ -97,6 +97,7 @@
       if (syncHistory !== false && history.state && history.state.screen === 'product_detail') {
         history.back(); // popstate then fires on an already-hidden screen -> no-op
       }
+      window.__deepLinkConsumed = true; // prevent re-open on background sync
     }
 
     // ---- Universal hardware/browser Back navigation --------------------
@@ -144,31 +145,44 @@
     function renderDetailBottomBar() {
       var wrap = document.getElementById('pdStepperWrap');
       var btn = document.getElementById('pdAddCartBtn');
-      var q = cart[detailState.ean] || 0;
+      var qtyEl = document.getElementById('pdQty');
       if (!wrap || !btn) return;
+      var q = (window.cart && detailState.ean && window.cart[detailState.ean]) ? window.cart[detailState.ean] : 0;
       if (q > 0) {
         wrap.classList.remove('hidden');
+        wrap.style.display = 'flex';
         btn.classList.add('hidden');
+        btn.style.display = 'none';
+        if (qtyEl) qtyEl.innerText = q;
       } else {
         wrap.classList.add('hidden');
+        wrap.style.display = 'none';
         btn.classList.remove('hidden');
+        btn.style.display = 'flex';
       }
     }
 
     function detailQtyChange(delta) {
-      var p = window.STORE_CATALOG.find(function (x) { return String(x.ean) === String(detailState.ean); });
-      var max = p ? (parseInt(p.stock_qty, 10) || 1) : 1;
-      detailState.qty = Math.max(1, Math.min(99, Math.min(detailState.qty + delta, max)));
-      document.getElementById('pdQty').innerText = detailState.qty;
-      setQty(detailState.ean, detailState.qty);
+      if (!detailState || !detailState.ean) return;
+      var cur = (window.cart && window.cart[detailState.ean]) ? window.cart[detailState.ean] : 0;
+      var p = (window.STORE_CATALOG || []).find(function (x) { return String(x.ean) === String(detailState.ean); });
+      var max = p ? (parseInt(p.stock_qty, 10) || 99) : 99;
+      var next = Math.min(max, cur + delta);
+      if (next <= 0) {
+        detailState.qty = 1;
+        setQty(detailState.ean, 0);
+      } else {
+        detailState.qty = next;
+        setQty(detailState.ean, next);
+      }
       renderDetailBottomBar();
     }
 
     function detailAddToCart() {
-      if (!detailState.ean) return;
-      setQty(detailState.ean, detailState.qty);
+      if (!detailState || !detailState.ean) return;
+      detailState.qty = 1;
+      setQty(detailState.ean, 1);
       renderDetailBottomBar();
-      alert('✅ କାର୍ଟରେ ଯୋଡ଼ାଗଲା (' + detailState.qty + ' ଟି)! 🛒');
     }
 
     function detailBuyNow() {
@@ -336,23 +350,26 @@
           return;
         }
         var fallback = 'icon-512.png'; // server-hosted — always loads
-        box.innerHTML = list.map(function (s) {
+        var inStockList = list.filter(function (s) { return (parseInt(s.stock_qty, 10) || 0) > 0; });
+        box.innerHTML = inStockList.map(function (s) {
           var mrp = parseFloat(s.mrp) || 0, sp = parseFloat(s.selling_price) || 0;
           var off = mrp > sp ? Math.round(((mrp - sp) / mrp) * 100) : 0;
+          var safeEan = String(s.ean).replace(/'/g, "\\'");
           return '<div class="shrink-0 w-32 bg-white rounded-2xl border border-slate-200 shadow-xs p-2 flex flex-col">' +
-            '<div class="relative w-full h-20 rounded-xl bg-slate-50 overflow-hidden cursor-pointer" onclick="openProductDetail(\'' + String(s.ean).replace(/'/g, '') + '\')">' +
-              '<img src="' + (s.image_url || fallback) + '" alt="" class="w-full h-full object-contain" onerror="this.src=\'' + fallback + '\'">' +
+            '<div class="relative w-full h-20 rounded-xl bg-slate-50 overflow-hidden cursor-pointer" onclick="openProductDetail(\'" + safeEan + "\')">' +
+              '<img src="' + (s.image_url || fallback) + '" alt="" class="w-full h-full object-contain" onerror="this.src=\'" + fallback + "\'">' +
               (off > 0 ? '<span class="absolute top-1 left-1 bg-orange-600 text-white text-[9px] font-black px-1 py-0.5 rounded">' + off + '% OFF</span>' : '') +
             '</div>' +
-            '<div class="mt-1.5 text-[10px] font-bold text-slate-800 leading-tight" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:26px;">' + String(s.product_name || '') + '</div>' +
+            '<div class="mt-1.5 text-[10px] font-bold text-slate-800 leading-tight cursor-pointer" onclick="openProductDetail(\'" + safeEan + "\')" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:26px;">' + String(s.product_name || '') + '</div>' +
             '<div class="mt-0.5 text-xs font-black text-slate-900">Rs.' + money(s.selling_price) + '</div>' +
-            '<div id="pdSimilarCtl-' + String(s.ean) + '" class="mt-1.5 w-full"></div>' + 
+            '<div id="pdSimilarCtl-' + String(s.ean) + '" class="mt-1.5 w-full"></div>' +
           '</div>';
         }).join('');
-        list.forEach(function (s) { renderSimilarCTL(s.ean); });
+        inStockList.forEach(function (s) { renderSimilarCTL(s.ean); });
       } catch (e) {
         box.innerHTML = '';
       }
+    }
     // Live Add-to-Cart / stepper control for similar product cards
     function renderSimilarCTL(ean) {
       var ctl = document.getElementById('pdSimilarCtl-' + String(ean));
@@ -374,8 +391,17 @@
       }
     }
 
-    var ean = '';
-    try { ean = new URLSearchParams(window.location.search).get('item') || ''; } catch (e) {}
+    // Expose globally so catalog.js setQty can re-render similar CTL and bottom bar
+    window.renderSimilarCTL = renderSimilarCTL;
+    window.renderDetailBottomBar = renderDetailBottomBar;
+    window.detailAddToCart = detailAddToCart;
+    window.detailQtyChange = detailQtyChange;
+
+    function handleItemDeepLink_() {
+      if (window.__deepLinkConsumed) return;
+      window.__deepLinkConsumed = true;
+      var ean = '';
+      try { ean = new URLSearchParams(window.location.search).get('item') || ''; } catch (e) {}
       if (!ean) return;
       var tries = 0;
       var timer = setInterval(function () {
@@ -389,5 +415,6 @@
         }
       }, 300); // wait up to ~6s for the catalog to load
     }
+    handleItemDeepLink_();
 
     // ================= SCREEN NAVIGATION =================

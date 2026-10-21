@@ -415,6 +415,9 @@
       scheduleCartSync_(); // account-wise cloud cart sync (debounced, logged-in only)
       render();
       renderCartDrawer();
+      // Re-render similar-product CTL and product-detail bottom bar live after any qty change
+      if (typeof window.renderSimilarCTL === 'function') window.renderSimilarCTL(ean);
+      if (typeof window.renderDetailBottomBar === 'function') window.renderDetailBottomBar();
     }
 
     // ====================================================================

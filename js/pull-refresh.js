@@ -78,6 +78,9 @@
       document.addEventListener('touchstart', function (e) {
         if (busy || pulling || e.touches.length > 1) return;
         if (modalOpen_() || onControl_(e.target)) return;
+        // Never pull-to-refresh while Product Detail screen is open
+        var pd = document.getElementById('productDetailScreen');
+        if (pd && !pd.classList.contains('hidden')) return;
         if (!atTop_()) return;
         startY = e.touches[0].clientY;
         startX = e.touches[0].clientX;
@@ -112,6 +115,9 @@
       document.addEventListener('mousedown', function (e) {
         if (busy || modalOpen_() || e.button !== 0) return;
         if (onControl_(e.target) || !atTop_()) return;
+        // Never pull-to-refresh while Product Detail screen is open
+        var pd = document.getElementById('productDetailScreen');
+        if (pd && !pd.classList.contains('hidden')) return;
         mouseDown = true; pulling = true; armed = false; dist = 0;
         startY = e.clientY; startX = e.clientX;
       });
