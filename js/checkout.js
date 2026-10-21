@@ -235,12 +235,23 @@
       var b = cartBilling();
       var set = function (id, v) { var el = document.getElementById(id); if (el) el.innerText = v; };
       set('summarySubtotal', 'Rs.' + money(b.subtotal));
-      // First bill (cart page) = items ONLY (− coupon). The delivery/pickup
-      // charge is shown on the FINAL Payment step only, after the address.
+      // Show live delivery/pickup charge on cart page based on selected method
+      var charge = selectedDeliveryType === 'pickup' ? (b.pickup || 0) : (b.delivery || 0);
+      var chargeLabel = selectedDeliveryType === 'pickup' ? '🛍️ Pickup ଚାର୍ଜ:' : '🚚 ଡେଲିଭରି ଚାର୍ଜ:';
+      var chargeEl = document.getElementById('summaryDeliveryRow');
+      var chargeLabelEl = document.getElementById('summaryDeliveryLabel');
+      var chargeValEl = document.getElementById('summaryDeliveryCharge');
+      if (chargeEl) {
+        // Show delivery/pickup charge row only when there is a charge
+        chargeEl.classList.toggle('hidden', charge <= 0);
+        if (chargeLabelEl) chargeLabelEl.textContent = chargeLabel;
+        if (chargeValEl) chargeValEl.textContent = charge > 0 ? ('Rs.' + money(charge)) : 'ମାଗଣା ✅';
+      }
       var disRow = document.getElementById('summaryDiscountRow');
       if (disRow) disRow.classList.toggle('hidden', b.discount <= 0);
       set('summaryDiscount', '-Rs.' + money(b.discount));
-      set('summaryTotal', 'Rs.' + money(Math.max(0, b.subtotal - b.discount)));
+      // Total = subtotal + delivery/pickup charge − coupon discount
+      set('summaryTotal', 'Rs.' + money(b.total));
       updatePaymentBill();
     }
 
